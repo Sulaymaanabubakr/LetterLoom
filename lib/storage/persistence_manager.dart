@@ -1,0 +1,138 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import '../models/game_state.dart';
+import '../models/statistics.dart';
+import '../models/game_settings.dart';
+
+class CorruptedSaveException implements Exception {
+  final String message;
+  CorruptedSaveException(this.message);
+  @override
+  String toString() => 'CorruptedSaveException: $message';
+}
+
+class PersistenceManager {
+  static final PersistenceManager _instance = PersistenceManager._internal();
+  factory PersistenceManager() => _instance;
+  PersistenceManager._internal();
+
+  static const String _gameSaveFileName = 'letterloom_save_v1.json';
+  static const String _statsSaveFileName = 'letterloom_stats_v1.json';
+  static const String _settingsSaveFileName = 'letterloom_settings_v1.json';
+
+  Future<File> _getFile(String fileName) async {
+    final Directory directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/$fileName');
+  }
+
+  // --- Active Game Persistence ---
+
+  Future<void> saveGame(GameState state) async {
+    try {
+      final file = await _getFile(_gameSaveFileName);
+      final jsonString = jsonEncode(state.toJson());
+      await file.writeAsString(jsonString);
+    } catch (e) {
+      debugPrint("Error saving game state: $e");
+    }
+  }
+
+  Future<GameState?> loadGame() async {
+    try {
+      final file = await _getFile(_gameSaveFileName);
+      if (!await file.exists()) {
+        return null;
+      }
+      final String jsonString = await file.readAsString();
+      if (jsonString.isEmpty) return null;
+
+      final Map<String, dynamic> jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+      return GameState.fromJson(jsonMap);
+    } catch (e) {
+      debugPrint("Error loading game state (likely corruption): $e");
+      throw CorruptedSaveException("The saved game file is corrupted or incompatible.");
+    }
+  }
+
+  Future<void> deleteGameSave() async {
+    try {
+      final file = await _getFile(_gameSaveFileName);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      debugPrint("Error deleting game save: $e");
+    }
+  }
+
+  Future<bool> hasSavedGame() async {
+    try {
+      final file = await _getFile(_gameSaveFileName);
+      if (!await file.exists()) return false;
+      final content = await file.readAsString();
+      return content.trim().isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // --- Statistics Persistence ---
+
+  Future<void> saveStatistics(Statistics stats) async {
+    try {
+      final file = await _getFile(_statsSaveFileName);
+      final jsonString = jsonEncode(stats.toJson());
+      await file.writeAsString(jsonString);
+    } catch (e) {
+      debugPrint("Error saving statistics: $e");
+    }
+  }
+
+  Future<Statistics> loadStatistics() async {
+    try {
+      final file = await _getFile(_statsSaveFileName);
+      if (!await file.exists()) {
+        return const Statistics();
+      }
+      final String jsonString = await file.readAsString();
+      if (jsonString.isEmpty) return const Statistics();
+
+      final Map<String, dynamic> jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+      return Statistics.fromJson(jsonMap);
+    } catch (e) {
+      debugPrint("Error loading statistics, resetting to default: $e");
+      return const Statistics();
+    }
+  }
+
+  // --- Settings Persistence ---
+
+  Future<void> saveSettings(GameSettings settings) async {
+    try {
+      final file = await _getFile(_settingsSaveFileName);
+      final jsonString = jsonEncode(settings.toJson());
+      await file.writeAsString(jsonString);
+    } catch (e) {
+      debugPrint("Error saving settings: $e");
+    }
+  }
+
+  Future<GameSettings> loadSettings() async {
+    try {
+      final file = await _getFile(_settingsSaveFileName);
+      if (!await file.exists()) {
+        return const GameSettings();
+      }
+      final String jsonString = await file.readAsString();
+      if (jsonString.isEmpty) return const GameSettings();
+
+      final Map<String, dynamic> jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+      return GameSettings.fromJson(jsonMap);
+    } catch (e) {
+      debugPrint("Error loading settings, resetting to default: $e");
+      return const GameSettings();
+    }
+  }
+}
