@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../game/game_notifier.dart';
 import '../../core/haptic_utils.dart';
+import '../../core/toast_utils.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -12,29 +14,61 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
-          'Reset Statistics?',
-          style: TextStyle(fontFamily: 'Lora', fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF021710),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
         ),
-        content: const Text(
-          'This will permanently clear all your wins, losses, high scores, and statistics. This action cannot be undone.',
-          style: TextStyle(fontFamily: 'Inter'),
+        title: Center(
+          child: Text(
+            'Reset Statistics?',
+            style: GoogleFonts.lora(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.shinyGold,
+              fontSize: 20,
+            ),
+          ),
+        ),
+        content: Text(
+          'This will permanently delete all records of games, wins, and losses.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: AppTheme.mutedIvory,
+            fontSize: 14,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.darkCharcoal)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                color: AppTheme.shinyGold,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5A120A),
+              side: const BorderSide(color: AppTheme.shinyGold, width: 1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             onPressed: () {
               ref.read(gameProvider.notifier).resetStatistics();
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Statistics cleared!')),
-              );
+              ToastUtils.show(context, 'Statistics cleared!');
             },
-            child: const Text('Reset', style: TextStyle(color: Colors.white)),
+            child: Text(
+              'Reset',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -47,138 +81,542 @@ class SettingsScreen extends ConsumerWidget {
     final settings = gameState.settings;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Settings',
-          style: TextStyle(fontFamily: 'Lora', fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.darkCharcoal),
-          onPressed: () {
-            HapticUtils.trigger(HapticType.tap, settings);
-            Navigator.of(context).pop();
-          },
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Preference cards
-            Card(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    title: const Text(
-                      'Sound Effects',
-                      style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: const Text('Play sounds on placement & victory'),
-                    value: settings.soundEnabled,
-                    activeThumbColor: AppTheme.emeraldGreen,
-                    onChanged: (val) {
-                      HapticUtils.trigger(HapticType.tap, settings);
-                      ref.read(gameProvider.notifier).toggleSound(val);
-                    },
+      body: PremiumBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Custom Header Bar with Back Button & Ornate Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                child: SizedBox(
+                  height: 42,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Custom Gold-Bordered Back Button
+                      Positioned(
+                        left: 0,
+                        child: InkWell(
+                          onTap: () {
+                            HapticUtils.trigger(HapticType.tap, settings);
+                            Navigator.of(context).pop();
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                width: 1.2,
+                              ),
+                              color: const Color(0xFF010E0A),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: AppTheme.shinyGold,
+                                size: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Centered Gold Title
+                      Positioned.fill(
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '➔  ',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.shinyGold,
+                                ),
+                              ),
+                              ShaderMask(
+                                shaderCallback: (bounds) => const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFFF1CC),
+                                    Color(0xFFD4AF37),
+                                    Color(0xFF8A640F),
+                                  ],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ).createShader(bounds),
+                                child: Text(
+                                  'SETTINGS',
+                                  style: GoogleFonts.lora(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '  ➔',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.shinyGold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                  SwitchListTile(
-                    title: const Text(
-                      'Haptic Feedback',
-                      style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: const Text('Vibrate for tile movements & taps'),
-                    value: settings.hapticEnabled,
-                    activeThumbColor: AppTheme.emeraldGreen,
-                    onChanged: (val) {
-                      ref.read(gameProvider.notifier).toggleHaptics(val);
-                      if (val) {
-                        // Quick preview trigger
-                        HapticFeedback.mediumImpact();
-                      }
-                    },
-                  ),
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                  SwitchListTile(
-                    title: const Text(
-                      'Background Music',
-                      style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: const Text('Enable ambient game music (if loaded)'),
-                    value: settings.musicEnabled,
-                    activeThumbColor: AppTheme.emeraldGreen,
-                    onChanged: (val) {
-                      HapticUtils.trigger(HapticType.tap, settings);
-                      ref.read(gameProvider.notifier).toggleMusic(val);
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            // Animation settings
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 18.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Thin Divider
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'AI Placement Speed',
-                      style: TextStyle(
-                        fontFamily: 'Lora',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              AppTheme.shinyGold.withValues(alpha: 0.35),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Controls how fast the computer opponent places tiles on the board.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.darkCharcoal.withValues(alpha: 0.6),
+                    const SizedBox(width: 12),
+                    Transform.rotate(
+                      angle: 3.14159 / 4,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppTheme.emeraldGreen,
+                          border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildSpeedOption(ref, 'Slow', 1.5, settings.animationSpeed),
-                        _buildSpeedOption(ref, 'Normal', 1.0, settings.animationSpeed),
-                        _buildSpeedOption(ref, 'Fast', 0.5, settings.animationSpeed),
-                        _buildSpeedOption(ref, 'Instant', 0.2, settings.animationSpeed),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.shinyGold.withValues(alpha: 0.35),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-            // Reset button
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[800],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () {
-                HapticUtils.trigger(HapticType.tap, settings);
-                _showResetConfirmDialog(context, ref);
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.delete_forever, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Reset Statistics',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              const SizedBox(height: 12),
+              // Scroll Area
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Preferences Category
+                      _buildCategoryHeader('Preferences'),
+                      // Switch 1: Sound Effects
+                      _buildPreferenceCard(
+                        title: 'Sound Effects',
+                        subtitle: 'Play sounds on tile placement\n& when you win.',
+                        iconData: Icons.volume_up_rounded,
+                        value: settings.soundEnabled,
+                        onChanged: (val) {
+                          HapticUtils.trigger(HapticType.tap, settings);
+                          ref.read(gameProvider.notifier).toggleSound(val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // Switch 2: Haptic Feedback
+                      _buildPreferenceCard(
+                        title: 'Haptic Feedback',
+                        subtitle: 'Vibrate for tile movements\n& taps.',
+                        iconData: Icons.vibration_rounded,
+                        value: settings.hapticEnabled,
+                        onChanged: (val) {
+                          ref.read(gameProvider.notifier).toggleHaptics(val);
+                          if (val) {
+                            HapticFeedback.mediumImpact();
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // Switch 3: Background Music
+                      _buildPreferenceCard(
+                        title: 'Background Music',
+                        subtitle: 'Enable ambient music\nfor a more immersive\nexperience.',
+                        iconData: Icons.music_note_rounded,
+                        value: settings.musicEnabled,
+                        onChanged: (val) {
+                          HapticUtils.trigger(HapticType.tap, settings);
+                          ref.read(gameProvider.notifier).toggleMusic(val);
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      // Gameplay Category
+                      _buildCategoryHeader('Gameplay'),
+                      // Card 4: AI Placement Speed Selector
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2),
+                          gradient: const LinearGradient(
+                            colors: AppTheme.darkGreenGradient,
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI Placement Speed',
+                              style: GoogleFonts.lora(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.shinyGold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Choose how fast the computer opponent places tiles on the board.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                color: AppTheme.mutedIvory,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            // Speed selection segmented row
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.25), width: 1),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(11),
+                                child: Row(
+                                  children: [
+                                    _buildSpeedOption(ref, 'Slow', Icons.hourglass_bottom_rounded, 1.5, settings.animationSpeed, isFirst: true),
+                                    _buildSpeedOption(ref, 'Normal', Icons.eco_rounded, 1.0, settings.animationSpeed),
+                                    _buildSpeedOption(ref, 'Fast', Icons.directions_run_rounded, 0.5, settings.animationSpeed),
+                                    _buildSpeedOption(ref, 'Instant', Icons.flash_on_rounded, 0.2, settings.animationSpeed, isLast: true),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Account Category
+                      _buildCategoryHeader('Account'),
+                      // Card 5: Reset Statistics (Red danger button)
+                      Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF5A120A),
+                              Color(0xFF2E0502),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              HapticUtils.trigger(HapticType.tap, settings);
+                              _showResetConfirmDialog(context, ref);
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Row(
+                                children: [
+                                  // Left Trash Icon Circular Frame
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFF2E0502),
+                                      border: Border.all(
+                                        color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.delete_rounded,
+                                        color: AppTheme.shinyGold,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Middle Text Info
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Reset Statistics',
+                                          style: GoogleFonts.lora(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.ivoryText,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'This will permanently delete all your gameplay statistics and records.',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            color: const Color(0xFFE2B7B5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Right Arrow
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 15,
+                                    color: AppTheme.shinyGold,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Divider & Footer Line
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.transparent,
+                                    AppTheme.shinyGold.withValues(alpha: 0.4),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Transform.rotate(
+                            angle: 3.14159 / 4,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: AppTheme.emeraldGreen,
+                                border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppTheme.shinyGold.withValues(alpha: 0.4),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14.0, bottom: 10.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '✦  ',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.shinyGold.withValues(alpha: 0.7),
+            ),
+          ),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.mutedIvory,
+              letterSpacing: 2.0,
+            ),
+          ),
+          Text(
+            '  ✦',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.shinyGold.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreferenceCard({
+    required String title,
+    required String subtitle,
+    required IconData iconData,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2),
+        gradient: const LinearGradient(
+          colors: AppTheme.darkGreenGradient,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Left Circular Icon Frame
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF010A07),
+              border: Border.all(
+                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                width: 1.2,
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                iconData,
+                color: AppTheme.shinyGold,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Middle Text (Serif Title, Sans-serif Subtitle)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.lora(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.ivoryText,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppTheme.mutedIvory,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Custom Green/Gold Toggle Switch
+          _buildCustomSwitch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomSwitch({required bool value, required ValueChanged<bool> onChanged}) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 52,
+        height: 30,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          color: value ? const Color(0xFF0C5036) : const Color(0xFF031610),
+          border: Border.all(
+            color: value ? AppTheme.shinyGold : AppTheme.shinyGold.withValues(alpha: 0.35),
+            width: 1.2,
+          ),
+        ),
+        child: Stack(
+          children: [
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              left: value ? 24.0 : 2.0,
+              top: 2.0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFFFF1CC),
+                      Color(0xFFD4AF37),
+                      Color(0xFF9E7108),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
               ),
             ),
           ],
@@ -187,26 +625,60 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSpeedOption(WidgetRef ref, String label, double speedVal, double currentSpeed) {
+  Widget _buildSpeedOption(
+    WidgetRef ref,
+    String label,
+    IconData icon,
+    double speedVal,
+    double currentSpeed, {
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
     final bool active = speedVal == currentSpeed;
-    return InkWell(
-      onTap: () {
-        ref.read(gameProvider.notifier).setAnimationSpeed(speedVal);
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? AppTheme.forestGreen : Colors.transparent,
-          border: Border.all(color: active ? AppTheme.forestGreen : AppTheme.lightGrey),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: active ? Colors.white : AppTheme.darkCharcoal,
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          ref.read(gameProvider.notifier).setAnimationSpeed(speedVal);
+        },
+        child: Container(
+          height: 42,
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFF0A3022) : Colors.transparent,
+            border: active
+                ? Border.all(color: AppTheme.shinyGold, width: 1.5)
+                : Border(
+                    right: !isLast
+                        ? BorderSide(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.15),
+                            width: 1.0,
+                          )
+                        : BorderSide.none,
+                  ),
+            borderRadius: active
+                ? BorderRadius.circular(10)
+                : BorderRadius.horizontal(
+                    left: isFirst ? const Radius.circular(11) : Radius.zero,
+                    right: isLast ? const Radius.circular(11) : Radius.zero,
+                  ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: active ? AppTheme.shinyGold : AppTheme.mutedIvory,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: active ? AppTheme.shinyGold : AppTheme.mutedIvory,
+                ),
+              ),
+            ],
           ),
         ),
       ),

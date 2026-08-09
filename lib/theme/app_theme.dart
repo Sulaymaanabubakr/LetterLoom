@@ -30,6 +30,17 @@ class AppTheme {
   static const Color darkCharcoal   = Color(0xFF1A1A1A);
   static const Color lightGrey      = Color(0xFF2E4438);
 
+  // ── Home Screen Premium Gradients ───────────────────────────────────────────
+  static const List<Color> goldGradient = [
+    Color(0xFFF9D67A),
+    Color(0xFFD59F25),
+    Color(0xFF9E7108),
+  ];
+  static const List<Color> darkGreenGradient = [
+    Color(0xFF0A3022),
+    Color(0xFF031610),
+  ];
+
   // ── Premium Cell Colors ──────────────────────────────────────────────────────
   static const Color tripleWordColor   = Color(0xFFC63B30); // TW – terracotta red
   static const Color doubleWordColor   = Color(0xFFD8753C); // DW – clay orange
@@ -158,4 +169,44 @@ class AppTheme {
       default:                     return '';
     }
   }
+}
+
+class PremiumBackground extends StatelessWidget {
+  final Widget child;
+  const PremiumBackground({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: const PremiumBackgroundPainter(),
+      child: child,
+    );
+  }
+}
+
+class PremiumBackgroundPainter extends CustomPainter {
+  const PremiumBackgroundPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+
+    // 1. Paint vignette radial gradient background
+    final Paint bgPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0, -0.3),
+        radius: 1.4,
+        colors: const [
+          Color(0xFF063021), // rich forest green center
+          Color(0xFF021710), // dark emerald green middle
+          Color(0xFF010604), // near-black green corners
+        ],
+        stops: const [0.0, 0.6, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

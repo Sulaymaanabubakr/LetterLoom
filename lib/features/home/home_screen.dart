@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
@@ -35,80 +36,302 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showDifficultyDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Center(
-          child: Text(
-            'Select Difficulty',
-            style: TextStyle(fontFamily: 'Lora', fontWeight: FontWeight.bold),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF021710),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(
+            top: BorderSide(color: AppTheme.shinyGold, width: 1.5),
           ),
         ),
-        content: Column(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildDifficultyButton('Easy', 'Plays simple words, relaxes scores.', 'easy'),
+            // Header: Title and Close Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(width: 32), // spacer to center title
+                // Title
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '➔  ',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.shinyGold,
+                        ),
+                      ),
+                      ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [
+                            Color(0xFFFFF1CC),
+                            Color(0xFFD4AF37),
+                            Color(0xFF8A640F),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ).createShader(bounds),
+                        child: Text(
+                          'Select Difficulty',
+                          style: GoogleFonts.lora(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '  ➔',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.shinyGold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Circular Close Button
+                InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.0),
+                      color: const Color(0xFF010E0A),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: AppTheme.shinyGold,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Subtitle
+            Center(
+              child: Text(
+                'Choose your challenge level',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppTheme.mutedIvory,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Easy option
+            _buildDifficultyOptionCard(
+              title: 'Easy',
+              desc: 'Casual and forgiving',
+              iconData: Icons.spa_rounded,
+              customIcon: null,
+              diffValue: 'easy',
+            ),
             const SizedBox(height: 12),
-            _buildDifficultyButton('Medium', 'Competitive plays, balanced scoring.', 'medium'),
+            // Medium option
+            _buildDifficultyOptionCard(
+              title: 'Medium',
+              desc: 'Balanced and competitive',
+              iconData: Icons.balance_rounded,
+              customIcon: null,
+              diffValue: 'medium',
+            ),
             const SizedBox(height: 12),
-            _buildDifficultyButton('Hard', 'Strategic board usage and trie searches.', 'hard'),
+            // Hard option
+            _buildDifficultyOptionCard(
+              title: 'Hard',
+              desc: 'Strategic and challenging',
+              iconData: null,
+              customIcon: const CustomPaint(
+                size: Size(20, 20),
+                painter: ChessKnightPainter(color: AppTheme.shinyGold),
+              ),
+              diffValue: 'hard',
+            ),
+            const SizedBox(height: 24),
+            // Decorative Diamond Divider
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          AppTheme.shinyGold.withValues(alpha: 0.4),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Transform.rotate(
+                  angle: 3.14159 / 4,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppTheme.emeraldGreen,
+                      border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.shinyGold.withValues(alpha: 0.4),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.darkCharcoal)),
-          ),
-        ],
       ),
     ).then((_) => _checkSavedGame()); // Re-check if game is in progress now
   }
 
-  Widget _buildDifficultyButton(String title, String desc, String diffValue) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).pop();
-        ref.read(gameProvider.notifier).startNewGame(diffValue);
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => const GameScreen()),
-        ).then((_) => _checkSavedGame());
-      },
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.lightGrey),
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.white,
+  Widget _buildDifficultyOptionCard({
+    required String title,
+    required String desc,
+    required IconData? iconData,
+    required Widget? customIcon,
+    required String diffValue,
+  }) {
+    return Container(
+      height: 72,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+        gradient: const LinearGradient(
+          colors: AppTheme.darkGreenGradient,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        child: Row(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            offset: const Offset(0, 4),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppTheme.forestGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    desc,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      color: AppTheme.darkCharcoal.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
+            Positioned(
+              right: -20,
+              top: -20,
+              bottom: -20,
+              width: 120,
+              child: Opacity(
+                opacity: 0.04,
+                child: CustomPaint(
+                  painter: GoldMotifPainter(color: AppTheme.shinyGold),
+                ),
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.warmGold),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).pop();
+                  ref.read(gameProvider.notifier).startNewGame(diffValue);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const GameScreen()),
+                  ).then((_) => _checkSavedGame());
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      // Left circular icon frame
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF010A07),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Center(
+                          child: customIcon ??
+                              Icon(
+                                iconData,
+                                color: AppTheme.shinyGold,
+                                size: 18,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Text Info
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: GoogleFonts.lora(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.ivoryText,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              desc,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppTheme.mutedIvory,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Chevron
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 15,
+                        color: AppTheme.shinyGold,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -118,212 +341,433 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.scaffoldDark,
-              Color(0xFF01100A),
-            ],
-          ),
-        ),
+      body: PremiumBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(flex: 2),
-                // Logo & Branding
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.8), width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              offset: const Offset(0, 6),
-                              blurRadius: 14,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 48),
+                  // Logo & Branding
+                  Center(
+                    child: Column(
+                      children: [
+                        // Luxury Logo Container
+                        Container(
+                          width: 135,
+                          height: 135,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                offset: const Offset(0, 10),
+                                blurRadius: 18,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(28),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // App Title with Gold Gradient
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [
+                              Color(0xFFFFF1CC), // light shiny gold highlight
+                              Color(0xFFD4AF37), // rich gold
+                              Color(0xFF8A640F), // antique bronze gold shadow
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ).createShader(bounds),
+                          child: Text(
+                            'LetterLoom',
+                            style: GoogleFonts.lora(
+                              fontSize: 50,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 2.0,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.4),
+                                  offset: const Offset(0, 3),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Subtitle with Gold Ornaments
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '➔  ',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.shinyGold,
+                              ),
+                            ),
+                            Text(
+                              'Offline Craft Wordplay',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.mutedIvory,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                            Text(
+                              '  ➔',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.shinyGold,
+                              ),
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            fit: BoxFit.cover,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Menu Buttons
+                  _buildPremiumButton(
+                    title: 'New Game',
+                    subtitle: 'Start a new word challenge',
+                    iconData: null,
+                    isPrimary: true,
+                    onPressed: _showDifficultyDialog,
+                  ),
+                  const SizedBox(height: 12),
+                  if (!_checkingSave)
+                    _buildPremiumButton(
+                      title: 'Continue Game',
+                      subtitle: 'Resume your last match',
+                      iconData: Icons.history_rounded,
+                      isPrimary: false,
+                      onPressed: _canContinue
+                          ? () {
+                              ref.read(gameProvider.notifier).loadSavedGame();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (context) => const GameScreen()),
+                              ).then((_) => _checkSavedGame());
+                            }
+                          : null,
+                    ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'How to Play',
+                    subtitle: 'Learn the rules & scoring',
+                    iconData: Icons.menu_book_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const HowToPlayScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Statistics',
+                    subtitle: 'View your records & progress',
+                    iconData: Icons.bar_chart_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const StatisticsScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Settings',
+                    subtitle: 'Customize your experience',
+                    iconData: Icons.settings_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  // Divider & Footer Line (No Copyright text)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                AppTheme.shinyGold.withValues(alpha: 0.4),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'LetterLoom',
-                        style: TextStyle(
-                          fontFamily: 'Lora',
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.ivoryText,
-                          letterSpacing: 1.5,
+                      const SizedBox(width: 12),
+                      Transform.rotate(
+                        angle: 3.14159 / 4,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppTheme.emeraldGreen,
+                            border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Offline Craft Wordplay',
-                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          color: AppTheme.mutedIvory,
-                          letterSpacing: 1,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.shinyGold.withValues(alpha: 0.4),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const Spacer(flex: 3),
-                // Menu Buttons
-                _buildMenuButton(
-                  title: 'New Game',
-                  icon: Icons.play_arrow_rounded,
-                  onPressed: _showDifficultyDialog,
-                  isPrimary: true,
-                ),
-                const SizedBox(height: 14),
-                if (!_checkingSave)
-                  _buildMenuButton(
-                    title: 'Continue Game',
-                    icon: Icons.history_rounded,
-                    onPressed: _canContinue
-                        ? () {
-                            ref.read(gameProvider.notifier).loadSavedGame();
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (context) => const GameScreen()),
-                            ).then((_) => _checkSavedGame());
-                          }
-                        : null,
-                    isPrimary: false,
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumButton({
+    required String title,
+    required String subtitle,
+    required IconData? iconData,
+    required bool isPrimary,
+    required VoidCallback? onPressed,
+  }) {
+    final bool disabled = onPressed == null;
+
+    final Color textPrimaryColor = isPrimary ? const Color(0xFF1E1402) : AppTheme.ivoryText;
+    final Color textSecondaryColor = isPrimary ? const Color(0xFF4E3705) : const Color(0xFF8AA59B);
+
+    return Opacity(
+      opacity: disabled ? 0.45 : 1.0,
+      child: Container(
+        height: 72,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isPrimary && !disabled
+              ? [
+                  BoxShadow(
+                    color: AppTheme.shinyGold.withValues(alpha: 0.35),
+                    offset: const Offset(0, 6),
+                    blurRadius: 14,
                   ),
-                const SizedBox(height: 14),
-                _buildMenuButton(
-                  title: 'How to Play',
-                  icon: Icons.help_outline_rounded,
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => const HowToPlayScreen()),
-                    );
-                  },
-                  isPrimary: false,
-                ),
-                const SizedBox(height: 14),
-                _buildMenuButton(
-                  title: 'Statistics',
-                  icon: Icons.bar_chart_rounded,
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => const StatisticsScreen()),
-                    );
-                  },
-                  isPrimary: false,
-                ),
-                const SizedBox(height: 14),
-                _buildMenuButton(
-                  title: 'Settings',
-                  icon: Icons.settings_rounded,
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                    );
-                  },
-                  isPrimary: false,
-                ),
-                const Spacer(flex: 1),
-                // Attribution Footer
-                 Center(
-                  child: Text(
-                    'Permissive Wordlist © Dolph Dictionary & SOWPODS',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      color: AppTheme.mutedIvory.withValues(alpha: 0.5),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    offset: const Offset(0, 4),
+                    blurRadius: 8,
+                  ),
+                ],
+          border: !isPrimary
+              ? Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2)
+              : null,
+          gradient: LinearGradient(
+            colors: isPrimary ? AppTheme.goldGradient : AppTheme.darkGreenGradient,
+            begin: isPrimary ? Alignment.topLeft : Alignment.topCenter,
+            end: isPrimary ? Alignment.bottomRight : Alignment.bottomCenter,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // Lattice Pattern Overlay on the right
+              Positioned(
+                right: -20,
+                top: -20,
+                bottom: -20,
+                width: 120,
+                child: Opacity(
+                  opacity: isPrimary ? 0.08 : 0.04,
+                  child: CustomPaint(
+                    painter: GoldMotifPainter(
+                      color: isPrimary ? Colors.black : AppTheme.shinyGold,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuButton({
-    required String title,
-    required IconData icon,
-    required VoidCallback? onPressed,
-    required bool isPrimary,
-  }) {
-    final bool disabled = onPressed == null;
-    final buttonColor = isPrimary
-        ? AppTheme.shinyGold
-        : disabled
-            ? AppTheme.panelDark.withValues(alpha: 0.5)
-            : AppTheme.panelDark;
-    final textColor = isPrimary
-        ? AppTheme.panelDark
-        : disabled
-            ? AppTheme.mutedIvory.withValues(alpha: 0.4)
-            : AppTheme.ivoryText;
-
-    return Container(
-      height: 52,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: isPrimary && !disabled
-            ? [
-                BoxShadow(
-                  color: AppTheme.shinyGold.withValues(alpha: 0.3),
-                  offset: const Offset(0, 4),
-                  blurRadius: 8,
-                ),
-              ]
-            : null,
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonColor,
-          foregroundColor: textColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: !isPrimary && !disabled
-                ? BorderSide(color: AppTheme.shinyGold.withValues(alpha: 0.35), width: 1)
-                : BorderSide.none,
-          ),
-        ),
-        onPressed: onPressed,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: textColor),
-            const SizedBox(width: 10),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-                letterSpacing: 0.5,
               ),
-            ),
-          ],
+              // Main content layout
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onPressed,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        // Left Circular Icon Frame
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isPrimary ? const Color(0xFF031A12) : const Color(0xFF010A07),
+                            border: Border.all(
+                              color: isPrimary
+                                  ? AppTheme.shinyGold.withValues(alpha: 0.2)
+                                  : AppTheme.shinyGold.withValues(alpha: 0.65),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Center(
+                            child: isPrimary
+                                ? const CustomPaint(
+                                    size: Size(22, 22),
+                                    painter: ChessKnightPainter(color: AppTheme.shinyGold),
+                                  )
+                                : Icon(
+                                    iconData,
+                                    color: AppTheme.shinyGold,
+                                    size: 20,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // Middle Text Info (Serif Title, Sans-serif Subtitle)
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: GoogleFonts.lora(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textPrimaryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  color: textSecondaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Right Chevron Arrow
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 15,
+                          color: isPrimary ? const Color(0xFF1E1402) : AppTheme.shinyGold,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class ChessKnightPainter extends CustomPainter {
+  final Color color;
+  const ChessKnightPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    final double w = size.width;
+    final double h = size.height;
+
+    path.moveTo(w * 0.28, h * 0.85);
+    path.lineTo(w * 0.72, h * 0.85);
+    path.lineTo(w * 0.70, h * 0.76);
+    path.quadraticBezierTo(w * 0.72, h * 0.65, w * 0.68, h * 0.58);
+    path.cubicTo(w * 0.82, h * 0.44, w * 0.82, h * 0.22, w * 0.68, h * 0.12);
+    path.quadraticBezierTo(w * 0.60, h * 0.05, w * 0.52, h * 0.08);
+    path.lineTo(w * 0.48, h * 0.16);
+    path.quadraticBezierTo(w * 0.40, h * 0.12, w * 0.34, h * 0.18);
+    path.cubicTo(w * 0.22, h * 0.22, w * 0.16, h * 0.35, w * 0.18, h * 0.46);
+    path.quadraticBezierTo(w * 0.24, h * 0.52, w * 0.30, h * 0.48);
+    path.quadraticBezierTo(w * 0.36, h * 0.58, w * 0.32, h * 0.72);
+    path.quadraticBezierTo(w * 0.28, h * 0.78, w * 0.28, h * 0.85);
+    path.close();
+
+    canvas.drawPath(path, paint);
+
+    // Eye
+    final eyePaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.6)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(w * 0.42, h * 0.28), w * 0.045, eyePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class GoldMotifPainter extends CustomPainter {
+  final Color color;
+  const GoldMotifPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    final double w = size.width;
+    final double h = size.height;
+
+    final path = Path();
+    for (double i = -h; i < w; i += 12) {
+      path.moveTo(i, 0);
+      path.lineTo(i + h, h);
+    }
+    for (double i = 0; i < w + h; i += 12) {
+      path.moveTo(i, 0);
+      path.lineTo(i - h, h);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
