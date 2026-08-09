@@ -39,38 +39,98 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.inter(
-                color: AppTheme.shinyGold,
-                fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                child: _premiumDialogButton(
+                  label: 'Cancel',
+                  onTap: () => Navigator.of(context).pop(),
+                ),
               ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5A120A),
-              side: const BorderSide(color: AppTheme.shinyGold, width: 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _premiumDialogButton(
+                  label: 'Reset',
+                  isDanger: true,
+                  onTap: () {
+                    ref.read(gameProvider.notifier).resetStatistics();
+                    Navigator.of(context).pop();
+                    ToastUtils.show(context, 'Statistics cleared!');
+                  },
+                ),
               ),
-            ),
-            onPressed: () {
-              ref.read(gameProvider.notifier).resetStatistics();
-              Navigator.of(context).pop();
-              ToastUtils.show(context, 'Statistics cleared!');
-            },
-            child: Text(
-              'Reset',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _premiumDialogButton({
+    required String label,
+    required VoidCallback onTap,
+    bool isPrimary = false,
+    bool isDanger = false,
+  }) {
+    Gradient gradient;
+    Border? border;
+    Color textColor;
+
+    if (isPrimary) {
+      gradient = const LinearGradient(
+        colors: AppTheme.goldGradient,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      textColor = const Color(0xFF1E1402);
+    } else if (isDanger) {
+      gradient = const LinearGradient(
+        colors: [Color(0xFF5A120A), Color(0xFF2E0502)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      border = Border.all(
+        color: AppTheme.shinyGold.withValues(alpha: 0.55),
+        width: 1.2,
+      );
+      textColor = Colors.white;
+    } else {
+      gradient = const LinearGradient(
+        colors: AppTheme.darkGreenGradient,
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+      border = Border.all(
+        color: AppTheme.shinyGold.withValues(alpha: 0.55),
+        width: 1.2,
+      );
+      textColor = AppTheme.shinyGold;
+    }
+
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: border,
+        gradient: gradient,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              style: GoogleFonts.lora(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -240,6 +300,7 @@ class SettingsScreen extends ConsumerWidget {
                         onChanged: (val) {
                           HapticUtils.trigger(HapticType.tap, settings);
                           ref.read(gameProvider.notifier).toggleSound(val);
+                          ToastUtils.show(context, val ? 'Sound effects enabled' : 'Sound effects disabled');
                         },
                       ),
                       const SizedBox(height: 12),
@@ -254,6 +315,7 @@ class SettingsScreen extends ConsumerWidget {
                           if (val) {
                             HapticFeedback.mediumImpact();
                           }
+                          ToastUtils.show(context, val ? 'Haptic feedback enabled' : 'Haptic feedback disabled');
                         },
                       ),
                       const SizedBox(height: 12),
@@ -266,6 +328,7 @@ class SettingsScreen extends ConsumerWidget {
                         onChanged: (val) {
                           HapticUtils.trigger(HapticType.tap, settings);
                           ref.read(gameProvider.notifier).toggleMusic(val);
+                          ToastUtils.show(context, val ? 'Background music enabled' : 'Background music disabled');
                         },
                       ),
                       const SizedBox(height: 24),
@@ -313,10 +376,10 @@ class SettingsScreen extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(11),
                                 child: Row(
                                   children: [
-                                    _buildSpeedOption(ref, 'Slow', Icons.hourglass_bottom_rounded, 1.5, settings.animationSpeed, isFirst: true),
-                                    _buildSpeedOption(ref, 'Normal', Icons.eco_rounded, 1.0, settings.animationSpeed),
-                                    _buildSpeedOption(ref, 'Fast', Icons.directions_run_rounded, 0.5, settings.animationSpeed),
-                                    _buildSpeedOption(ref, 'Instant', Icons.flash_on_rounded, 0.2, settings.animationSpeed, isLast: true),
+                                    _buildSpeedOption(context, ref, 'Slow', Icons.hourglass_bottom_rounded, 1.5, settings.animationSpeed, isFirst: true),
+                                    _buildSpeedOption(context, ref, 'Normal', Icons.eco_rounded, 1.0, settings.animationSpeed),
+                                    _buildSpeedOption(context, ref, 'Fast', Icons.directions_run_rounded, 0.5, settings.animationSpeed),
+                                    _buildSpeedOption(context, ref, 'Instant', Icons.flash_on_rounded, 0.2, settings.animationSpeed, isLast: true),
                                   ],
                                 ),
                               ),
@@ -626,6 +689,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSpeedOption(
+    BuildContext context,
     WidgetRef ref,
     String label,
     IconData icon,
@@ -638,7 +702,10 @@ class SettingsScreen extends ConsumerWidget {
     return Expanded(
       child: InkWell(
         onTap: () {
+          final settings = ref.read(gameProvider).settings;
+          HapticUtils.trigger(HapticType.tap, settings);
           ref.read(gameProvider.notifier).setAnimationSpeed(speedVal);
+          ToastUtils.show(context, 'AI speed set to: $label');
         },
         child: Container(
           height: 42,

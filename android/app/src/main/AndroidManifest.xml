@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required by audioplayers for audio session management -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Keeps audio playing when screen dims during a game -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:label="LetterLoom"
         android:name="${applicationName}"

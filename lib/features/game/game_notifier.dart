@@ -14,6 +14,7 @@ import '../../dictionary/dictionary_service.dart';
 import '../../ai/ai_isolate.dart';
 import '../../ai/ai_engine.dart';
 import '../../storage/persistence_manager.dart';
+import '../../core/music_manager.dart';
 
 final gameProvider = StateNotifierProvider<GameNotifier, GameState>((ref) {
   return GameNotifier();
@@ -64,6 +65,8 @@ class GameNotifier extends StateNotifier<GameState> {
       settings: settings,
       statistics: stats,
     );
+    
+    unawaited(MusicManager.instance.init(settings.musicEnabled));
   }
 
   // --- External Actions ---
@@ -144,8 +147,8 @@ class GameNotifier extends StateNotifier<GameState> {
     _persistence.saveGame(state);
   }
 
-  void abandonGame() {
-    _persistence.deleteGameSave();
+  Future<void> abandonGame() async {
+    await _persistence.deleteGameSave();
     
     // Record as loss if in progress
     if (state.status != 'gameCompleted') {
@@ -163,7 +166,7 @@ class GameNotifier extends StateNotifier<GameState> {
         computerScore: 0,
         statistics: updatedStats,
       );
-      _persistence.saveStatistics(updatedStats);
+      await _persistence.saveStatistics(updatedStats);
     }
   }
 
@@ -762,6 +765,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final updated = state.settings.copyWith(musicEnabled: enabled);
     state = state.copyWith(settings: updated);
     _persistence.saveSettings(updated);
+    MusicManager.instance.updateMusicState(enabled);
   }
 
   void setAnimationSpeed(double speed) {

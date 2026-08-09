@@ -8,7 +8,7 @@
 PRODUCT_NAME = letterloom
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.letterloom.letterloom
+PRODUCT_BUNDLE_IDENTIFIER = com.letter.loom
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.letterloom. All rights reserved.

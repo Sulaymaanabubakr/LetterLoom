@@ -155,8 +155,8 @@ class HowToPlayScreen extends StatelessWidget {
                     children: [
                       // Header Card: Rules Summary & Gold Medal
                       _buildPremiumCard(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             // Custom Emblem LPainter Container
                             Container(
@@ -193,29 +193,24 @@ class HowToPlayScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'The Rules of LetterLoom',
-                                    style: GoogleFonts.lora(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.shinyGold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'LetterLoom is a word game where two players compete by forming words on a 15×15 grid using letter tiles from a rack of seven. Each word placed must be verified against the local offline English dictionary.',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 13,
-                                      height: 1.4,
-                                      color: AppTheme.mutedIvory,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 14),
+                            Text(
+                              'The Rules of LetterLoom',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.lora(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.shinyGold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'LetterLoom is a word game where two players compete by forming words on a 15×15 grid using letter tiles from a rack of seven. Each word placed must be verified against the local offline English dictionary.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                height: 1.4,
+                                color: AppTheme.mutedIvory,
                               ),
                             ),
                           ],
@@ -223,8 +218,8 @@ class HowToPlayScreen extends StatelessWidget {
                       ),
                       // Card 1: Board Placement
                       _buildPremiumCard(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             // Mini Grid Painter
                             Container(
@@ -240,31 +235,24 @@ class HowToPlayScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildCardTitle('1', 'Board Placement'),
-                                  const SizedBox(height: 12),
-                                  _buildBulletItem(
-                                    'First Word: ',
-                                    'The first word submitted must cross the golden centre star cell (7, 7).',
-                                  ),
-                                  _buildBulletItem(
-                                    'Alignment: ',
-                                    'All tiles placed in a turn must be aligned in a single row or column (no diagonals).',
-                                  ),
-                                  _buildBulletItem(
-                                    'Contiguity: ',
-                                    'There must be no empty grid cells between the tiles placed in that straight line.',
-                                  ),
-                                  _buildBulletItem(
-                                    'Connectivity: ',
-                                    'After the first turn, every new word must connect to at least one tile already locked on the board.',
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 14),
+                            _buildCardTitle('1', 'Board Placement'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'First Word: ',
+                              'The first word submitted must cross the golden centre star cell (7, 7).',
+                            ),
+                            _buildBulletItem(
+                              'Alignment: ',
+                              'All tiles placed in a turn must be aligned in a single row or column (no diagonals).',
+                            ),
+                            _buildBulletItem(
+                              'Contiguity: ',
+                              'There must be no empty grid cells between the tiles placed in that straight line.',
+                            ),
+                            _buildBulletItem(
+                              'Connectivity: ',
+                              'After the first turn, every new word must connect to at least one tile already locked on the board.',
                             ),
                           ],
                         ),
@@ -272,12 +260,13 @@ class HowToPlayScreen extends StatelessWidget {
                       // Card 2: Premium Spaces
                       _buildPremiumCard(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             _buildCardTitle('2', 'Premium Spaces'),
                             const SizedBox(height: 8),
                             Text(
                               'Multipliers only apply when a tile is first placed on the cell. Locked tiles on subsequent turns do not trigger the multiplier again.',
+                              textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 height: 1.4,
@@ -289,6 +278,7 @@ class HowToPlayScreen extends StatelessWidget {
                             Wrap(
                               spacing: 12,
                               runSpacing: 10,
+                              alignment: WrapAlignment.center,
                               children: [
                                 _buildPremiumSpaceLegend('DL', 'Double Letter', AppTheme.doubleLetterColor),
                                 _buildPremiumSpaceLegend('TL', 'Triple Letter', AppTheme.tripleLetterColor),
@@ -301,13 +291,13 @@ class HowToPlayScreen extends StatelessWidget {
                       ),
                       // Card 3: Word Scoring & Bingo
                       _buildPremiumCard(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Left Gift Icon
+                            // Top Gift Icon
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 54,
+                              height: 54,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF031A12),
@@ -320,44 +310,37 @@ class HowToPlayScreen extends StatelessWidget {
                                 child: Icon(
                                   Icons.card_giftcard_rounded,
                                   color: AppTheme.shinyGold,
-                                  size: 22,
+                                  size: 24,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildCardTitle('3', 'Word Scoring & Bingo'),
-                                  const SizedBox(height: 12),
-                                  _buildBulletItem(
-                                    'Letter points ',
-                                    'are summed and multiplied by premium letters, then the total word score is multiplied by premium word tiles.',
-                                  ),
-                                  _buildBulletItem(
-                                    'Bingo Bonus: ',
-                                    'Using all 7 tiles from your rack in a single turn awards a 50-point bonus.',
-                                  ),
-                                  _buildBulletItem(
-                                    'Blank Tiles: ',
-                                    'Blank tiles score 0 points. When you place a blank, you must select the letter it represents.',
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 14),
+                            _buildCardTitle('3', 'Word Scoring & Bingo'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Letter points ',
+                              'are summed and multiplied by premium letters, then the total word score is multiplied by premium word tiles.',
+                            ),
+                            _buildBulletItem(
+                              'Bingo Bonus: ',
+                              'Using all 7 tiles from your rack in a single turn awards a 50-point bonus.',
+                            ),
+                            _buildBulletItem(
+                              'Blank Tiles: ',
+                              'Blank tiles score 0 points. When you place a blank, you must select the letter it represents.',
                             ),
                           ],
                         ),
                       ),
                       // Card 4: Tile Exchanges & Passes
                       _buildPremiumCard(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Left Exchange Icon
+                            // Top Exchange Icon
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 54,
+                              height: 54,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF031A12),
@@ -370,31 +353,24 @@ class HowToPlayScreen extends StatelessWidget {
                                 child: Icon(
                                   Icons.sync_rounded,
                                   color: AppTheme.shinyGold,
-                                  size: 22,
+                                  size: 24,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildCardTitle('4', 'Tile Exchanges & Passes'),
-                                  const SizedBox(height: 12),
-                                  _buildBulletItem(
-                                    'Exchange: ',
-                                    'You can exchange any number of rack tiles back into the bag. Note: exchanges are only allowed if there are at least 7 tiles remaining in the bag.',
-                                  ),
-                                  _buildBulletItem(
-                                    'Pass: ',
-                                    'You can pass your turn at any time.',
-                                  ),
-                                  _buildBulletItem(
-                                    'Endgame Passes: ',
-                                    'The game ends automatically if there are six consecutive passes.',
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 14),
+                            _buildCardTitle('4', 'Tile Exchanges & Passes'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Exchange: ',
+                              'You can exchange any number of rack tiles back into the bag. Note: exchanges are only allowed if there are at least 7 tiles remaining in the bag.',
+                            ),
+                            _buildBulletItem(
+                              'Pass: ',
+                              'You can pass your turn at any time.',
+                            ),
+                            _buildBulletItem(
+                              'Endgame Passes: ',
+                              'The game ends automatically if there are six consecutive passes.',
                             ),
                           ],
                         ),
@@ -471,6 +447,8 @@ class HowToPlayScreen extends StatelessWidget {
 
   Widget _buildCardTitle(String number, String title) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Number Badge
         Container(
@@ -509,46 +487,33 @@ class HowToPlayScreen extends StatelessWidget {
   Widget _buildBulletItem(String prefix, String suffix) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            margin: const EdgeInsets.only(top: 7, right: 10),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.shinyGold,
-            ),
-          ),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: prefix,
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.ivoryText,
-                      fontSize: 13,
-                    ),
-                  ),
-                  TextSpan(
-                    text: suffix,
-                    style: GoogleFonts.inter(
-                      color: AppTheme.mutedIvory,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: prefix,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.ivoryText,
+                fontSize: 13,
               ),
             ),
-          ),
-        ],
+            TextSpan(
+              text: suffix,
+              style: GoogleFonts.inter(
+                color: AppTheme.mutedIvory,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+
 
   Widget _buildPremiumSpaceLegend(String abbrev, String label, Color color) {
     return Row(

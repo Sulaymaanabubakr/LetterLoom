@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
+import '../../core/music_manager.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import '../how_to_play/how_to_play_screen.dart';
+import '../about/about_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +26,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _checkSavedGame();
+    // Ensure menu music plays whenever we return to HomeScreen
+    MusicManager.instance.setTrack(MusicTrack.menu);
   }
 
   Future<void> _checkSavedGame() async {
@@ -265,9 +270,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onTap: () {
                   Navigator.of(context).pop();
                   ref.read(gameProvider.notifier).startNewGame(diffValue);
+                  // Switch to calm game-screen kalimba music (non-blocking)
+                  MusicManager.instance.setTrack(MusicTrack.game);
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (context) => const GameScreen()),
-                  ).then((_) => _checkSavedGame());
+                  ).then((_) {
+                    // Back on home — restore menu music (non-blocking)
+                    MusicManager.instance.setTrack(MusicTrack.menu);
+                    _checkSavedGame();
+                  });
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Padding(
@@ -344,6 +355,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: PremiumBackground(
         child: SafeArea(
           child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
               child: Column(
@@ -457,11 +469,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       iconData: Icons.history_rounded,
                       isPrimary: false,
                       onPressed: _canContinue
-                          ? () {
-                              ref.read(gameProvider.notifier).loadSavedGame();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (context) => const GameScreen()),
-                              ).then((_) => _checkSavedGame());
+                          ? () async {
+                              await ref.read(gameProvider.notifier).loadSavedGame();
+                              // Switch to calm game-screen kalimba music (non-blocking)
+                              MusicManager.instance.setTrack(MusicTrack.game);
+                              if (context.mounted) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) => const GameScreen()),
+                                ).then((_) {
+                                  // Back on home — restore menu music (non-blocking)
+                                  MusicManager.instance.setTrack(MusicTrack.menu);
+                                  _checkSavedGame();
+                                });
+                              }
                             }
                           : null,
                     ),
@@ -498,6 +518,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'About the Loom',
+                    subtitle: 'Our story, lexicon, & credits',
+                    iconData: Icons.info_outline_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const AboutScreen()),
                       );
                     },
                   ),

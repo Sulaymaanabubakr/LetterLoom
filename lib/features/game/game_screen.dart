@@ -63,7 +63,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     final char = String.fromCharCode(65 + index);
                     return InkWell(
                       onTap: () {
-                        ref.read(gameProvider.notifier).setBlankLetter(row, col, char);
+                        ref
+                            .read(gameProvider.notifier)
+                            .setBlankLetter(row, col, char);
                         Navigator.of(context).pop();
                       },
                       borderRadius: BorderRadius.circular(6),
@@ -71,7 +73,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.tileIvory,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Center(
                           child: Text(
@@ -120,7 +124,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
-      border = Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2);
+      border = Border.all(
+        color: AppTheme.shinyGold.withValues(alpha: 0.55),
+        width: 1.2,
+      );
       textColor = Colors.white;
     } else {
       gradient = const LinearGradient(
@@ -128,7 +135,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       );
-      border = Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2);
+      border = Border.all(
+        color: AppTheme.shinyGold.withValues(alpha: 0.55),
+        width: 1.2,
+      );
       textColor = AppTheme.shinyGold;
     }
 
@@ -214,6 +224,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             ),
             const SizedBox(height: 12),
             _premiumDialogButton(
+              label: 'Save & Exit',
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              },
+            ),
+            const SizedBox(height: 12),
+            _premiumDialogButton(
               label: 'Restart Match',
               onTap: () {
                 Navigator.of(context).pop();
@@ -280,7 +298,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   isDanger: true,
                   onTap: () {
                     Navigator.of(context).pop();
-                    ref.read(gameProvider.notifier).startNewGame(state.difficulty);
+                    ref
+                        .read(gameProvider.notifier)
+                        .startNewGame(state.difficulty);
                   },
                 ),
               ),
@@ -333,10 +353,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 child: _premiumDialogButton(
                   label: 'Abandon',
                   isDanger: true,
-                  onTap: () {
+                  onTap: () async {
                     Navigator.of(context).pop();
-                    ref.read(gameProvider.notifier).abandonGame();
-                    Navigator.of(context).pop();
+                    await ref.read(gameProvider.notifier).abandonGame();
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                    }
                   },
                 ),
               ),
@@ -408,116 +430,132 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final state = ref.read(gameProvider);
     HapticUtils.trigger(HapticType.tap, state.settings);
     if (state.tileBag.length < 7) {
-      ToastUtils.show(context, 'Cannot exchange tiles when bag has fewer than 7 tiles.', isError: true);
+      ToastUtils.show(
+        context,
+        'Cannot exchange tiles when bag has fewer than 7 tiles.',
+        isError: true,
+      );
       return;
     }
     final List<Tile> selectedToExchange = [];
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF021710),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-            ),
-            title: Center(
-              child: Text(
-                'Exchange Tiles',
-                style: GoogleFonts.lora(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.shinyGold,
-                  fontSize: 20,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF021710),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
+              ),
+              title: Center(
+                child: Text(
+                  'Exchange Tiles',
+                  style: GoogleFonts.lora(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.shinyGold,
+                    fontSize: 20,
+                  ),
                 ),
               ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Select tiles to return to the bag.',
-                  style: GoogleFonts.inter(
-                    color: AppTheme.mutedIvory,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: state.playerRack.map((tile) {
-                    final bool isSel = selectedToExchange.any((t) => t.id == tile.id);
-                    return GestureDetector(
-                      onTap: () => setDialogState(() {
-                        if (isSel) {
-                          selectedToExchange.removeWhere((t) => t.id == tile.id);
-                        } else {
-                          selectedToExchange.add(tile);
-                        }
-                      }),
-                      child: Container(
-                        width: 38,
-                        height: 44,
-                        decoration: AppTheme.tileDecoration(isSelected: isSel),
-                        child: Stack(
-                          children: [
-                            Center(
-                              child: Text(
-                                tile.letter.trim().isEmpty ? ' ' : tile.letter,
-                                style: GoogleFonts.lora(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.darkCharcoal,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              right: 3,
-                              bottom: 2,
-                              child: Text(
-                                tile.scoreValue.toString(),
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  color: AppTheme.tileSubText,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-            actions: [
-              Row(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: _premiumDialogButton(
-                      label: 'Cancel',
-                      onTap: () => Navigator.of(context).pop(),
+                  Text(
+                    'Select tiles to return to the bag.',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.mutedIvory,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _premiumDialogButton(
-                      label: 'Exchange',
-                      isPrimary: true,
-                      onTap: () {
-                        if (selectedToExchange.isNotEmpty) {
-                          Navigator.of(context).pop();
-                          ref.read(gameProvider.notifier).exchangeTiles(selectedToExchange);
-                        }
-                      },
-                    ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: state.playerRack.map((tile) {
+                      final bool isSel = selectedToExchange.any(
+                        (t) => t.id == tile.id,
+                      );
+                      return GestureDetector(
+                        onTap: () => setDialogState(() {
+                          if (isSel) {
+                            selectedToExchange.removeWhere(
+                              (t) => t.id == tile.id,
+                            );
+                          } else {
+                            selectedToExchange.add(tile);
+                          }
+                        }),
+                        child: Container(
+                          width: 38,
+                          height: 44,
+                          decoration: AppTheme.tileDecoration(
+                            isSelected: isSel,
+                          ),
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: Text(
+                                  tile.letter.trim().isEmpty
+                                      ? ' '
+                                      : tile.letter,
+                                  style: GoogleFonts.lora(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.darkCharcoal,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 3,
+                                bottom: 2,
+                                child: Text(
+                                  tile.scoreValue.toString(),
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: AppTheme.tileSubText,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
-            ],
-          );
-        });
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _premiumDialogButton(
+                        label: 'Cancel',
+                        onTap: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _premiumDialogButton(
+                        label: 'Exchange',
+                        isPrimary: true,
+                        onTap: () {
+                          if (selectedToExchange.isNotEmpty) {
+                            Navigator.of(context).pop();
+                            ref
+                                .read(gameProvider.notifier)
+                                .exchangeTiles(selectedToExchange);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
       },
     );
   }
@@ -545,12 +583,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmAbandon();
+        if (!didPop) _showPauseDialog();
       },
       child: Scaffold(
         body: PremiumBackground(
           child: SafeArea(
             child: Stack(
+              fit: StackFit.expand,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -561,11 +600,20 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     _buildScoreboard(state),
                     // ── 3. Status Banner ────────────────────────────────────
                     _buildStatusBanner(state),
-                    // ── 4. Board ────────────────────────────────────────────
-                    Expanded(child: _buildBoard(state)),
-                    // ── 5. Rack ─────────────────────────────────────────────
-                    _buildRack(state),
-                    // ── 6. Action buttons ───────────────────────────────────
+                    // ── 4. Board & Rack Grouped ─────────────────────────────
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildBoard(state),
+                            const SizedBox(height: 8),
+                            _buildRack(state),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // ── 5. Action buttons & Play Row ────────────────────────
                     _buildActionsPanel(state),
                   ],
                 ),
@@ -603,7 +651,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       child: SizedBox(
         height: 56,
         child: Stack(
@@ -616,8 +664,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 onTap: _showPauseDialog,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -685,11 +733,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: badgeBg,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: badgeColor.withValues(alpha: 0.5), width: 1),
+                        border: Border.all(
+                          color: badgeColor.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -716,7 +770,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             Positioned(
               right: 0,
               child: Container(
-                height: 42,
+                height: 38,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -755,9 +809,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
   // ── Scoreboard ─────────────────────────────────────────────────────────────
   Widget _buildScoreboard(GameState state) {
-    final isPlayerTurn = state.currentTurn == 'player' && state.status == 'playerTurn';
+    final isPlayerTurn =
+        state.currentTurn == 'player' && state.status == 'playerTurn';
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
       child: Row(
         children: [
           Expanded(
@@ -792,12 +847,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     required Color avatarColor,
   }) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isActive ? AppTheme.shinyGold : AppTheme.shinyGold.withValues(alpha: 0.35),
+          color: isActive
+              ? AppTheme.shinyGold
+              : AppTheme.shinyGold.withValues(alpha: 0.35),
           width: isActive ? 1.5 : 1.0,
         ),
         gradient: const LinearGradient(
@@ -811,59 +868,59 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   color: AppTheme.shinyGold.withValues(alpha: 0.15),
                   blurRadius: 8,
                   spreadRadius: 1,
-                )
+                ),
               ]
             : null,
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Profile Avatar
           Container(
-            width: 38,
-            height: 38,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF010A07),
               border: Border.all(
-                color: isActive ? avatarColor : avatarColor.withValues(alpha: 0.4),
+                color: isActive
+                    ? avatarColor
+                    : avatarColor.withValues(alpha: 0.4),
                 width: 1.2,
               ),
             ),
             child: Center(
               child: Icon(
                 iconData,
-                color: isActive ? avatarColor : avatarColor.withValues(alpha: 0.6),
-                size: 18,
+                color: isActive
+                    ? avatarColor
+                    : avatarColor.withValues(alpha: 0.6),
+                size: 13,
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          // Score text
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? AppTheme.shinyGold : AppTheme.mutedIvory,
-                    letterSpacing: 0.5,
-                  ),
+          const SizedBox(width: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '$label: ',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isActive ? AppTheme.shinyGold : AppTheme.mutedIvory,
+                  letterSpacing: 0.5,
                 ),
-                Text(
-                  score.toString(),
-                  style: GoogleFonts.lora(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.ivoryText,
-                    height: 1.1,
-                  ),
+              ),
+              Text(
+                score.toString(),
+                style: GoogleFonts.lora(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.ivoryText,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -874,12 +931,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   Widget _buildStatusBanner(GameState state) {
     final String msg = state.lastMoveMessage ?? _defaultStatusMsg(state);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 3.0),
+      padding: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 16.0),
       decoration: BoxDecoration(
         color: const Color(0xFF021710),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.25), width: 1.0),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.25),
+          width: 1.0,
+        ),
       ),
       child: Center(
         child: Row(
@@ -922,116 +982,153 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
   String _defaultStatusMsg(GameState state) {
     switch (state.status) {
-      case 'playerTurn':    return 'Your turn — place your tiles!';
-      case 'computerThinking': return 'Computer is thinking...';
-      case 'computerTurn':  return 'Computer is playing...';
-      case 'gameCompleted': return 'Game over!';
-      default:              return '';
+      case 'playerTurn':
+        return 'Your turn — place your tiles!';
+      case 'computerThinking':
+        return 'Computer is thinking...';
+      case 'computerTurn':
+        return 'Computer is playing...';
+      case 'gameCompleted':
+        return 'Game over!';
+      default:
+        return '';
     }
   }
 
   // ── Board ──────────────────────────────────────────────────────────────────
   Widget _buildBoard(GameState state) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(6, 4, 6, 4),
-      decoration: BoxDecoration(
-        color: AppTheme.boardFrame,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.boardFrameEdge, width: 2),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 10, spreadRadius: 2),
-        ],
-      ),
-      padding: const EdgeInsets.all(4),
-      child: LayoutBuilder(builder: (context, constraints) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
         const double coordW = 14.0;
         const double coordH = 12.0;
-        final double gridW = constraints.maxWidth - coordW;
-        final double cellSize = (gridW - 14 * 1.2) / 15;
+        const double gap = 1.0;
+        const double paddingTotal = 6.0; // padding 3 * 2
+        const double borderTotal = 3.0;  // border 1.5 * 2
+        const double decorationTotal = paddingTotal + borderTotal; // 9.0
 
-        return Column(
-          children: [
-            // Top number row
-            SizedBox(
-              height: coordH,
-              child: Row(
-                children: [
-                  const SizedBox(width: coordW),
-                  ...List.generate(15, (i) => SizedBox(
-                    width: cellSize + (i < 14 ? 1.2 : 0),
-                    child: Center(
-                      child: Text('${i + 1}',
-                          style: const TextStyle(
-                              fontSize: 7, color: AppTheme.mutedIvory, fontWeight: FontWeight.w600)),
-                    ),
-                  )),
-                ],
-              ),
+        // Available space for grid cells (subtracting board decoration)
+        final double gridW = constraints.maxWidth - coordW - decorationTotal;
+        final double gridH = constraints.maxHeight - (coordH * 2) - decorationTotal;
+
+        // Pick the smaller axis so nothing overflows or crops
+        final double cellW = (gridW - 14 * gap) / 15;
+        final double cellH = (gridH - 14 * gap) / 15;
+        final double cellSize = cellW < cellH ? cellW : cellH;
+
+        // Actual grid dimensions
+        final double actualGridW = cellSize * 15 + gap * 14;
+        final double actualGridH = cellSize * 15 + gap * 14;
+
+        // The Container sizes should wrap the actual content exactly!
+        final double boardWidth = actualGridW + coordW + decorationTotal;
+        final double boardHeight = actualGridH + (coordH * 2) + decorationTotal;
+
+        // Grid starts right after coordinate labels
+        const double offsetX = coordW;
+        const double offsetY = coordH;
+
+        return Center(
+          child: Container(
+            width: boardWidth,
+            height: boardHeight,
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.boardFrame,
+              border: Border.all(color: AppTheme.boardFrameEdge, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
-            // Middle row (letters + grid) — Expanded to fill available height
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left letter coords
-                  SizedBox(
-                    width: coordW,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O']
-                          .map((l) => Expanded(
-                                child: Center(
-                                  child: Text(l,
-                                      style: const TextStyle(
-                                          fontSize: 7,
-                                          color: AppTheme.mutedIvory,
-                                          fontWeight: FontWeight.w600)),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                  // Board grid
-                  Expanded(
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 225,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 15,
-                        crossAxisSpacing: 1.2,
-                        mainAxisSpacing: 1.2,
-                        childAspectRatio: 1.0,
+            padding: const EdgeInsets.all(3),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // ── Top number labels ──
+                ...List.generate(15, (c) {
+                  final double x = offsetX + c * (cellSize + gap);
+                  return Positioned(
+                    left: x,
+                    top: 0,
+                    width: cellSize,
+                    height: coordH,
+                    child: Center(
+                      child: Text(
+                        '${c + 1}',
+                        style: const TextStyle(
+                          fontSize: 7,
+                          color: AppTheme.mutedIvory,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      itemBuilder: (context, index) {
-                        final r = index ~/ 15;
-                        final c = index % 15;
-                        return _buildBoardCell(state, r, c, cellSize);
-                      },
                     ),
-                  ),
-                ],
-              ),
-            ),
-            // Bottom number row
-            SizedBox(
-              height: coordH,
-              child: Row(
-                children: [
-                  const SizedBox(width: coordW),
-                  ...List.generate(15, (i) => SizedBox(
-                    width: cellSize + (i < 14 ? 1.2 : 0),
+                  );
+                }),
+
+                // ── Bottom number labels ──
+                ...List.generate(15, (c) {
+                  final double x = offsetX + c * (cellSize + gap);
+                  return Positioned(
+                    left: x,
+                    bottom: 0,
+                    width: cellSize,
+                    height: coordH,
                     child: Center(
-                      child: Text('${i + 1}',
-                          style: const TextStyle(
-                              fontSize: 7, color: AppTheme.mutedIvory, fontWeight: FontWeight.w600)),
+                      child: Text(
+                        '${c + 1}',
+                        style: const TextStyle(
+                          fontSize: 7,
+                          color: AppTheme.mutedIvory,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  )),
-                ],
-              ),
+                  );
+                }),
+
+                // ── Left letter labels ──
+                ...List.generate(15, (r) {
+                  final double y = offsetY + r * (cellSize + gap);
+                  return Positioned(
+                    left: 0,
+                    top: y,
+                    width: coordW,
+                    height: cellSize,
+                    child: Center(
+                      child: Text(
+                        String.fromCharCode(65 + r),
+                        style: const TextStyle(
+                          fontSize: 7,
+                          color: AppTheme.mutedIvory,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+
+                // ── Board cells (15×15) ──
+                ...List.generate(225, (index) {
+                  final r = index ~/ 15;
+                  final c = index % 15;
+                  final double x = offsetX + c * (cellSize + gap);
+                  final double y = offsetY + r * (cellSize + gap);
+                  return Positioned(
+                    left: x,
+                    top: y,
+                    width: cellSize,
+                    height: cellSize,
+                    child: _buildBoardCell(state, r, c, cellSize),
+                  );
+                }),
+              ],
             ),
-          ],
+          ),
         );
-      }),
+      },
     );
   }
 
@@ -1055,9 +1152,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             opacity: 0.75,
             child: SizedBox(width: size, height: size, child: tileWidget),
           ),
-          childWhenDragging: Container(decoration: AppTheme.cellDecoration(cell.type)),
-          onDragStarted: () => SoundManager.play(SoundType.pickup, state.settings),
-          onDragCompleted: () => ref.read(gameProvider.notifier).recallTileAt(r, c),
+          childWhenDragging: Container(
+            decoration: AppTheme.cellDecoration(cell.type),
+          ),
+          onDragStarted: () =>
+              SoundManager.play(SoundType.pickup, state.settings),
+          onDragCompleted: () =>
+              ref.read(gameProvider.notifier).recallTileAt(r, c),
           child: tileWidget,
         );
       } else {
@@ -1086,8 +1187,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         final incomingTile = details.data;
         SoundManager.play(SoundType.place, state.settings);
         HapticUtils.trigger(HapticType.place, state.settings);
-        final placed = ref.read(gameProvider.notifier).placeTile(incomingTile, r, c);
-        if (placed && incomingTile.isBlank) _promptBlankTileSelection(context, r, c);
+        final placed = ref
+            .read(gameProvider.notifier)
+            .placeTile(incomingTile, r, c);
+        if (placed && incomingTile.isBlank)
+          _promptBlankTileSelection(context, r, c);
       },
       builder: (context, candidateData, _) {
         final isHover = candidateData.isNotEmpty;
@@ -1104,7 +1208,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 SoundManager.play(SoundType.place, state.settings);
                 HapticUtils.trigger(HapticType.place, state.settings);
                 final blankToPlace = _selectedRackTile!.isBlank;
-                final placed = ref.read(gameProvider.notifier).placeTile(_selectedRackTile!, r, c);
+                final placed = ref
+                    .read(gameProvider.notifier)
+                    .placeTile(_selectedRackTile!, r, c);
                 if (placed) {
                   setState(() => _selectedRackTile = null);
                   if (blankToPlace) _promptBlankTileSelection(context, r, c);
@@ -1159,17 +1265,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   // ── Rack ───────────────────────────────────────────────────────────────────
   Widget _buildRack(GameState state) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      height: 60,
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      height: 54,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.65), width: 1.5),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.65),
+          width: 1.5,
+        ),
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF021D14),
-            Color(0xFF063323),
-            Color(0xFF021D14),
-          ],
+          colors: [Color(0xFF021D14), Color(0xFF063323), Color(0xFF021D14)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.5, 1.0],
@@ -1187,9 +1292,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               width: 14,
               child: Container(
                 decoration: const BoxDecoration(
-                  border: Border(right: BorderSide(color: AppTheme.shinyGold, width: 1.5)),
+                  border: Border(
+                    right: BorderSide(color: AppTheme.shinyGold, width: 1.5),
+                  ),
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFFF1CC), Color(0xFFD4AF37), Color(0xFF8A640F)],
+                    colors: [
+                      Color(0xFFFFF1CC),
+                      Color(0xFFD4AF37),
+                      Color(0xFF8A640F),
+                    ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -1204,9 +1315,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               width: 14,
               child: Container(
                 decoration: const BoxDecoration(
-                  border: Border(left: BorderSide(color: AppTheme.shinyGold, width: 1.5)),
+                  border: Border(
+                    left: BorderSide(color: AppTheme.shinyGold, width: 1.5),
+                  ),
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFFF1CC), Color(0xFFD4AF37), Color(0xFF8A640F)],
+                    colors: [
+                      Color(0xFFFFF1CC),
+                      Color(0xFFD4AF37),
+                      Color(0xFF8A640F),
+                    ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -1221,14 +1338,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: state.playerRack.map((tile) {
                     final bool isSel = _selectedRackTile?.id == tile.id;
-                    final tileWidget = _buildTileWidget(tile, 38, isNew: false);
+                    final tileWidget = _buildTileWidget(tile, 34, isNew: false);
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 2.0),
                       child: Draggable<Tile>(
                         data: tile,
                         feedback: Opacity(opacity: 0.75, child: tileWidget),
-                        childWhenDragging: Opacity(opacity: 0.3, child: tileWidget),
+                        childWhenDragging: Opacity(
+                          opacity: 0.3,
+                          child: tileWidget,
+                        ),
                         onDragStarted: () {
                           HapticUtils.trigger(HapticType.tap, state.settings);
                           SoundManager.play(SoundType.pickup, state.settings);
@@ -1237,7 +1357,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         child: GestureDetector(
                           onTap: state.status == 'playerTurn'
                               ? () {
-                                  HapticUtils.trigger(HapticType.tap, state.settings);
+                                  HapticUtils.trigger(
+                                    HapticType.tap,
+                                    state.settings,
+                                  );
                                   setState(() {
                                     _selectedRackTile = isSel ? null : tile;
                                   });
@@ -1254,9 +1377,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                                       borderRadius: BorderRadius.circular(5),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppTheme.shinyGold.withValues(alpha: 0.7),
+                                          color: AppTheme.shinyGold.withValues(
+                                            alpha: 0.7,
+                                          ),
                                           blurRadius: 8,
-                                        )
+                                        ),
                                       ],
                                     )
                                   : null,
@@ -1279,43 +1404,55 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   // ── Actions Panel ──────────────────────────────────────────────────────────
   Widget _buildActionsPanel(GameState state) {
     final bool isPlayerTurn = state.status == 'playerTurn';
-    final bool hasNew = state.board.any((row) => row.any((c) => c.isNewPlacement));
-
+    final bool hasNew = state.board.any(
+      (row) => row.any((c) => c.isNewPlacement),
+    );
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildActionBtn(
-                icon: Icons.undo_rounded,
-                label: 'Recall',
-                enabled: isPlayerTurn && hasNew,
-                onTap: () => ref.read(gameProvider.notifier).recallAllNewPlacements(),
-                state: state,
+              Expanded(
+                child: _buildActionBtn(
+                  icon: Icons.undo_rounded,
+                  label: 'Recall',
+                  enabled: isPlayerTurn && hasNew,
+                  onTap: () =>
+                      ref.read(gameProvider.notifier).recallAllNewPlacements(),
+                  state: state,
+                ),
               ),
-              _buildActionBtn(
-                icon: Icons.shuffle_rounded,
-                label: 'Shuffle',
-                enabled: isPlayerTurn,
-                onTap: () => ref.read(gameProvider.notifier).shuffleRack(),
-                state: state,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionBtn(
+                  icon: Icons.shuffle_rounded,
+                  label: 'Shuffle',
+                  enabled: isPlayerTurn,
+                  onTap: () => ref.read(gameProvider.notifier).shuffleRack(),
+                  state: state,
+                ),
               ),
-              _buildActionBtn(
-                icon: Icons.swap_horiz_rounded,
-                label: 'Exchange',
-                enabled: isPlayerTurn && state.tileBag.length >= 7,
-                badge: '7+',
-                onTap: _showExchangeDialog,
-                state: state,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionBtn(
+                  icon: Icons.swap_horiz_rounded,
+                  label: 'Exchange',
+                  enabled: isPlayerTurn && state.tileBag.length >= 7,
+                  badge: '7+',
+                  onTap: _showExchangeDialog,
+                  state: state,
+                ),
               ),
-              _buildActionBtn(
-                icon: Icons.flag_rounded,
-                label: 'Pass',
-                enabled: isPlayerTurn,
-                onTap: _showPassConfirm,
-                state: state,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionBtn(
+                  icon: Icons.flag_rounded,
+                  label: 'Pass',
+                  enabled: isPlayerTurn,
+                  onTap: _showPassConfirm,
+                  state: state,
+                ),
               ),
             ],
           ),
@@ -1328,7 +1465,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   Widget _buildBottomPlayRow(GameState state, bool hasNew, bool isPlayerTurn) {
     final bool enabled = isPlayerTurn && hasNew;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
       child: Row(
         children: [
           // Circular Menu/Pause Button
@@ -1336,25 +1473,29 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             onTap: _showPauseDialog,
             borderRadius: BorderRadius.circular(28),
             child: Container(
-              width: 56,
-              height: 56,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.shinyGold, width: 1.2),
                 color: const Color(0xFF010A07),
               ),
               child: const Center(
-                child: Icon(Icons.menu_rounded, color: AppTheme.shinyGold, size: 22),
+                child: Icon(
+                  Icons.menu_rounded,
+                  color: AppTheme.shinyGold,
+                  size: 22,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           // Play Word Pill Button
           Expanded(
             child: Opacity(
               opacity: enabled ? 1.0 : 0.45,
               child: Container(
-                height: 56,
+                height: 44,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: enabled
@@ -1367,10 +1508,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         ]
                       : null,
                   border: !enabled
-                      ? Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2)
+                      ? Border.all(
+                          color: AppTheme.shinyGold.withValues(alpha: 0.45),
+                          width: 1.2,
+                        )
                       : null,
                   gradient: LinearGradient(
-                    colors: enabled ? AppTheme.goldGradient : AppTheme.darkGreenGradient,
+                    colors: enabled
+                        ? AppTheme.goldGradient
+                        : AppTheme.darkGreenGradient,
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -1384,9 +1530,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       child: Text(
                         'PLAY WORD',
                         style: GoogleFonts.lora(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: enabled ? const Color(0xFF1E1402) : AppTheme.shinyGold,
+                          color: enabled
+                              ? const Color(0xFF1E1402)
+                              : AppTheme.shinyGold,
                           letterSpacing: 1.0,
                         ),
                       ),
@@ -1409,69 +1557,90 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     required GameState state,
     String? badge,
   }) {
-    final Color contentColor = enabled ? AppTheme.shinyGold : AppTheme.mutedIvory.withValues(alpha: 0.5);
-    return GestureDetector(
-      onTap: enabled ? () {
-        HapticUtils.trigger(HapticType.tap, state.settings);
-        onTap();
-      } : null,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Circular Button Frame
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: enabled ? AppTheme.shinyGold : AppTheme.shinyGold.withValues(alpha: 0.2),
-                    width: 1.2,
+    final Color contentColor = enabled
+        ? AppTheme.shinyGold
+        : AppTheme.mutedIvory.withValues(alpha: 0.3);
+
+    final Widget capsule = Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF021710),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: enabled
+              ? AppTheme.shinyGold.withValues(alpha: 0.45)
+              : AppTheme.shinyGold.withValues(alpha: 0.15),
+          width: 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled
+              ? () {
+                  HapticUtils.trigger(HapticType.tap, state.settings);
+                  onTap();
+                }
+              : null,
+          borderRadius: BorderRadius.circular(13),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: contentColor, size: 16),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    color: contentColor,
+                    letterSpacing: 0.2,
                   ),
-                  color: const Color(0xFF010A07),
                 ),
-                child: Center(
-                  child: Icon(icon, color: contentColor, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (badge != null && enabled) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          capsule,
+          Positioned(
+            top: -6,
+            right: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 5,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF021710),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.shinyGold,
+                  width: 0.8,
                 ),
               ),
-              if (badge != null && enabled)
-                Positioned(
-                  top: -2,
-                  right: -6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF021710),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.shinyGold, width: 1.0),
-                    ),
-                    child: Text(
-                      badge,
-                      style: GoogleFonts.inter(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.shinyGold,
-                      ),
-                    ),
-                  ),
+              child: Text(
+                badge,
+                style: GoogleFonts.inter(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.shinyGold,
                 ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: contentColor,
+              ),
             ),
           ),
         ],
-      ),
-    );
+      );
+    }
+
+    return capsule;
   }
 
   // ── Overlays ───────────────────────────────────────────────────────────────
@@ -1485,7 +1654,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           decoration: BoxDecoration(
             color: AppTheme.panelDark,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.5), width: 1),
+            border: Border.all(
+              color: AppTheme.shinyGold.withValues(alpha: 0.5),
+              width: 1,
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1495,19 +1667,20 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 strokeWidth: 2.5,
               ),
               const SizedBox(height: 16),
-              const Text('Computer is thinking...',
-                  style: TextStyle(
-                    fontFamily: 'Lora',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: AppTheme.ivoryText,
-                  )),
+              const Text(
+                'Computer is thinking...',
+                style: TextStyle(
+                  fontFamily: 'Lora',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: AppTheme.ivoryText,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text('Formulating candidates...',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.mutedIvory,
-                  )),
+              Text(
+                'Formulating candidates...',
+                style: TextStyle(fontSize: 12, color: AppTheme.mutedIvory),
+              ),
             ],
           ),
         ),
@@ -1518,8 +1691,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   Widget _buildGameOverOverlay(GameState state) {
     final bool isWin = state.playerScore > state.computerScore;
     final bool isTie = state.playerScore == state.computerScore;
-    final String headline = isTie ? "IT'S A TIE!" : (isWin ? 'VICTORY' : 'DEFEAT');
-    final Color headlineColor = isTie ? AppTheme.warmGold : (isWin ? AppTheme.shinyGold : Colors.redAccent);
+    final String headline = isTie
+        ? "IT'S A TIE!"
+        : (isWin ? 'VICTORY' : 'DEFEAT');
+    final Color headlineColor = isTie
+        ? AppTheme.warmGold
+        : (isWin ? AppTheme.shinyGold : Colors.redAccent);
 
     return Container(
       color: Colors.black.withValues(alpha: 0.8),
@@ -1555,7 +1732,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   ),
                   child: Center(
                     child: Icon(
-                      isWin ? Icons.emoji_events_rounded : (isTie ? Icons.handshake_rounded : Icons.gavel_rounded),
+                      isWin
+                          ? Icons.emoji_events_rounded
+                          : (isTie
+                                ? Icons.handshake_rounded
+                                : Icons.gavel_rounded),
                       color: headlineColor,
                       size: 32,
                     ),
@@ -1619,15 +1800,23 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   Widget _overScore(String label, int score, bool isWinner) {
     return Column(
       children: [
-        Text(label,
-            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.mutedIvory)),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.mutedIvory,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(score.toString(),
-            style: GoogleFonts.lora(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: isWinner ? AppTheme.shinyGold : AppTheme.ivoryText,
-            )),
+        Text(
+          score.toString(),
+          style: GoogleFonts.lora(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: isWinner ? AppTheme.shinyGold : AppTheme.ivoryText,
+          ),
+        ),
       ],
     );
   }
