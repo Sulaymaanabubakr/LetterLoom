@@ -72,7 +72,7 @@ class Statistics {
     int bonusCount = sevenTileBonuses;
 
     for (var move in playerMovesThisGame) {
-      final int mScore = move['score'] as int? ?? 0;
+      final int mScore = (move['score'] as num?)?.toInt() ?? 0;
       final String mWord = move['word'] as String? ?? '';
       final bool usedAll = move['usedAll'] as bool? ?? false;
 
@@ -119,19 +119,21 @@ class Statistics {
   }
 
   factory Statistics.fromJson(Map<String, dynamic> json) {
+    int readInt(String key) => (json[key] as num?)?.toInt() ?? 0;
+
     return Statistics(
-      totalGames: json['totalGames'] as int? ?? 0,
-      wins: json['wins'] as int? ?? 0,
-      losses: json['losses'] as int? ?? 0,
-      ties: json['ties'] as int? ?? 0,
-      highestGameScore: json['highestGameScore'] as int? ?? 0,
-      highestSingleTurnScore: json['highestSingleTurnScore'] as int? ?? 0,
+      totalGames: readInt('totalGames'),
+      wins: readInt('wins'),
+      losses: readInt('losses'),
+      ties: readInt('ties'),
+      highestGameScore: readInt('highestGameScore'),
+      highestSingleTurnScore: readInt('highestSingleTurnScore'),
       longestWord: json['longestWord'] as String? ?? '',
-      totalWordsPlayed: json['totalWordsPlayed'] as int? ?? 0,
-      sevenTileBonuses: json['sevenTileBonuses'] as int? ?? 0,
-      winsEasy: json['winsEasy'] as int? ?? 0,
-      winsMedium: json['winsMedium'] as int? ?? 0,
-      winsHard: json['winsHard'] as int? ?? 0,
+      totalWordsPlayed: readInt('totalWordsPlayed'),
+      sevenTileBonuses: readInt('sevenTileBonuses'),
+      winsEasy: readInt('winsEasy'),
+      winsMedium: readInt('winsMedium'),
+      winsHard: readInt('winsHard'),
     );
   }
 }

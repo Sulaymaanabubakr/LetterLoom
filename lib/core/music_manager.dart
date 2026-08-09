@@ -1,5 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Which music context we are in
 enum MusicTrack { menu, game }
@@ -8,13 +8,15 @@ enum MusicTrack { menu, game }
 /// - Menu: Satie's Gymnopédie No. 1 — warm, welcoming piano.
 /// - Game: Kalimba Relaxation Music — calm, cozy thumb-piano to aid focus.
 /// Both tracks are Kevin MacLeod recordings under CC Attribution 4.0 (incompetech.com).
-class MusicManager {
+class MusicManager with WidgetsBindingObserver {
   static final MusicManager instance = MusicManager._internal();
   MusicManager._internal();
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isInitialized = false;
   bool _musicEnabled = false;
+  bool _isAppResumed = true;
+  bool _isObservingLifecycle = false;
   MusicTrack _currentTrack = MusicTrack.menu;
 
   // Bundled local assets — instant playback, no network required
@@ -30,10 +32,14 @@ class MusicManager {
     if (_isInitialized) return;
     _musicEnabled = musicEnabled;
     try {
+      if (!_isObservingLifecycle) {
+        WidgetsBinding.instance.addObserver(this);
+        _isObservingLifecycle = true;
+      }
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.setVolume(0.10);
       _isInitialized = true;
-      if (_musicEnabled) _playCurrentTrack();
+      if (_musicEnabled && _isAppResumed) _playCurrentTrack();
     } catch (e) {
       debugPrint('MusicManager init error: $e');
     }
@@ -46,7 +52,7 @@ class MusicManager {
       await init(enabled);
       return;
     }
-    if (enabled) {
+    if (enabled && _isAppResumed) {
       _playCurrentTrack();
     } else {
       _stopMusic();
@@ -58,7 +64,21 @@ class MusicManager {
   void setTrack(MusicTrack track) {
     if (_currentTrack == track) return;
     _currentTrack = track;
-    if (_musicEnabled && _isInitialized) {
+    if (_musicEnabled && _isInitialized && _isAppResumed) {
+      _playCurrentTrack();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasResumed = _isAppResumed;
+    _isAppResumed = state == AppLifecycleState.resumed;
+
+    if (!_isInitialized || !_musicEnabled) return;
+
+    if (!_isAppResumed) {
+      _stopMusic();
+    } else if (!wasResumed) {
       _playCurrentTrack();
     }
   }

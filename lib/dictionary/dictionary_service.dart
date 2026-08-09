@@ -9,12 +9,23 @@ class DictionaryService {
   final Set<String> _wordSet = HashSet<String>();
   final List<String> _wordList = [];
   bool _isLoaded = false;
+  Future<void>? _loading;
 
   bool get isLoaded => _isLoaded;
   List<String> get wordList => _wordList;
 
   Future<void> load() async {
     if (_isLoaded) return;
+    if (_loading != null) return _loading!;
+    _loading = _loadFromAsset();
+    try {
+      await _loading;
+    } finally {
+      _loading = null;
+    }
+  }
+
+  Future<void> _loadFromAsset() async {
     try {
       // Read dictionary file from assets
       final String content = await rootBundle.loadString('assets/dictionary/enable1.txt');

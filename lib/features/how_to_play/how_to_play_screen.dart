@@ -205,7 +205,7 @@ class HowToPlayScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'LetterLoom is a word game where two players compete by forming words on a 15×15 grid using letter tiles from a rack of seven. Each word placed must be verified against the local offline English dictionary.',
+                              'LetterLoom is a word game where two players compete by forming words on a 15×15 grid using letter tiles from a rack of seven. Play solo against the computer without a connection, or play online with another person from a different location. Each word is verified against the built-in English dictionary.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 13,

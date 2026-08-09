@@ -10,6 +10,7 @@ import '../settings/settings_screen.dart';
 import '../statistics/statistics_screen.dart';
 import '../how_to_play/how_to_play_screen.dart';
 import '../about/about_screen.dart';
+import '../multiplayer/multiplayer_lobby_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -115,7 +116,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.0),
+                      border: Border.all(
+                        color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                        width: 1.0,
+                      ),
                       color: const Color(0xFF010E0A),
                     ),
                     child: const Center(
@@ -234,7 +238,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       height: 72,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.55),
+          width: 1.2,
+        ),
         gradient: const LinearGradient(
           colors: AppTheme.darkGreenGradient,
           begin: Alignment.topCenter,
@@ -272,13 +279,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ref.read(gameProvider.notifier).startNewGame(diffValue);
                   // Switch to calm game-screen kalimba music (non-blocking)
                   MusicManager.instance.setTrack(MusicTrack.game);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const GameScreen()),
-                  ).then((_) {
-                    // Back on home — restore menu music (non-blocking)
-                    MusicManager.instance.setTrack(MusicTrack.menu);
-                    _checkSavedGame();
-                  });
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          builder: (context) => const GameScreen(),
+                        ),
+                      )
+                      .then((_) {
+                        // Back on home — restore menu music (non-blocking)
+                        MusicManager.instance.setTrack(MusicTrack.menu);
+                        _checkSavedGame();
+                      });
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Padding(
@@ -298,7 +309,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                         child: Center(
-                          child: customIcon ??
+                          child:
+                              customIcon ??
                               Icon(
                                 iconData,
                                 color: AppTheme.shinyGold,
@@ -357,7 +369,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 28.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -431,7 +446,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                             Text(
-                              'Offline Craft Wordplay',
+                              'Solo Offline • Online Play',
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
@@ -470,21 +485,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       isPrimary: false,
                       onPressed: _canContinue
                           ? () async {
-                              await ref.read(gameProvider.notifier).loadSavedGame();
+                              await ref
+                                  .read(gameProvider.notifier)
+                                  .loadSavedGame();
                               // Switch to calm game-screen kalimba music (non-blocking)
                               MusicManager.instance.setTrack(MusicTrack.game);
                               if (context.mounted) {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) => const GameScreen()),
-                                ).then((_) {
-                                  // Back on home — restore menu music (non-blocking)
-                                  MusicManager.instance.setTrack(MusicTrack.menu);
-                                  _checkSavedGame();
-                                });
+                                Navigator.of(context)
+                                    .push(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const GameScreen(),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      // Back on home — restore menu music (non-blocking)
+                                      MusicManager.instance.setTrack(
+                                        MusicTrack.menu,
+                                      );
+                                      _checkSavedGame();
+                                    });
                               }
                             }
                           : null,
                     ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Play Online',
+                    subtitle: 'Challenge someone from anywhere',
+                    iconData: Icons.groups_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const MultiplayerLobbyScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 12),
                   _buildPremiumButton(
                     title: 'How to Play',
@@ -493,7 +531,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     isPrimary: false,
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const HowToPlayScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const HowToPlayScreen(),
+                        ),
                       );
                     },
                   ),
@@ -505,7 +545,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     isPrimary: false,
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const StatisticsScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const StatisticsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -517,7 +559,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     isPrimary: false,
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -529,7 +573,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     isPrimary: false,
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const AboutScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const AboutScreen(),
+                        ),
                       );
                     },
                   ),
@@ -559,7 +605,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 10,
                           decoration: BoxDecoration(
                             color: AppTheme.emeraldGreen,
-                            border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                            border: Border.all(
+                              color: AppTheme.shinyGold,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                       ),
@@ -598,8 +647,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }) {
     final bool disabled = onPressed == null;
 
-    final Color textPrimaryColor = isPrimary ? const Color(0xFF1E1402) : AppTheme.ivoryText;
-    final Color textSecondaryColor = isPrimary ? const Color(0xFF4E3705) : const Color(0xFF8AA59B);
+    final Color textPrimaryColor = isPrimary
+        ? const Color(0xFF1E1402)
+        : AppTheme.ivoryText;
+    final Color textSecondaryColor = isPrimary
+        ? const Color(0xFF4E3705)
+        : const Color(0xFF8AA59B);
 
     return Opacity(
       opacity: disabled ? 0.45 : 1.0,
@@ -623,10 +676,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ],
           border: !isPrimary
-              ? Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2)
+              ? Border.all(
+                  color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                  width: 1.2,
+                )
               : null,
           gradient: LinearGradient(
-            colors: isPrimary ? AppTheme.goldGradient : AppTheme.darkGreenGradient,
+            colors: isPrimary
+                ? AppTheme.goldGradient
+                : AppTheme.darkGreenGradient,
             begin: isPrimary ? Alignment.topLeft : Alignment.topCenter,
             end: isPrimary ? Alignment.bottomRight : Alignment.bottomCenter,
           ),
@@ -666,7 +724,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isPrimary ? const Color(0xFF031A12) : const Color(0xFF010A07),
+                            color: isPrimary
+                                ? const Color(0xFF031A12)
+                                : const Color(0xFF010A07),
                             border: Border.all(
                               color: isPrimary
                                   ? AppTheme.shinyGold.withValues(alpha: 0.2)
@@ -678,7 +738,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: isPrimary
                                 ? const CustomPaint(
                                     size: Size(22, 22),
-                                    painter: ChessKnightPainter(color: AppTheme.shinyGold),
+                                    painter: ChessKnightPainter(
+                                      color: AppTheme.shinyGold,
+                                    ),
                                   )
                                 : Icon(
                                     iconData,
@@ -718,7 +780,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 15,
-                          color: isPrimary ? const Color(0xFF1E1402) : AppTheme.shinyGold,
+                          color: isPrimary
+                              ? const Color(0xFF1E1402)
+                              : AppTheme.shinyGold,
                         ),
                       ],
                     ),

@@ -16,7 +16,7 @@ void main() {
 
     // Verify Title and Subtitle exist
     expect(find.text('LetterLoom'), findsOneWidget);
-    expect(find.text('Offline Craft Wordplay'), findsOneWidget);
+    expect(find.text('Solo Offline • Online Play'), findsOneWidget);
 
     // Verify important menu action buttons are rendered
     expect(find.text('New Game'), findsOneWidget);

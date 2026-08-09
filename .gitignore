@@ -38,6 +38,14 @@ app.*.symbols
 
 # Obfuscation related
 app.*.map.json
+letterloom-firebase-service-account.json
+dart_defines.json
+
+# Firebase client configuration (keep out of the public repository)
+google-services.json
+GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
 
 # Android Studio will place build artifacts here
 /android/app/debug

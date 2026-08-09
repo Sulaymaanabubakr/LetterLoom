@@ -32,7 +32,8 @@ class PersistenceManager {
   Future<void> saveGame(GameState state) async {
     try {
       final file = await _getFile(_gameSaveFileName);
-      final jsonString = jsonEncode(state.toJson());
+      final payload = <String, dynamic>{...state.toJson(), 'saveMode': 'solo'};
+      final jsonString = jsonEncode(payload);
       await file.writeAsString(jsonString);
     } catch (e) {
       debugPrint("Error saving game state: $e");
@@ -48,11 +49,14 @@ class PersistenceManager {
       final String jsonString = await file.readAsString();
       if (jsonString.isEmpty) return null;
 
-      final Map<String, dynamic> jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+      final Map<String, dynamic> jsonMap =
+          jsonDecode(jsonString) as Map<String, dynamic>;
       return GameState.fromJson(jsonMap);
     } catch (e) {
       debugPrint("Error loading game state (likely corruption): $e");
-      throw CorruptedSaveException("The saved game file is corrupted or incompatible.");
+      throw CorruptedSaveException(
+        "The saved game file is corrupted or incompatible.",
+      );
     }
   }
 
@@ -72,7 +76,35 @@ class PersistenceManager {
       final file = await _getFile(_gameSaveFileName);
       if (!await file.exists()) return false;
       final content = await file.readAsString();
-      return content.trim().isNotEmpty;
+      if (content.trim().isEmpty) return false;
+
+      final payload = jsonDecode(content) as Map<String, dynamic>;
+      if (payload['saveMode'] == 'solo') return true;
+
+      // Older builds could accidentally persist a temporary multiplayer seed.
+      // Treat that untouched seed as no active solo game and remove it once.
+      final board = payload['board'];
+      final moves = payload['moveHistory'];
+      final untouchedSeed =
+          payload['lastMoveMessage'] == 'New game started! Your turn first.' &&
+          payload['playerScore'] == 0 &&
+          payload['computerScore'] == 0 &&
+          moves is List &&
+          moves.isEmpty &&
+          board is List &&
+          board.every(
+            (row) =>
+                row is List &&
+                row.every(
+                  (cell) =>
+                      cell is Map<String, dynamic> && cell['tile'] == null,
+                ),
+          );
+      if (untouchedSeed) {
+        await file.delete();
+        return false;
+      }
+      return true;
     } catch (e) {
       return false;
     }
@@ -99,7 +131,8 @@ class PersistenceManager {
       final String jsonString = await file.readAsString();
       if (jsonString.isEmpty) return const Statistics();
 
-      final Map<String, dynamic> jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+      final Map<String, dynamic> jsonMap =
+          jsonDecode(jsonString) as Map<String, dynamic>;
       return Statistics.fromJson(jsonMap);
     } catch (e) {
       debugPrint("Error loading statistics, resetting to default: $e");
@@ -128,7 +161,8 @@ class PersistenceManager {
       final String jsonString = await file.readAsString();
       if (jsonString.isEmpty) return const GameSettings();
 
-      final Map<String, dynamic> jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+      final Map<String, dynamic> jsonMap =
+          jsonDecode(jsonString) as Map<String, dynamic>;
       return GameSettings.fromJson(jsonMap);
     } catch (e) {
       debugPrint("Error loading settings, resetting to default: $e");

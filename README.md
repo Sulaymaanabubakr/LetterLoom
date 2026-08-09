@@ -85,9 +85,9 @@ flutter test
 ```
 
 ### Run Project
-Launch the game on a connected emulator or device:
+Launch the game on a connected emulator or device (the local Supabase values are read from the ignored `dart_defines.json` file):
 ```bash
-flutter run
+flutter run --dart-define-from-file=dart_defines.json
 ```
 
 ---

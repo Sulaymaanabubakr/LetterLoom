@@ -91,5 +91,41 @@ void main() {
       expect(restored.moveHistory[0].score, 9);
       expect(restored.moveHistory[0].tilesUsed, ['A', 'X']);
     });
+
+    test('records personal gameplay details', () {
+      const initial = Statistics();
+      final updated = initial.recordGameEnd(
+        result: 'win',
+        finalPlayerScore: 184,
+        difficulty: 'hard',
+        playerMovesThisGame: const [
+          {'word': 'LETTER', 'score': 42, 'usedAll': false},
+          {'word': 'QUIZZES', 'score': 87, 'usedAll': true},
+        ],
+      );
+
+      expect(updated.totalGames, 1);
+      expect(updated.wins, 1);
+      expect(updated.highestGameScore, 184);
+      expect(updated.highestSingleTurnScore, 87);
+      expect(updated.longestWord, 'QUIZZES');
+      expect(updated.totalWordsPlayed, 2);
+      expect(updated.sevenTileBonuses, 1);
+      expect(updated.winsHard, 1);
+    });
+
+    test('loads numeric statistics values regardless of JSON number type', () {
+      final restored = Statistics.fromJson(const {
+        'totalGames': 2.0,
+        'highestGameScore': 184.0,
+        'highestSingleTurnScore': 87.0,
+        'totalWordsPlayed': 9.0,
+      });
+
+      expect(restored.totalGames, 2);
+      expect(restored.highestGameScore, 184);
+      expect(restored.highestSingleTurnScore, 87);
+      expect(restored.totalWordsPlayed, 9);
+    });
   });
 }

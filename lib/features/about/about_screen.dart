@@ -122,7 +122,7 @@ class AboutScreen extends StatelessWidget {
                         icon: Icons.history_edu_rounded,
                         title: "The Loom's Tale",
                         content:
-                            "LetterLoom is a premium, offline word puzzle game designed for word enthusiasts. Thread letters together, craft high-scoring words, and test your vocabulary against a clever computer opponent. Beautifully styled to work entirely offline, it offers a peaceful, focused sanctuary for your mind.",
+                            "LetterLoom is a premium word game for thoughtful solo play and distant multiplayer matches. Play offline against a clever computer opponent, or create an online room and challenge someone wherever they are. Thread letters together, craft high-scoring words, and make every move count.",
                       ),
                       const SizedBox(height: 16),
                       // Section 2: The Lexicon
@@ -130,7 +130,7 @@ class AboutScreen extends StatelessWidget {
                         icon: Icons.menu_book_rounded,
                         title: "The Lexicon",
                         content:
-                            "Powered by the ENABLE1 (Enhanced North American Benchmark LExicon) word list. This lexicon contains over 173,000 words, serving as the trusted offline foundation for competitive word games worldwide.",
+                            "Powered by the ENABLE1 (Enhanced North American Benchmark LExicon) word list. This lexicon contains over 173,000 words and is bundled in LetterLoom, so word checking remains available during solo play without a network connection.",
                       ),
                       const SizedBox(height: 16),
                       // Section 3: Soundscapes

@@ -11,14 +11,33 @@ import '../../core/sound_manager.dart';
 import '../../core/toast_utils.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
-  const GameScreen({super.key});
+  final StateNotifierProvider<GameNotifier, GameState>? controllerProvider;
+  final bool isMultiplayer;
+  final String? opponentName;
+  final Future<void> Function()? onMultiplayerRestart;
+  final Future<void> Function()? onMultiplayerEnd;
+  final Future<void> Function()? onMultiplayerLeave;
+
+  const GameScreen({
+    super.key,
+    this.controllerProvider,
+    this.isMultiplayer = false,
+    this.opponentName,
+    this.onMultiplayerRestart,
+    this.onMultiplayerEnd,
+    this.onMultiplayerLeave,
+  });
 
   @override
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
 class _GameScreenState extends ConsumerState<GameScreen> {
+  static const double _edgeContentTightening = 24.0;
   Tile? _selectedRackTile;
+
+  StateNotifierProvider<GameNotifier, GameState> get _provider =>
+      widget.controllerProvider ?? gameProvider;
 
   // ── Blank tile picker ──────────────────────────────────────────────────────
   void _promptBlankTileSelection(BuildContext context, int row, int col) {
@@ -64,7 +83,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     return InkWell(
                       onTap: () {
                         ref
-                            .read(gameProvider.notifier)
+                            .read(_provider.notifier)
                             .setBlankLetter(row, col, char);
                         Navigator.of(context).pop();
                       },
@@ -170,8 +189,109 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
+  Future<bool> _showMultiplayerConfirmation({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    bool danger = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: AppTheme.darkGreenGradient,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.shinyGold, width: 1.3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '➔  ',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.shinyGold,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          title.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.lora(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.shinyGold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '  ➔',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.shinyGold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: AppTheme.mutedIvory,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _premiumDialogButton(
+                          label: 'Cancel',
+                          onTap: () => Navigator.of(dialogContext).pop(false),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _premiumDialogButton(
+                          label: confirmLabel,
+                          isPrimary: !danger,
+                          isDanger: danger,
+                          onTap: () => Navigator.of(dialogContext).pop(true),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ) ??
+        false;
+  }
+
   void _showPauseDialog() {
-    final settings = ref.read(gameProvider).settings;
+    final settings = ref.read(_provider).settings;
     HapticUtils.trigger(HapticType.tap, settings);
     showDialog(
       context: context,
@@ -223,30 +343,116 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               onTap: () => Navigator.of(context).pop(),
             ),
             const SizedBox(height: 12),
-            _premiumDialogButton(
-              label: 'Save & Exit',
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-            ),
-            const SizedBox(height: 12),
-            _premiumDialogButton(
-              label: 'Restart Match',
-              onTap: () {
-                Navigator.of(context).pop();
-                _confirmRestart();
-              },
-            ),
-            const SizedBox(height: 12),
-            _premiumDialogButton(
-              label: 'Abandon & Exit',
-              isDanger: true,
-              onTap: () {
-                Navigator.of(context).pop();
-                _confirmAbandon();
-              },
-            ),
+            if (widget.isMultiplayer &&
+                widget.onMultiplayerRestart != null) ...[
+              _premiumDialogButton(
+                label: 'Restart Match',
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final confirmed = await _showMultiplayerConfirmation(
+                    title: 'Restart match?',
+                    message: 'The current multiplayer progress will be lost.',
+                    confirmLabel: 'Restart',
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await widget.onMultiplayerRestart!();
+                    if (mounted) {
+                      ToastUtils.show(context, 'Match restarted');
+                    }
+                  } catch (error) {
+                    if (mounted) {
+                      ToastUtils.show(
+                        context,
+                        'Unable to restart match: $error',
+                        isError: true,
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (widget.isMultiplayer && widget.onMultiplayerEnd != null) ...[
+              _premiumDialogButton(
+                label: 'End Match',
+                isDanger: true,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final confirmed = await _showMultiplayerConfirmation(
+                    title: 'End match?',
+                    message: 'Both players will leave this match.',
+                    confirmLabel: 'End match',
+                    danger: true,
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await widget.onMultiplayerEnd!();
+                  } catch (error) {
+                    if (mounted) {
+                      ToastUtils.show(
+                        context,
+                        'Unable to end match: $error',
+                        isError: true,
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (widget.isMultiplayer && widget.onMultiplayerLeave != null)
+              _premiumDialogButton(
+                label: 'Leave Match',
+                isDanger: true,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final confirmed = await _showMultiplayerConfirmation(
+                    title: 'Leave match?',
+                    message: 'You will leave this multiplayer match.',
+                    confirmLabel: 'Leave match',
+                    danger: true,
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await widget.onMultiplayerLeave!();
+                  } catch (error) {
+                    if (mounted) {
+                      ToastUtils.show(
+                        context,
+                        'Unable to leave match: $error',
+                        isError: true,
+                      );
+                    }
+                  }
+                },
+              ),
+            if (!widget.isMultiplayer) ...[
+              _premiumDialogButton(
+                label: 'Save & Exit',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                },
+              ),
+              const SizedBox(height: 12),
+              _premiumDialogButton(
+                label: 'Restart Match',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _confirmRestart();
+                },
+              ),
+              const SizedBox(height: 12),
+              _premiumDialogButton(
+                label: 'Abandon & Exit',
+                isDanger: true,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _confirmAbandon();
+                },
+              ),
+            ],
           ],
         ),
       ),
@@ -254,7 +460,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   void _confirmRestart() {
-    final state = ref.read(gameProvider);
+    final state = ref.read(_provider);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -298,9 +504,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   isDanger: true,
                   onTap: () {
                     Navigator.of(context).pop();
-                    ref
-                        .read(gameProvider.notifier)
-                        .startNewGame(state.difficulty);
+                    ref.read(_provider.notifier).startNewGame(state.difficulty);
                   },
                 ),
               ),
@@ -355,7 +559,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   isDanger: true,
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await ref.read(gameProvider.notifier).abandonGame();
+                    await ref.read(_provider.notifier).abandonGame();
                     if (context.mounted) {
                       Navigator.of(context).pop();
                     }
@@ -370,7 +574,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   void _showPassConfirm() {
-    final settings = ref.read(gameProvider).settings;
+    final settings = ref.read(_provider).settings;
     HapticUtils.trigger(HapticType.tap, settings);
     showDialog(
       context: context,
@@ -415,7 +619,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   isPrimary: true,
                   onTap: () {
                     Navigator.of(context).pop();
-                    ref.read(gameProvider.notifier).passTurn();
+                    ref.read(_provider.notifier).passTurn();
                   },
                 ),
               ),
@@ -427,7 +631,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   void _showExchangeDialog() {
-    final state = ref.read(gameProvider);
+    final state = ref.read(_provider);
     HapticUtils.trigger(HapticType.tap, state.settings);
     if (state.tileBag.length < 7) {
       ToastUtils.show(
@@ -544,7 +748,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                           if (selectedToExchange.isNotEmpty) {
                             Navigator.of(context).pop();
                             ref
-                                .read(gameProvider.notifier)
+                                .read(_provider.notifier)
                                 .exchangeTiles(selectedToExchange);
                           }
                         },
@@ -561,8 +765,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   void _handleSubmit() {
-    final state = ref.read(gameProvider);
-    final error = ref.read(gameProvider.notifier).submitPlayerMove();
+    final state = ref.read(_provider);
+    final error = ref.read(_provider.notifier).submitPlayerMove();
     if (error != null) {
       HapticUtils.trigger(HapticType.error, state.settings);
       SoundManager.play(SoundType.invalid, state.settings);
@@ -577,8 +781,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(gameProvider);
+    final state = ref.watch(_provider);
     final bool isCompleted = state.status == 'gameCompleted';
+    final double edgeContentTightening =
+        Theme.of(context).platform == TargetPlatform.android
+        ? _edgeContentTightening
+        : 0.0;
 
     return PopScope(
       canPop: false,
@@ -594,12 +802,20 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── 1. Custom App Bar ───────────────────────────────────
-                    _buildHeader(state),
-                    // ── 2. Scoreboard ───────────────────────────────────────
-                    _buildScoreboard(state),
-                    // ── 3. Status Banner ────────────────────────────────────
-                    _buildStatusBanner(state),
+                    Transform.translate(
+                      offset: Offset(0, edgeContentTightening),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // ── 1. Custom App Bar ───────────────────────────────────
+                          _buildHeader(state),
+                          // ── 2. Scoreboard ───────────────────────────────────────
+                          _buildScoreboard(state),
+                          // ── 3. Status Banner ────────────────────────────────────
+                          _buildStatusBanner(state),
+                        ],
+                      ),
+                    ),
                     // ── 4. Board & Rack Grouped ─────────────────────────────
                     Expanded(
                       child: Center(
@@ -614,10 +830,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       ),
                     ),
                     // ── 5. Action buttons & Play Row ────────────────────────
-                    _buildActionsPanel(state),
+                    Transform.translate(
+                      offset: Offset(0, -edgeContentTightening),
+                      child: _buildActionsPanel(state),
+                    ),
                   ],
                 ),
-                if (state.status == 'computerThinking') _buildAIOverlay(),
+                if (state.status == 'computerThinking' && !widget.isMultiplayer)
+                  _buildAIOverlay(),
                 if (isCompleted) _buildGameOverOverlay(state),
               ],
             ),
@@ -827,7 +1047,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: _buildScoreCard(
-              label: 'COMPUTER',
+              label: widget.isMultiplayer
+                  ? (widget.opponentName ?? 'OPPONENT')
+                  : 'COMPUTER',
               score: state.computerScore,
               isActive: !isPlayerTurn,
               iconData: Icons.smart_toy_rounded,
@@ -985,9 +1207,15 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       case 'playerTurn':
         return 'Your turn — place your tiles!';
       case 'computerThinking':
-        return 'Computer is thinking...';
+        return widget.isMultiplayer
+            ? 'Waiting for your opponent...'
+            : 'Computer is thinking...';
+      case 'waitingForOpponent':
+        return "Opponent's turn";
       case 'computerTurn':
-        return 'Computer is playing...';
+        return widget.isMultiplayer
+            ? 'Opponent is playing...'
+            : 'Computer is playing...';
       case 'gameCompleted':
         return 'Game over!';
       default:
@@ -1003,12 +1231,18 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         const double coordH = 12.0;
         const double gap = 1.0;
         const double paddingTotal = 6.0; // padding 3 * 2
-        const double borderTotal = 3.0;  // border 1.5 * 2
+        const double borderTotal = 3.0; // border 1.5 * 2
         const double decorationTotal = paddingTotal + borderTotal; // 9.0
 
         // Available space for grid cells (subtracting board decoration)
-        final double gridW = constraints.maxWidth - coordW - decorationTotal;
-        final double gridH = constraints.maxHeight - (coordH * 2) - decorationTotal;
+        final bool isAndroid =
+            Theme.of(context).platform == TargetPlatform.android;
+        final double boardConstraintWidth = isAndroid
+            ? constraints.maxWidth
+            : (constraints.maxWidth > 390 ? 390 : constraints.maxWidth);
+        final double gridW = boardConstraintWidth - coordW - decorationTotal;
+        final double gridH =
+            constraints.maxHeight - (coordH * 2) - decorationTotal;
 
         // Pick the smaller axis so nothing overflows or crops
         final double cellW = (gridW - 14 * gap) / 15;
@@ -1158,7 +1392,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           onDragStarted: () =>
               SoundManager.play(SoundType.pickup, state.settings),
           onDragCompleted: () =>
-              ref.read(gameProvider.notifier).recallTileAt(r, c),
+              ref.read(_provider.notifier).recallTileAt(r, c),
           child: tileWidget,
         );
       } else {
@@ -1188,10 +1422,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         SoundManager.play(SoundType.place, state.settings);
         HapticUtils.trigger(HapticType.place, state.settings);
         final placed = ref
-            .read(gameProvider.notifier)
+            .read(_provider.notifier)
             .placeTile(incomingTile, r, c);
-        if (placed && incomingTile.isBlank)
+        if (placed && incomingTile.isBlank) {
           _promptBlankTileSelection(context, r, c);
+        }
       },
       builder: (context, candidateData, _) {
         final isHover = candidateData.isNotEmpty;
@@ -1201,7 +1436,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             if (tile != null) {
               if (cell.isNewPlacement) {
                 HapticUtils.trigger(HapticType.tap, state.settings);
-                ref.read(gameProvider.notifier).recallTileAt(r, c);
+                ref.read(_provider.notifier).recallTileAt(r, c);
               }
             } else {
               if (_selectedRackTile != null) {
@@ -1209,7 +1444,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 HapticUtils.trigger(HapticType.place, state.settings);
                 final blankToPlace = _selectedRackTile!.isBlank;
                 final placed = ref
-                    .read(gameProvider.notifier)
+                    .read(_provider.notifier)
                     .placeTile(_selectedRackTile!, r, c);
                 if (placed) {
                   setState(() => _selectedRackTile = null);
@@ -1419,7 +1654,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   label: 'Recall',
                   enabled: isPlayerTurn && hasNew,
                   onTap: () =>
-                      ref.read(gameProvider.notifier).recallAllNewPlacements(),
+                      ref.read(_provider.notifier).recallAllNewPlacements(),
                   state: state,
                 ),
               ),
@@ -1429,7 +1664,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   icon: Icons.shuffle_rounded,
                   label: 'Shuffle',
                   enabled: isPlayerTurn,
-                  onTap: () => ref.read(gameProvider.notifier).shuffleRack(),
+                  onTap: () => ref.read(_provider.notifier).shuffleRack(),
                   state: state,
                 ),
               ),
@@ -1614,17 +1849,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             top: -6,
             right: 4,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
                 color: const Color(0xFF021710),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppTheme.shinyGold,
-                  width: 0.8,
-                ),
+                border: Border.all(color: AppTheme.shinyGold, width: 0.8),
               ),
               child: Text(
                 badge,

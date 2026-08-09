@@ -26,8 +26,11 @@ class GameNotifier extends StateNotifier<GameState> {
   final DictionaryService _dictionary = DictionaryService();
   Timer? _aiAnimationTimer;
 
+  GameState get currentState => state;
+
   GameNotifier()
-      : super(GameState(
+    : super(
+        GameState(
           board: _createEmptyBoard(),
           playerRack: const [],
           computerRack: const [],
@@ -41,18 +44,15 @@ class GameNotifier extends StateNotifier<GameState> {
           status: 'playerTurn',
           settings: const GameSettings(),
           statistics: const Statistics(),
-        )) {
+        ),
+      ) {
     _init();
   }
 
   static List<List<BoardCell>> _createEmptyBoard() {
     return List.generate(GameConfig.boardSize, (r) {
       return List.generate(GameConfig.boardSize, (c) {
-        return BoardCell(
-          row: r,
-          col: c,
-          type: GameConfig.getCellTypeAt(r, c),
-        );
+        return BoardCell(row: r, col: c, type: GameConfig.getCellTypeAt(r, c));
       });
     });
   }
@@ -60,12 +60,9 @@ class GameNotifier extends StateNotifier<GameState> {
   Future<void> _init() async {
     final settings = await _persistence.loadSettings();
     final stats = await _persistence.loadStatistics();
-    
-    state = state.copyWith(
-      settings: settings,
-      statistics: stats,
-    );
-    
+
+    state = state.copyWith(settings: settings, statistics: stats);
+
     unawaited(MusicManager.instance.init(settings.musicEnabled));
   }
 
@@ -84,9 +81,10 @@ class GameNotifier extends StateNotifier<GameState> {
           settings: state.settings,
           statistics: state.statistics,
         );
-        
+
         // If we loaded and it was computer's turn, resume computer move
-        if (state.currentTurn == 'computer' && state.status == 'computerThinking') {
+        if (state.currentTurn == 'computer' &&
+            state.status == 'computerThinking') {
           _runComputerTurn();
         }
       }
@@ -99,19 +97,21 @@ class GameNotifier extends StateNotifier<GameState> {
     await _persistence.deleteGameSave();
   }
 
-  void startNewGame(String difficulty) {
+  void startNewGame(String difficulty, {bool persist = true}) {
     // 1. Generate full tile bag
     final List<Tile> bag = [];
     int tileIdCounter = 0;
     GameConfig.letterDistributions.forEach((letter, count) {
       final score = GameConfig.letterScores[letter] ?? 0;
       for (int i = 0; i < count; i++) {
-        bag.add(Tile(
-          id: 'tile_${tileIdCounter++}',
-          letter: letter,
-          scoreValue: score,
-          isBlank: letter == ' ',
-        ));
+        bag.add(
+          Tile(
+            id: 'tile_${tileIdCounter++}',
+            letter: letter,
+            scoreValue: score,
+            isBlank: letter == ' ',
+          ),
+        );
       }
     });
 
@@ -144,12 +144,14 @@ class GameNotifier extends StateNotifier<GameState> {
       lastMoveMessage: "New game started! Your turn first.",
     );
 
-    _persistence.saveGame(state);
+    if (persist) {
+      _persistence.saveGame(state);
+    }
   }
 
   Future<void> abandonGame() async {
     await _persistence.deleteGameSave();
-    
+
     // Record as loss if in progress
     if (state.status != 'gameCompleted') {
       final updatedStats = state.statistics.copyWith(
@@ -175,20 +177,22 @@ class GameNotifier extends StateNotifier<GameState> {
   /// Place a tile from the player rack to a board coordinate
   bool placeTile(Tile tile, int row, int col) {
     if (state.status != 'playerTurn') return false;
-    if (row < 0 || row >= GameConfig.boardSize || col < 0 || col >= GameConfig.boardSize) return false;
-    
+    if (row < 0 ||
+        row >= GameConfig.boardSize ||
+        col < 0 ||
+        col >= GameConfig.boardSize)
+      return false;
+
     final cell = state.board[row][col];
     if (cell.tile != null) return false; // Cell already occupied
 
     // Update board
     final newBoard = _cloneBoardGrid(state.board);
-    newBoard[row][col] = cell.copyWith(
-      tile: tile,
-      isNewPlacement: true,
-    );
+    newBoard[row][col] = cell.copyWith(tile: tile, isNewPlacement: true);
 
     // Update player rack
-    final newRack = List<Tile>.from(state.playerRack)..removeWhere((t) => t.id == tile.id);
+    final newRack = List<Tile>.from(state.playerRack)
+      ..removeWhere((t) => t.id == tile.id);
 
     state = state.copyWith(
       board: newBoard,
@@ -222,11 +226,17 @@ class GameNotifier extends StateNotifier<GameState> {
     if (toCell.tile != null) return false; // Target cell is occupied
 
     final newBoard = _cloneBoardGrid(state.board);
-    
+
     // Clear from position
-    newBoard[fromRow][fromCol] = fromCell.copyWith(clearTile: true, isNewPlacement: false);
+    newBoard[fromRow][fromCol] = fromCell.copyWith(
+      clearTile: true,
+      isNewPlacement: false,
+    );
     // Put on to position
-    newBoard[toRow][toCol] = toCell.copyWith(tile: fromCell.tile, isNewPlacement: true);
+    newBoard[toRow][toCol] = toCell.copyWith(
+      tile: fromCell.tile,
+      isNewPlacement: true,
+    );
 
     state = state.copyWith(board: newBoard);
     return true;
@@ -267,7 +277,10 @@ class GameNotifier extends StateNotifier<GameState> {
               ? cell.tile!.copyWith(blankLetter: null)
               : cell.tile!;
           recalled.add(returnedTile);
-          newBoard[r][c] = cell.copyWith(clearTile: true, isNewPlacement: false);
+          newBoard[r][c] = cell.copyWith(
+            clearTile: true,
+            isNewPlacement: false,
+          );
         }
       }
     }
@@ -292,17 +305,22 @@ class GameNotifier extends StateNotifier<GameState> {
     recallAllNewPlacements();
 
     final nextPasses = state.consecutivePasses + 1;
-    final timestamp = DateTime.now().toIso8601String().substring(11, 16); // HH:MM
+    final timestamp = DateTime.now().toIso8601String().substring(
+      11,
+      16,
+    ); // HH:MM
 
     final newHistory = List<MoveHistory>.from(state.moveHistory)
-      ..add(MoveHistory(
-        player: 'player',
-        word: 'PASSED',
-        score: 0,
-        timestamp: timestamp,
-        tilesUsed: const [],
-        isPass: true,
-      ));
+      ..add(
+        MoveHistory(
+          player: 'player',
+          word: 'PASSED',
+          score: 0,
+          timestamp: timestamp,
+          tilesUsed: const [],
+          isPass: true,
+        ),
+      );
 
     state = state.copyWith(
       consecutivePasses: nextPasses,
@@ -313,7 +331,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     _persistence.saveGame(state);
-    
+
     if (_checkGameOver()) return;
 
     _runComputerTurn();
@@ -322,7 +340,8 @@ class GameNotifier extends StateNotifier<GameState> {
   bool exchangeTiles(List<Tile> tilesToExchange) {
     if (state.status != 'playerTurn') return false;
     if (tilesToExchange.isEmpty) return false;
-    if (state.tileBag.length < GameConfig.rackSize) return false; // Rule: Must have >= 7 tiles in bag to exchange
+    if (state.tileBag.length < GameConfig.rackSize)
+      return false; // Rule: Must have >= 7 tiles in bag to exchange
 
     recallAllNewPlacements();
 
@@ -352,14 +371,16 @@ class GameNotifier extends StateNotifier<GameState> {
 
     final timestamp = DateTime.now().toIso8601String().substring(11, 16);
     final newHistory = List<MoveHistory>.from(state.moveHistory)
-      ..add(MoveHistory(
-        player: 'player',
-        word: 'EXCHANGED',
-        score: 0,
-        timestamp: timestamp,
-        tilesUsed: tilesToExchange.map((t) => t.displayLetter).toList(),
-        isExchange: true,
-      ));
+      ..add(
+        MoveHistory(
+          player: 'player',
+          word: 'EXCHANGED',
+          score: 0,
+          timestamp: timestamp,
+          tilesUsed: tilesToExchange.map((t) => t.displayLetter).toList(),
+          isExchange: true,
+        ),
+      );
 
     state = state.copyWith(
       playerRack: rack,
@@ -418,13 +439,15 @@ class GameNotifier extends StateNotifier<GameState> {
     final primaryWord = validation.wordsFormed.first.word;
 
     final newHistory = List<MoveHistory>.from(state.moveHistory)
-      ..add(MoveHistory(
-        player: 'player',
-        word: primaryWord,
-        score: validation.totalScore,
-        timestamp: timestamp,
-        tilesUsed: lettersUsed,
-      ));
+      ..add(
+        MoveHistory(
+          player: 'player',
+          word: primaryWord,
+          score: validation.totalScore,
+          timestamp: timestamp,
+          tilesUsed: lettersUsed,
+        ),
+      );
 
     state = state.copyWith(
       board: newBoard,
@@ -435,7 +458,8 @@ class GameNotifier extends StateNotifier<GameState> {
       moveHistory: newHistory,
       currentTurn: 'computer',
       status: 'computerThinking',
-      lastMoveMessage: "You played $primaryWord for ${validation.totalScore} pts!",
+      lastMoveMessage:
+          "You played $primaryWord for ${validation.totalScore} pts!",
     );
 
     _persistence.saveGame(state);
@@ -501,14 +525,16 @@ class GameNotifier extends StateNotifier<GameState> {
     final timestamp = DateTime.now().toIso8601String().substring(11, 16);
 
     final newHistory = List<MoveHistory>.from(state.moveHistory)
-      ..add(MoveHistory(
-        player: 'computer',
-        word: 'PASSED',
-        score: 0,
-        timestamp: timestamp,
-        tilesUsed: const [],
-        isPass: true,
-      ));
+      ..add(
+        MoveHistory(
+          player: 'computer',
+          word: 'PASSED',
+          score: 0,
+          timestamp: timestamp,
+          tilesUsed: const [],
+          isPass: true,
+        ),
+      );
 
     state = state.copyWith(
       consecutivePasses: nextPasses,
@@ -536,7 +562,9 @@ class GameNotifier extends StateNotifier<GameState> {
       final idx = rack.indexWhere((t) => t.id == id);
       if (idx != -1) {
         final tile = rack.removeAt(idx);
-        final cleanTile = tile.isBlank ? tile.copyWith(blankLetter: null) : tile;
+        final cleanTile = tile.isBlank
+            ? tile.copyWith(blankLetter: null)
+            : tile;
         bag.add(cleanTile);
         lettersExchanged.add(tile.displayLetter);
       }
@@ -553,14 +581,16 @@ class GameNotifier extends StateNotifier<GameState> {
 
     final timestamp = DateTime.now().toIso8601String().substring(11, 16);
     final newHistory = List<MoveHistory>.from(state.moveHistory)
-      ..add(MoveHistory(
-        player: 'computer',
-        word: 'EXCHANGED',
-        score: 0,
-        timestamp: timestamp,
-        tilesUsed: lettersExchanged,
-        isExchange: true,
-      ));
+      ..add(
+        MoveHistory(
+          player: 'computer',
+          word: 'EXCHANGED',
+          score: 0,
+          timestamp: timestamp,
+          tilesUsed: lettersExchanged,
+          isExchange: true,
+        ),
+      );
 
     state = state.copyWith(
       computerRack: rack,
@@ -585,7 +615,9 @@ class GameNotifier extends StateNotifier<GameState> {
     // Standard timer duration adjusted by settings speed
     final int delayMs = (300 * state.settings.animationSpeed).toInt();
 
-    _aiAnimationTimer = Timer.periodic(Duration(milliseconds: delayMs), (timer) {
+    _aiAnimationTimer = Timer.periodic(Duration(milliseconds: delayMs), (
+      timer,
+    ) {
       if (currentIndex >= placements.length) {
         timer.cancel();
         _finalizeComputerMove(aiMove);
@@ -593,7 +625,7 @@ class GameNotifier extends StateNotifier<GameState> {
       }
 
       final p = placements[currentIndex];
-      
+
       // Update board with single animated tile
       final newBoard = _cloneBoardGrid(state.board);
       final animatedTile = Tile(
@@ -606,7 +638,8 @@ class GameNotifier extends StateNotifier<GameState> {
 
       newBoard[p.row][p.col] = newBoard[p.row][p.col].copyWith(
         tile: animatedTile,
-        isNewPlacement: true, // Show highlighted highlight in UI during animation
+        isNewPlacement:
+            true, // Show highlighted highlight in UI during animation
       );
 
       state = state.copyWith(board: newBoard);
@@ -618,7 +651,9 @@ class GameNotifier extends StateNotifier<GameState> {
     // 1. Lock computer placed tiles on board
     final newBoard = _cloneBoardGrid(state.board);
     for (var p in aiMove.placements) {
-      newBoard[p.row][p.col] = newBoard[p.row][p.col].copyWith(isNewPlacement: false);
+      newBoard[p.row][p.col] = newBoard[p.row][p.col].copyWith(
+        isNewPlacement: false,
+      );
     }
 
     // 2. Remove placed tiles from computer's rack
@@ -640,13 +675,17 @@ class GameNotifier extends StateNotifier<GameState> {
     final timestamp = DateTime.now().toIso8601String().substring(11, 16);
 
     final newHistory = List<MoveHistory>.from(state.moveHistory)
-      ..add(MoveHistory(
-        player: 'computer',
-        word: aiMove.word,
-        score: aiMove.score,
-        timestamp: timestamp,
-        tilesUsed: aiMove.placements.map((p) => p.blankLetter ?? p.letter).toList(),
-      ));
+      ..add(
+        MoveHistory(
+          player: 'computer',
+          word: aiMove.word,
+          score: aiMove.score,
+          timestamp: timestamp,
+          tilesUsed: aiMove.placements
+              .map((p) => p.blankLetter ?? p.letter)
+              .toList(),
+        ),
+      );
 
     state = state.copyWith(
       board: newBoard,
@@ -657,11 +696,12 @@ class GameNotifier extends StateNotifier<GameState> {
       moveHistory: newHistory,
       currentTurn: 'player',
       status: 'playerTurn',
-      lastMoveMessage: "Computer played ${aiMove.word} for ${aiMove.score} pts!",
+      lastMoveMessage:
+          "Computer played ${aiMove.word} for ${aiMove.score} pts!",
     );
 
     _persistence.saveGame(state);
-    
+
     if (_checkGameOver()) return;
   }
 
@@ -686,8 +726,14 @@ class GameNotifier extends StateNotifier<GameState> {
     int pScore = state.playerScore;
     int cScore = state.computerScore;
 
-    final int playerRackValue = state.playerRack.fold(0, (sum, t) => sum + t.scoreValue);
-    final int computerRackValue = state.computerRack.fold(0, (sum, t) => sum + t.scoreValue);
+    final int playerRackValue = state.playerRack.fold(
+      0,
+      (sum, t) => sum + t.scoreValue,
+    );
+    final int computerRackValue = state.computerRack.fold(
+      0,
+      (sum, t) => sum + t.scoreValue,
+    );
 
     String deductionMessage = "";
 
@@ -695,17 +741,20 @@ class GameNotifier extends StateNotifier<GameState> {
       // Player gets points of computer's remaining rack
       pScore += computerRackValue;
       cScore -= computerRackValue;
-      deductionMessage = "You used all tiles! Added +$computerRackValue, Computer deducted -$computerRackValue.";
+      deductionMessage =
+          "You used all tiles! Added +$computerRackValue, Computer deducted -$computerRackValue.";
     } else if (state.computerRack.isEmpty && state.tileBag.isEmpty) {
       // Computer gets points of player's remaining rack
       cScore += playerRackValue;
       pScore -= playerRackValue;
-      deductionMessage = "Computer used all tiles! Added +$playerRackValue, you deducted -$playerRackValue.";
+      deductionMessage =
+          "Computer used all tiles! Added +$playerRackValue, you deducted -$playerRackValue.";
     } else {
       // Both deduct remaining tiles
       pScore -= playerRackValue;
       cScore -= computerRackValue;
-      deductionMessage = "Game ended by passes! Deductions: You -$playerRackValue, Computer -$computerRackValue.";
+      deductionMessage =
+          "Game ended by passes! Deductions: You -$playerRackValue, Computer -$computerRackValue.";
     }
 
     // Clamp scores to 0
@@ -720,11 +769,13 @@ class GameNotifier extends StateNotifier<GameState> {
     // Map list of moves for player to stats
     final List<Map<String, dynamic>> playerMoves = state.moveHistory
         .where((m) => m.player == 'player' && !m.isPass && !m.isExchange)
-        .map((m) => {
-              'word': m.word,
-              'score': m.score,
-              'usedAll': m.tilesUsed.length == GameConfig.rackSize,
-            })
+        .map(
+          (m) => {
+            'word': m.word,
+            'score': m.score,
+            'usedAll': m.tilesUsed.length == GameConfig.rackSize,
+          },
+        )
         .toList();
 
     // Record stats
@@ -740,7 +791,8 @@ class GameNotifier extends StateNotifier<GameState> {
       computerScore: cScore,
       statistics: updatedStats,
       status: 'gameCompleted',
-      lastMoveMessage: "Game Over! $deductionMessage Winner: ${result.toUpperCase()}.",
+      lastMoveMessage:
+          "Game Over! $deductionMessage Winner: ${result.toUpperCase()}.",
     );
 
     _persistence.saveStatistics(updatedStats);

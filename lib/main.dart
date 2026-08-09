@@ -1,16 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'dictionary/dictionary_service.dart';
 import 'features/home/home_screen.dart';
+import 'core/supabase_bootstrap.dart';
+import 'core/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    const ProviderScope(
-      child: LetterLoomApp(),
-    ),
-  );
+  await SupabaseBootstrap.initialize();
+  unawaited(PushNotificationService.initialize());
+  runApp(const ProviderScope(child: LetterLoomApp()));
 }
 
 class LetterLoomApp extends StatelessWidget {
@@ -34,7 +35,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   String _loadingStatus = "Threading the Loom...";
@@ -53,26 +55,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _initDictionary() async {
+    unawaited(_warmDictionary());
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const HomeScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 350),
+      ),
+    );
+  }
+
+  Future<void> _warmDictionary() async {
     try {
       await DictionaryService().load();
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loadingStatus = "Error preparing dictionary. Please restart the app.";
-          _hasError = true;
-        });
-      }
+    } catch (_) {
+      // Word validation will surface the normal dictionary error when needed.
     }
   }
 
@@ -98,7 +100,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 height: 100,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.8), width: 1.5),
+                  border: Border.all(
+                    color: AppTheme.shinyGold.withValues(alpha: 0.8),
+                    width: 1.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.5),
@@ -128,14 +133,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'A Premium Offline Word Game',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  color: AppTheme.mutedIvory.withValues(alpha: 0.7),
-                  letterSpacing: 0.5,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('➔  ', style: _splashOrnamentStyle()),
+                  const Text(
+                    'Solo Offline · Online Play',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      color: AppTheme.mutedIvory,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  Text('  ➔', style: _splashOrnamentStyle()),
+                ],
               ),
               const SizedBox(height: 64),
               if (!_hasError)
@@ -143,7 +155,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   width: 32,
                   height: 32,
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.shinyGold),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.shinyGold,
+                    ),
                     strokeWidth: 2.5,
                   ),
                 ),
@@ -153,7 +167,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 13,
-                  color: _hasError ? Colors.redAccent : AppTheme.ivoryText.withValues(alpha: 0.8),
+                  color: _hasError
+                      ? Colors.redAccent
+                      : AppTheme.ivoryText.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -162,4 +178,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
   }
+
+  TextStyle _splashOrnamentStyle() => const TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+    color: AppTheme.shinyGold,
+  );
 }
