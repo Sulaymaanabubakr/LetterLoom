@@ -46,6 +46,8 @@ google-services.json
 GoogleService-Info.plist
 **/google-services.json
 **/GoogleService-Info.plist
+android/key.properties
+android/upload-keystore.jks
 
 # Android Studio will place build artifacts here
 /android/app/debug

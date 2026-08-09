@@ -90,6 +90,19 @@ Launch the game on a connected emulator or device (the local Supabase values are
 flutter run --dart-define-from-file=dart_defines.json
 ```
 
+### Build for Google Play
+
+The release signing files are kept locally and ignored by Git. Generate the
+Play Store bundle with:
+
+```bash
+flutter build appbundle --release \
+  --dart-define-from-file=dart_defines.json
+```
+
+The bundle is written to
+`build/app/outputs/bundle/release/app-release.aab`.
+
 ---
 
 ## 📜 Attributions & Licensing
