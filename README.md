@@ -97,11 +97,18 @@ Play Store bundle with:
 
 ```bash
 flutter build appbundle --release \
-  --dart-define-from-file=dart_defines.json
+  --dart-define-from-file=dart_defines.json \
+  --obfuscate \
+  --split-debug-info=build/symbols/android
 ```
 
 The bundle is written to
 `build/app/outputs/bundle/release/app-release.aab`.
+
+Release builds use Flutter's release tree-shaking and Android's release
+shrinking. The app bundle lets Google Play deliver only the native architecture
+and resources needed by each device; do not use `--split-per-abi` for the Play
+Store bundle.
 
 ---
 

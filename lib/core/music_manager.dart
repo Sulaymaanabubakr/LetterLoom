@@ -21,8 +21,8 @@ class MusicManager with WidgetsBindingObserver {
 
   // Bundled local assets — instant playback, no network required
   static const Map<MusicTrack, String> _trackAssets = {
-    MusicTrack.menu: 'audio/menu_music.mp3',
-    MusicTrack.game: 'audio/game_music.mp3',
+    MusicTrack.menu: 'audio/menu_music.m4a',
+    MusicTrack.game: 'audio/game_music.m4a',
   };
 
   // ── Public API ─────────────────────────────────────────────────────────────

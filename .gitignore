@@ -48,6 +48,7 @@ GoogleService-Info.plist
 **/GoogleService-Info.plist
 android/key.properties
 android/upload-keystore.jks
+build/symbols/
 
 # Android Studio will place build artifacts here
 /android/app/debug

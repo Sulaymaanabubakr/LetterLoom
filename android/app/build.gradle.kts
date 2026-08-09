@@ -27,7 +27,7 @@ android {
         applicationId = "com.letter.loom"
         // Android 5.0+ (covers 99%+ of active Android devices)
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
     }
