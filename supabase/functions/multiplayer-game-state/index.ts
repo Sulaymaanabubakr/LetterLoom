@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     if (action === 'timeout') {
       if (game.status !== 'active') return response({ error: 'This room is not active.' }, 409);
       if (!game.turn_started_at) return response({ error: 'This turn has no countdown.' }, 409);
-      if (Date.now() < Date.parse(game.turn_started_at) + 60_000) {
+      if (Date.now() < Date.parse(game.turn_started_at) + 120_000) {
         return response({ error: 'The turn countdown has not expired.' }, 409);
       }
 

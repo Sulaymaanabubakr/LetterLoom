@@ -11,7 +11,7 @@ Solo games work without a network connection. Online multiplayer is implemented 
 ## Features
 
 - Solo games against a computer opponent, with `Easy`, `Medium`, and `Hard` difficulty levels.
-- Online two-player rooms: create or join a room with a six-character code, manage rooms, synchronize turns, enforce a 60-second turn countdown, and receive room updates.
+- Online two-player rooms: create or join a room with a six-character code, manage rooms, synchronize turns, enforce a 120-second turn countdown, and receive room updates.
 - A 15×15 board with centre, double-letter, triple-letter, double-word, and triple-word squares.
 - Word placement validation for first-move centre coverage, straight-line placement, gaps, connectivity, cross-words, blank tiles, and bingo bonuses.
 - Standard tile scores and distributions, including two blank tiles and a 50-point seven-tile bonus.

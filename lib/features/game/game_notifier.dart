@@ -21,7 +21,7 @@ final gameProvider = StateNotifierProvider<GameNotifier, GameState>((ref) {
 });
 
 class GameNotifier extends StateNotifier<GameState> {
-  static const Duration turnDuration = Duration(seconds: 60);
+  static const Duration turnDuration = Duration(seconds: 120);
   final PersistenceManager _persistence = PersistenceManager();
   final RulesValidator _rulesValidator = RulesValidator();
   final DictionaryService _dictionary = DictionaryService();
