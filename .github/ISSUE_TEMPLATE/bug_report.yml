@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible problem in LetterLoom
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please remove private information before submitting.
+  - type: input
+    id: version
+    attributes:
+      label: LetterLoom version
+      description: Use the app version shown in the app or the commit/release you tested.
+      placeholder: 1.0.0+1 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android
+        - iOS
+        - Web
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: platform_version
+    attributes:
+      label: OS version
+      placeholder: Android 15, iOS 18.6, macOS 15.6
+  - type: input
+    id: device
+    attributes:
+      label: Device or emulator
+      placeholder: Pixel 8, iPhone 15, Chrome desktop
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest reliable sequence that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs
+      description: Add relevant evidence and remove tokens, account data, and other private information.

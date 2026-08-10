@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability reporting
+    url: https://github.com/Sulaymaanabubakr/LetterLoom/security/advisories/new
+    about: Please report exploitable vulnerabilities privately instead of opening a public issue.

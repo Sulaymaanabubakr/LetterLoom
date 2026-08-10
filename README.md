@@ -1,117 +1,201 @@
 # LetterLoom
 
-A complete, production-ready, offline-first Scrabble-style mobile game built with Flutter and Dart. 
+LetterLoom is an open-source Flutter word-strategy game for solo play and online matches. Build words on a 15×15 board, manage a seven-tile rack, score across premium squares, and play against a computer opponent or another player online.
 
-Featuring a premium, tactile physical board-game design styled in rich forest green, warm ivory, and gold highlights, **LetterLoom** lets you play matches against an advanced computer opponent completely offline.
+## Project status
 
----
+LetterLoom is under active development. The repository contains the Flutter application, automated tests, bundled word data, Supabase migrations and Edge Functions for online multiplayer, and an accompanying Next.js website. The current app version is `1.0.0+1`.
 
-## 🎨 Visual Identity & Theme
-- **Primary Color Scheme:** Deep Forest Green (`#0F382B`), Rich Emerald (`#1C5C44`), and Soft Warm Ivory (`#F7F5F0`).
-- **Premium Cells:** DL (Double Letter - Pastel Blue), TL (Triple Letter - Medium Blue), DW (Double Word - Coral), TW (Triple Word - Terracotta).
-- **Physical Tiles:** Tactile Ivory-style surfaces with gold typography, physical bottom bevel offsets, and soft drop shadows to resemble premium wooden game pieces.
+Solo games work without a network connection. Online multiplayer is implemented through Supabase anonymous authentication, protected Edge Functions, Realtime room updates, and persisted game state; it requires a configured Supabase project and is disabled when the required runtime values are absent. Mobile push notifications are an optional integration that also requires Firebase configuration and server-side credentials.
 
----
+## Features
 
-## 🚀 Key Features
-- **Independent Rules Engine:** Enforces all standard word-placement rules (center crossing, linear placements, connectivity, gap detection, crossword combinations, blank tiles, and endgame scoring rack deductions).
-- **Offline Dictionary Service:** Bundles the ~172,000 word SOWPODS/enable1 English dictionary list directly into assets. Performs instant exact validation in $O(1)$ time and prefix checks in $O(\log N)$ time using a binary search index.
-- **Isolate-Powered AI Opponent:** Offloads computer word search backtracking calculations to a background Dart Isolate to ensure smooth UI performance. Supports 3 distinct difficulties:
-  - **Easy:** Prefers shorter words, skips premium squares, and chooses low-scoring plays.
-  - **Medium:** Competes balancedly, scans multiple anchors, and targets mid-tier points.
-  - **Hard:** Backtracks full anchors using prefix pruning, targets premium cells, and hunts for 50-point bingo bonuses.
-- **Offline Save & Auto-Resume:** Game state is persisted locally to a JSON file after every turn. Handles corrupted save recovery gracefully without crashing.
-- **Interactive Board Layout:** Uses a responsive board grid wrapping an `InteractiveViewer` supporting pan and pinch-to-zoom on smaller screens. Offers both Drag-and-Drop and Tap-to-Place interactions.
+- Solo games against a computer opponent, with `Easy`, `Medium`, and `Hard` difficulty levels.
+- Online two-player rooms: create or join a room with a six-character code, manage rooms, synchronize turns, enforce a 60-second turn countdown, and receive room updates.
+- A 15×15 board with centre, double-letter, triple-letter, double-word, and triple-word squares.
+- Word placement validation for first-move centre coverage, straight-line placement, gaps, connectivity, cross-words, blank tiles, and bingo bonuses.
+- Standard tile scores and distributions, including two blank tiles and a 50-point seven-tile bonus.
+- A bundled ENABLE1 word list for offline exact word validation and AI prefix search.
+- Background-isolate AI search so computer turns do not block the main UI.
+- Local JSON persistence for in-progress games, settings, and statistics, including continue/resume support.
+- Private multiplayer racks and tile bags separated from public room state in the Supabase schema.
+- Settings for music, sound effects, haptics, and animation speed, plus statistics by difficulty.
 
----
+## Screenshots
 
-## 📂 Project Architecture
+The repository includes real iPhone store screenshots:
 
-```
+![LetterLoom home screen](assets/store/Screenshot%20iPhone%2017%20Pro%2009-08-2026%20at%2011.15.17.png)
+![Difficulty selection](assets/store/Screenshot%20iPhone%2017%20Pro%2009-08-2026%20at%2011.15.28.png)
+![Solo game board](assets/store/Screenshot%20iPhone%2017%20Pro%2009-08-2026%20at%2011.15.35.png)
+
+## Technology
+
+- Flutter and Dart for the mobile and desktop application.
+- Riverpod for application state management.
+- `path_provider` and JSON serialization for local persistence.
+- `audioplayers` for bundled music.
+- Supabase Flutter, Postgres migrations, Realtime, anonymous Auth, and Edge Functions for online multiplayer.
+- Firebase Core and Firebase Cloud Messaging for optional push notifications.
+- Next.js, React, and TypeScript for the website in `website/`.
+
+## Architecture
+
+The application is organized around a local game engine and feature modules:
+
+```text
 lib/
-├── main.dart                      # App entrypoint and Splash screen dictionary loader
-├── core/
-│   ├── haptic_utils.dart          # Native haptic vibration triggers
-│   └── sound_manager.dart         # Native system sound trigger click utilities
-├── models/
-│   ├── board_cell.dart            # Multipliers and tiles placement cell states
-│   ├── game_settings.dart         # sound, haptic, and animation speed preferences
-│   ├── game_state.dart            # Board, racks, bags, history, and status container
-│   ├── move_history.dart          # Turn log items
-│   ├── statistics.dart            # Games played, wins, losses, win rates, high scores
-│   └── tile.dart                  # ID, point values, blank selection representations
-├── game_engine/
-│   ├── game_config.dart           # Letter distributions, values, and premium coordinate layouts
-│   └── rules_validator.dart       # Alignment, adjacency, scoring, and bonus calculations
-├── dictionary/
-│   └── dictionary_service.dart    # Raw word list parsing, contains() and prefix search
-├── ai/
-│   ├── ai_engine.dart             # Backtracking interval candidate move compiler
-│   └── ai_isolate.dart            # Background Spawn Isolate task with cancel support
-├── storage/
-│   └── persistence_manager.dart   # JSON file reader/writers for board, settings, and statistics
-├── theme/
-│   └── app_theme.dart             # Material 3 colors, text styles, and tile bevel decorations
-├── features/
-│   ├── home/                      # Main Menu view with difficulty selections
-│   ├── game/                      # Draggable/clickable Gameplay view & blank tile picker
-│   ├── settings/                  # Toggles for sounds and statistics reset confirmation
-│   ├── statistics/                # Stats dashboard split by difficulty
-│   └── how_to_play/               # Rules and tile point mapping guides
-test/
-├── game_engine_test.dart          # Unit tests for scoring, first moves, gaps, and bingos
-├── persistence_test.dart          # Serialization checks for GameState conversions
-├── ai_engine_test.dart            # AI legality, rack boundary, and pass calculations
-└── widget_test.dart               # Widget test checking HomeScreen buttons
+├── ai/                  Computer move search and isolate entry point
+├── core/                Audio, haptics, push, Supabase bootstrap, and UI utilities
+├── dictionary/          Bundled word-list loading and lookup
+├── features/            Home, game, multiplayer, settings, statistics, and help screens
+├── game_engine/         Board configuration, tile distribution, validation, and scoring
+├── models/              Board, tile, game, move, settings, and statistics models
+├── storage/             Local game, settings, and statistics persistence
+└── theme/               Material theme and visual styling
+supabase/
+├── functions/           Multiplayer and notification Edge Functions
+└── migrations/          Multiplayer, private-state, realtime, and push-device schema
+website/                 Next.js public website
+test/                    Dart unit, persistence, AI, rules, and widget tests
 ```
 
----
+The rules validator is the source of truth for legal moves and scores. The dictionary service loads `assets/dictionary/enable1.txt` into an exact-match set and sorted prefix-search list. The AI receives serialized board, rack, difficulty, and dictionary data and returns a legal placement, pass, or exchange. The multiplayer repository calls the Supabase Edge Functions for room creation, joining, state initialization, turn synchronization, and timeout handling.
 
-## 🛠️ Setup & Running
+## Requirements
 
-### Prerequisites
-- Flutter SDK (v3.44.6 or later)
-- Android SDK / Xcode for mobile simulation
+- Flutter `3.44.6` or a compatible Flutter SDK using Dart `3.12.2` or later within the constraint in `pubspec.yaml`.
+- Android Studio and an Android SDK for Android development.
+- Xcode for iOS development and signing.
+- A connected device or emulator/simulator for interactive runs.
+- Node.js and npm only when working on the separate `website/` project.
+- Supabase CLI `2.106.0` or a compatible version only when working on the online backend.
 
-### Get Dependencies
+## Local development
+
+Install the Flutter dependencies from the repository root:
+
 ```bash
 flutter pub get
 ```
 
-### Run Tests
-To run the automated unit and widget test suite:
+Run the app with a connected device or emulator:
+
 ```bash
-flutter test
+flutter run
 ```
 
-### Run Project
-Launch the game on a connected emulator or device (the local Supabase values are read from the ignored `dart_defines.json` file):
+To enable online multiplayer, create an untracked `dart_defines.json` in the repository root:
+
+```json
+{
+  "SUPABASE_URL": "https://your-project-ref.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "your-publishable-or-anon-key"
+}
+```
+
+Then run:
+
 ```bash
 flutter run --dart-define-from-file=dart_defines.json
 ```
 
-### Build for Google Play
+Do not put a Supabase secret/service-role key in this file or in the Flutter client. The file is ignored by Git. Anonymous Sign-Ins must be enabled in the Supabase project for multiplayer sessions.
 
-The release signing files are kept locally and ignored by Git. Generate the
-Play Store bundle with:
+The Firebase files used by mobile push notifications are intentionally ignored (`google-services.json`, `GoogleService-Info.plist`, and the server service-account JSON). They are not required for solo or online board play, but must be provisioned separately for push notifications.
+
+### Supabase backend
+
+The checked-in migrations create multiplayer rooms, participants, private racks and tile bags, move history, Realtime configuration, turn countdown fields, and push-device registration. From the repository root, authenticate the Supabase CLI, link the intended project, and apply migrations:
 
 ```bash
-flutter build appbundle --release \
-  --dart-define-from-file=dart_defines.json \
-  --obfuscate \
-  --split-debug-info=build/symbols/android
+supabase link --project-ref <your-project-ref>
+supabase db push --linked
 ```
 
-The bundle is written to
-`build/app/outputs/bundle/release/app-release.aab`.
+Deploy the Edge Functions when online backend code changes:
 
-Release builds use Flutter's release tree-shaking and Android's release
-shrinking. The app bundle lets Google Play deliver only the native architecture
-and resources needed by each device; do not use `--split-per-abi` for the Play
-Store bundle.
+```bash
+supabase functions deploy create-multiplayer-game
+supabase functions deploy join-multiplayer-game
+supabase functions deploy list-multiplayer-games
+supabase functions deploy manage-multiplayer-room
+supabase functions deploy multiplayer-game-state
+```
 
----
+The push-notification helper additionally expects the server-side `FIREBASE_SERVICE_ACCOUNT_JSON` secret. Never commit that value.
 
-## 📜 Attributions & Licensing
-- The offline dictionary uses the public domain **Enhanced North American Benchmark LExicon (ENABLE1)** word list.
-- Ambient user interactions utilize native platform haptics and system sound clicks to eliminate asset load overhead.
+### Website
+
+The website is a separate npm project:
+
+```bash
+cd website
+npm ci
+npm run dev
+```
+
+For a production website build:
+
+```bash
+npm run lint
+npm run build
+npm run start
+```
+
+## Android and iOS
+
+Run on Android with `flutter run` after installing an emulator or connecting a device. The Android application id is `com.letter.loom` and its configured target SDK is 36.
+
+Run on iOS with `flutter run` after opening the iOS project on a macOS machine with Xcode configured. The iOS project currently targets iOS 15.0 and uses bundle identifier `com.letter.loom`. Apple signing, Firebase configuration, and provisioning are environment-specific and are not committed.
+
+Build commands represented by the Flutter project configuration include:
+
+```bash
+flutter build apk --release
+flutter build appbundle --release
+flutter build ipa --release
+```
+
+Release signing files and runtime configuration are local-only. Verify signing, entitlements, Firebase setup, Supabase configuration, and store metadata in the target platform before distributing an artifact.
+
+## Tests and linting
+
+Run the automated Dart and Flutter tests:
+
+```bash
+flutter test
+```
+
+Analyze the application and test source:
+
+```bash
+flutter analyze lib test
+```
+
+The website has its own lint command and should be checked from `website/`:
+
+```bash
+npm run lint
+```
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes focused, preserve existing gameplay and online-play behavior unless the change is intentional and tested, and include tests for changes to rules, scoring, persistence, AI, or multiplayer state handling.
+
+## Bugs and feature requests
+
+Use the repository issue templates for [bug reports](https://github.com/Sulaymaanabubakr/LetterLoom/issues/new?template=bug_report.yml) and [feature requests](https://github.com/Sulaymaanabubakr/LetterLoom/issues/new?template=feature_request.yml). Include reproducible technical details, not private account or device information.
+
+## Security
+
+Please read [SECURITY.md](SECURITY.md). Do not post exploitable vulnerability details in a normal public issue. A private GitHub Security Advisory is preferred where repository settings support it.
+
+## License
+
+LetterLoom's original source code is licensed under the [MIT License](LICENSE). The MIT license does not cover the bundled dictionary, music, fonts, branding, screenshots, or other third-party materials. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for their attribution and licensing information.
+
+## Acknowledgements
+
+- The bundled word list and audio tracks are credited separately in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and in the app's About screen.
+- LetterLoom uses the open-source Flutter, Dart, Riverpod, Supabase, Firebase, Next.js, React, and other packages listed in `pubspec.yaml` and `website/package.json`.

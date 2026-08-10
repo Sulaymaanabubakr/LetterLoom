@@ -37,7 +37,7 @@ export default function TermsPage() {
               content: (
                 <>
                   <p>
-                    Subject to your compliance with these Terms, LetterLoom grants you a limited, non-exclusive, non-transferable, revocable license to download and play LetterLoom for personal, non-commercial entertainment.
+                    Subject to your compliance with these Terms, LetterLoom grants you a limited, non-exclusive, non-transferable, revocable license to download and play the LetterLoom application for entertainment. The original source code published in the LetterLoom repository is separately licensed under the MIT License; that source-code license does not grant rights to LetterLoom branding, screenshots, music, dictionary data, or other excluded media.
                   </p>
                   <p style={{ marginTop: 8 }}>
                     All original visual assets, UI design, branding, logo, code, and custom soundscapes (excluding open-source or CC-licensed media attributed in-app) are the intellectual property of Sulaymaan Abubakr and LetterLoom.
