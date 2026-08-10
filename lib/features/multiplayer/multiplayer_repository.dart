@@ -131,6 +131,15 @@ class MultiplayerRepository {
     return MultiplayerStateSnapshot.fromJson(response.data);
   }
 
+  Future<MultiplayerStateSnapshot> timeoutTurn(String gameId) async {
+    await ensureSignedIn();
+    final response = await _client.functions.invoke(
+      'multiplayer-game-state',
+      body: {'game_id': gameId, 'action': 'timeout'},
+    );
+    return MultiplayerStateSnapshot.fromJson(response.data);
+  }
+
   Future<MultiplayerGame> joinGame(String roomCode, String displayName) async {
     await ensureSignedIn();
     final response = await _client.functions.invoke(
@@ -256,6 +265,7 @@ class MultiplayerStateSnapshot {
       tileBag: bagTiles,
       playerScore: isPlayerOne ? game.playerOneScore : game.playerTwoScore,
       computerScore: isPlayerOne ? game.playerTwoScore : game.playerOneScore,
+      consecutivePasses: game.consecutivePasses,
       currentTurn: isMyTurn ? 'player' : 'computer',
       status: game.status == 'active'
           ? (isMyTurn ? 'playerTurn' : 'waitingForOpponent')
@@ -263,6 +273,7 @@ class MultiplayerStateSnapshot {
       lastMoveMessage: game.status == 'active'
           ? (isMyTurn ? 'Your turn — place your tiles!' : "Opponent's turn")
           : template.lastMoveMessage,
+      turnStartedAt: game.turnStartedAt,
     );
   }
 }

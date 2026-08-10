@@ -147,7 +147,10 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               // Custom Header Bar with Back Button & Ornate Title
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 12.0,
+                ),
                 child: SizedBox(
                   height: 42,
                   child: Stack(
@@ -168,7 +171,9 @@ class SettingsScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                color: AppTheme.shinyGold.withValues(
+                                  alpha: 0.65,
+                                ),
                                 width: 1.2,
                               ),
                               color: const Color(0xFF010E0A),
@@ -198,15 +203,16 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                               ShaderMask(
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFFF1CC),
-                                    Color(0xFFD4AF37),
-                                    Color(0xFF8A640F),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ).createShader(bounds),
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFFF1CC),
+                                        Color(0xFFD4AF37),
+                                        Color(0xFF8A640F),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
                                 child: Text(
                                   'SETTINGS',
                                   style: GoogleFonts.lora(
@@ -260,7 +266,10 @@ class SettingsScreen extends ConsumerWidget {
                         height: 8,
                         decoration: BoxDecoration(
                           color: AppTheme.emeraldGreen,
-                          border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold,
+                            width: 1.2,
+                          ),
                         ),
                       ),
                     ),
@@ -285,7 +294,10 @@ class SettingsScreen extends ConsumerWidget {
               // Scroll Area
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 4.0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -294,13 +306,19 @@ class SettingsScreen extends ConsumerWidget {
                       // Switch 1: Sound Effects
                       _buildPreferenceCard(
                         title: 'Sound Effects',
-                        subtitle: 'Play sounds on tile placement\n& when you win.',
+                        subtitle:
+                            'Play sounds on tile placement\n& when you win.',
                         iconData: Icons.volume_up_rounded,
                         value: settings.soundEnabled,
                         onChanged: (val) {
                           HapticUtils.trigger(HapticType.tap, settings);
                           ref.read(gameProvider.notifier).toggleSound(val);
-                          ToastUtils.show(context, val ? 'Sound effects enabled' : 'Sound effects disabled');
+                          ToastUtils.show(
+                            context,
+                            val
+                                ? 'Sound effects enabled'
+                                : 'Sound effects disabled',
+                          );
                         },
                       ),
                       const SizedBox(height: 12),
@@ -315,20 +333,31 @@ class SettingsScreen extends ConsumerWidget {
                           if (val) {
                             HapticFeedback.mediumImpact();
                           }
-                          ToastUtils.show(context, val ? 'Haptic feedback enabled' : 'Haptic feedback disabled');
+                          ToastUtils.show(
+                            context,
+                            val
+                                ? 'Haptic feedback enabled'
+                                : 'Haptic feedback disabled',
+                          );
                         },
                       ),
                       const SizedBox(height: 12),
                       // Switch 3: Background Music
                       _buildPreferenceCard(
                         title: 'Background Music',
-                        subtitle: 'Enable ambient music\nfor a more immersive\nexperience.',
+                        subtitle:
+                            'Enable ambient music\nfor a more immersive\nexperience.',
                         iconData: Icons.music_note_rounded,
                         value: settings.musicEnabled,
                         onChanged: (val) {
                           HapticUtils.trigger(HapticType.tap, settings);
                           ref.read(gameProvider.notifier).toggleMusic(val);
-                          ToastUtils.show(context, val ? 'Background music enabled' : 'Background music disabled');
+                          ToastUtils.show(
+                            context,
+                            val
+                                ? 'Background music enabled'
+                                : 'Background music disabled',
+                          );
                         },
                       ),
                       const SizedBox(height: 24),
@@ -339,7 +368,10 @@ class SettingsScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.45),
+                            width: 1.2,
+                          ),
                           gradient: const LinearGradient(
                             colors: AppTheme.darkGreenGradient,
                             begin: Alignment.topCenter,
@@ -347,10 +379,11 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text(
                               'AI Placement Speed',
+                              textAlign: TextAlign.center,
                               style: GoogleFonts.lora(
                                 fontSize: 17,
                                 fontWeight: FontWeight.bold,
@@ -360,6 +393,7 @@ class SettingsScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               'Choose how fast the computer opponent places tiles on the board.',
+                              textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 12.5,
                                 color: AppTheme.mutedIvory,
@@ -370,16 +404,51 @@ class SettingsScreen extends ConsumerWidget {
                             Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.25), width: 1),
+                                border: Border.all(
+                                  color: AppTheme.shinyGold.withValues(
+                                    alpha: 0.25,
+                                  ),
+                                  width: 1,
+                                ),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(11),
                                 child: Row(
                                   children: [
-                                    _buildSpeedOption(context, ref, 'Slow', Icons.hourglass_bottom_rounded, 1.5, settings.animationSpeed, isFirst: true),
-                                    _buildSpeedOption(context, ref, 'Normal', Icons.eco_rounded, 1.0, settings.animationSpeed),
-                                    _buildSpeedOption(context, ref, 'Fast', Icons.directions_run_rounded, 0.5, settings.animationSpeed),
-                                    _buildSpeedOption(context, ref, 'Instant', Icons.flash_on_rounded, 0.2, settings.animationSpeed, isLast: true),
+                                    _buildSpeedOption(
+                                      context,
+                                      ref,
+                                      'Slow',
+                                      Icons.hourglass_bottom_rounded,
+                                      1.5,
+                                      settings.animationSpeed,
+                                      isFirst: true,
+                                    ),
+                                    _buildSpeedOption(
+                                      context,
+                                      ref,
+                                      'Normal',
+                                      Icons.eco_rounded,
+                                      1.0,
+                                      settings.animationSpeed,
+                                    ),
+                                    _buildSpeedOption(
+                                      context,
+                                      ref,
+                                      'Fast',
+                                      Icons.directions_run_rounded,
+                                      0.5,
+                                      settings.animationSpeed,
+                                    ),
+                                    _buildSpeedOption(
+                                      context,
+                                      ref,
+                                      'Instant',
+                                      Icons.flash_on_rounded,
+                                      0.2,
+                                      settings.animationSpeed,
+                                      isLast: true,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -395,12 +464,12 @@ class SettingsScreen extends ConsumerWidget {
                         height: 80,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF5A120A),
-                              Color(0xFF2E0502),
-                            ],
+                            colors: [Color(0xFF5A120A), Color(0xFF2E0502)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -414,7 +483,9 @@ class SettingsScreen extends ConsumerWidget {
                             },
                             borderRadius: BorderRadius.circular(16),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                              ),
                               child: Row(
                                 children: [
                                   // Left Trash Icon Circular Frame
@@ -425,7 +496,9 @@ class SettingsScreen extends ConsumerWidget {
                                       shape: BoxShape.circle,
                                       color: const Color(0xFF2E0502),
                                       border: Border.all(
-                                        color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                        color: AppTheme.shinyGold.withValues(
+                                          alpha: 0.65,
+                                        ),
                                         width: 1.2,
                                       ),
                                     ),
@@ -441,11 +514,14 @@ class SettingsScreen extends ConsumerWidget {
                                   // Middle Text Info
                                   Expanded(
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
                                       children: [
                                         Text(
                                           'Reset Statistics',
+                                          textAlign: TextAlign.center,
                                           style: GoogleFonts.lora(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -455,6 +531,7 @@ class SettingsScreen extends ConsumerWidget {
                                         const SizedBox(height: 2),
                                         Text(
                                           'This will permanently delete all your gameplay statistics and records.',
+                                          textAlign: TextAlign.center,
                                           style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color: const Color(0xFFE2B7B5),
@@ -501,7 +578,10 @@ class SettingsScreen extends ConsumerWidget {
                               height: 10,
                               decoration: BoxDecoration(
                                 color: AppTheme.emeraldGreen,
-                                border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                                border: Border.all(
+                                  color: AppTheme.shinyGold,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -580,7 +660,10 @@ class SettingsScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.45),
+          width: 1.2,
+        ),
         gradient: const LinearGradient(
           colors: AppTheme.darkGreenGradient,
           begin: Alignment.topCenter,
@@ -602,11 +685,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             child: Center(
-              child: Icon(
-                iconData,
-                color: AppTheme.shinyGold,
-                size: 20,
-              ),
+              child: Icon(iconData, color: AppTheme.shinyGold, size: 20),
             ),
           ),
           const SizedBox(width: 16),
@@ -643,7 +722,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCustomSwitch({required bool value, required ValueChanged<bool> onChanged}) {
+  Widget _buildCustomSwitch({
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -654,7 +736,9 @@ class SettingsScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(15),
           color: value ? const Color(0xFF0C5036) : const Color(0xFF031610),
           border: Border.all(
-            color: value ? AppTheme.shinyGold : AppTheme.shinyGold.withValues(alpha: 0.35),
+            color: value
+                ? AppTheme.shinyGold
+                : AppTheme.shinyGold.withValues(alpha: 0.35),
             width: 1.2,
           ),
         ),

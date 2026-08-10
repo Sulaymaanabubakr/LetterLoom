@@ -17,7 +17,12 @@ void main() {
 
       // Place a tile on the board
       board[7][7] = board[7][7].copyWith(
-        tile: const Tile(id: 't_centre', letter: 'A', scoreValue: 1, isBlank: false),
+        tile: const Tile(
+          id: 't_centre',
+          letter: 'A',
+          scoreValue: 1,
+          isBlank: false,
+        ),
         isNewPlacement: false,
       );
 
@@ -25,14 +30,16 @@ void main() {
         board: board,
         playerRack: const [
           Tile(id: 'p1', letter: 'X', scoreValue: 8),
-          Tile(id: 'p2', letter: ' ', scoreValue: 0, isBlank: true, blankLetter: 'E'),
+          Tile(
+            id: 'p2',
+            letter: ' ',
+            scoreValue: 0,
+            isBlank: true,
+            blankLetter: 'E',
+          ),
         ],
-        computerRack: const [
-          Tile(id: 'c1', letter: 'Z', scoreValue: 10),
-        ],
-        tileBag: const [
-          Tile(id: 'b1', letter: 'O', scoreValue: 1),
-        ],
+        computerRack: const [Tile(id: 'c1', letter: 'Z', scoreValue: 10)],
+        tileBag: const [Tile(id: 'b1', letter: 'O', scoreValue: 1)],
         playerScore: 42,
         computerScore: 24,
         currentTurn: 'player',
@@ -50,11 +57,12 @@ void main() {
         status: 'playerTurn',
         settings: const GameSettings(soundEnabled: false, hapticEnabled: true),
         statistics: const Statistics(wins: 5, losses: 2),
+        turnStartedAt: DateTime.utc(2026, 8, 9, 17, 0),
       );
 
       // Serialize
       final jsonMap = state.toJson();
-      
+
       // Deserialize
       final restored = GameState.fromJson(jsonMap);
 
@@ -68,6 +76,7 @@ void main() {
       expect(restored.settings.hapticEnabled, true);
       expect(restored.statistics.wins, 5);
       expect(restored.statistics.losses, 2);
+      expect(restored.turnStartedAt, DateTime.utc(2026, 8, 9, 17, 0));
 
       // Check board tile restored
       final centreCell = restored.board[7][7];

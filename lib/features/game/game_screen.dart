@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,7 +35,55 @@ class GameScreen extends ConsumerStatefulWidget {
 
 class _GameScreenState extends ConsumerState<GameScreen> {
   static const double _edgeContentTightening = 24.0;
+  static const Duration _turnDuration = GameNotifier.turnDuration;
   Tile? _selectedRackTile;
+  Timer? _turnCountdownTimer;
+  DateTime? _countdownTurnStartedAt;
+  bool _timeoutRequested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _turnCountdownTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _tickTurnCountdown(),
+    );
+  }
+
+  void _tickTurnCountdown() {
+    if (!mounted) return;
+    final state = ref.read(_provider);
+    if (_countdownTurnStartedAt != state.turnStartedAt) {
+      _countdownTurnStartedAt = state.turnStartedAt;
+      _timeoutRequested = false;
+    }
+    final start = state.turnStartedAt;
+    final isTimedTurn = state.turnStartedAt != null &&
+        (state.status == 'playerTurn' ||
+            (widget.isMultiplayer && state.status == 'waitingForOpponent'));
+    if (isTimedTurn && start != null &&
+        DateTime.now().isAfter(start.add(_turnDuration))) {
+      if (!_timeoutRequested) {
+        _timeoutRequested = true;
+        ref.read(_provider.notifier).handleTurnTimeout();
+      }
+    }
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _turnCountdownTimer?.cancel();
+    super.dispose();
+  }
+
+  int _remainingTurnSeconds(GameState state) {
+    final start = state.turnStartedAt;
+    if (start == null) return 0;
+    final remaining = start.add(_turnDuration).difference(DateTime.now());
+    if (remaining.isNegative) return 0;
+    return (remaining.inMilliseconds / 1000).ceil();
+  }
 
   StateNotifierProvider<GameNotifier, GameState> get _provider =>
       widget.controllerProvider ?? gameProvider;
@@ -1188,15 +1237,40 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 ),
               ),
             ),
-            Text(
-              '  ✦',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.shinyGold,
-              ),
-            ),
+            if (state.turnStartedAt != null &&
+                (state.status == 'playerTurn' ||
+                    (widget.isMultiplayer &&
+                        state.status == 'waitingForOpponent')))
+              _buildTurnCountdown(state),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTurnCountdown(GameState state) {
+    final seconds = _remainingTurnSeconds(state);
+    final minutes = seconds ~/ 60;
+    final display = '$minutes:${(seconds % 60).toString().padLeft(2, '0')}';
+    final urgent = seconds <= 10;
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: urgent
+            ? const Color(0xFF5A120A).withValues(alpha: 0.8)
+            : const Color(0xFF0B2A1E),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: urgent ? Colors.redAccent : AppTheme.shinyGold.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Text(
+        display,
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: urgent ? Colors.white : AppTheme.shinyGold,
         ),
       ),
     );

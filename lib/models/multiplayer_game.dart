@@ -5,11 +5,13 @@ class MultiplayerGame {
   final String? currentTurnUserId;
   final int playerOneScore;
   final int playerTwoScore;
+  final int consecutivePasses;
   final int moveNumber;
   final int playerCount;
   final String? createdByUserId;
   final bool isOwner;
   final List<dynamic> board;
+  final DateTime? turnStartedAt;
 
   const MultiplayerGame({
     required this.id,
@@ -18,11 +20,13 @@ class MultiplayerGame {
     required this.currentTurnUserId,
     required this.playerOneScore,
     required this.playerTwoScore,
+    this.consecutivePasses = 0,
     required this.moveNumber,
     this.playerCount = 0,
     this.createdByUserId,
     this.isOwner = false,
     this.board = const [],
+    this.turnStartedAt,
   });
 
   factory MultiplayerGame.fromJson(Map<String, dynamic> json) {
@@ -33,11 +37,15 @@ class MultiplayerGame {
       currentTurnUserId: json['current_turn_user_id'] as String?,
       playerOneScore: json['player_one_score'] as int? ?? 0,
       playerTwoScore: json['player_two_score'] as int? ?? 0,
+      consecutivePasses: json['consecutive_passes'] as int? ?? 0,
       moveNumber: json['move_number'] as int? ?? 0,
       playerCount: json['player_count'] as int? ?? 0,
       createdByUserId: json['created_by_user_id'] as String?,
       isOwner: json['is_owner'] as bool? ?? false,
       board: json['board'] is List ? List<dynamic>.from(json['board'] as List) : const [],
+      turnStartedAt: json['turn_started_at'] == null
+          ? null
+          : DateTime.tryParse(json['turn_started_at'] as String),
     );
   }
 
@@ -49,11 +57,13 @@ class MultiplayerGame {
       currentTurnUserId: currentTurnUserId,
       playerOneScore: playerOneScore,
       playerTwoScore: playerTwoScore,
+      consecutivePasses: consecutivePasses,
       moveNumber: moveNumber,
       playerCount: playerCount,
       createdByUserId: createdByUserId,
       isOwner: isOwner ?? this.isOwner,
       board: board,
+      turnStartedAt: turnStartedAt,
     );
   }
 }

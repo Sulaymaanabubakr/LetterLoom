@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
 import { sendPushNotification } from '../_shared/push.ts';
 
-const gameFields = 'id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at';
+const gameFields = 'id, room_code, status, current_turn_user_id, turn_started_at, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const gameId = String(body.game_id ?? '');
     const action = String(body.action ?? 'get');
-    if (!gameId || !['get', 'initialize', 'restart', 'sync'].includes(action)) {
+    if (!gameId || !['get', 'initialize', 'restart', 'sync', 'timeout'].includes(action)) {
       return response({ error: 'A valid room and action are required.' }, 400);
     }
 
@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
         consecutive_passes: state.consecutivePasses ?? 0,
         move_number: 0,
         current_turn_user_id: user.id,
+        turn_started_at: new Date().toISOString(),
       }).eq('id', gameId);
       if (updateError) throw updateError;
       const { error: bagError } = await admin.from('multiplayer_game_private').upsert({
@@ -109,6 +110,7 @@ Deno.serve(async (req) => {
         consecutive_passes: state.consecutivePasses ?? game.consecutive_passes,
         move_number: state.moveNumber ?? game.move_number + 1,
         current_turn_user_id: nextTurnUserId,
+        turn_started_at: new Date().toISOString(),
       }).eq('id', gameId).eq('current_turn_user_id', user.id);
       if (updateError) throw updateError;
       const { error: rackUpdateError } = await admin.from('multiplayer_player_private').upsert({
@@ -127,6 +129,49 @@ Deno.serve(async (req) => {
         'Your turn',
         'Your opponent made a move in LetterLoom.',
         { game_id: gameId, event: 'turn' },
+      );
+    }
+
+    if (action === 'timeout') {
+      if (game.status !== 'active') return response({ error: 'This room is not active.' }, 409);
+      if (!game.turn_started_at) return response({ error: 'This turn has no countdown.' }, 409);
+      if (Date.now() < Date.parse(game.turn_started_at) + 60_000) {
+        return response({ error: 'The turn countdown has not expired.' }, 409);
+      }
+
+      const { data: players, error: playersError } = await admin
+        .from('multiplayer_players')
+        .select('user_id, player_number')
+        .eq('game_id', gameId);
+      if (playersError) throw playersError;
+      const nextPlayer = (players ?? []).find(
+        (player) => player.user_id !== game.current_turn_user_id,
+      );
+      if (!nextPlayer) return response({ error: 'The second player has not joined.' }, 409);
+
+      const { data: timedOutGame, error: timeoutError } = await admin
+        .from('multiplayer_games')
+        .update({
+          current_turn_user_id: nextPlayer.user_id,
+          consecutive_passes: (game.consecutive_passes ?? 0) + 1,
+          move_number: (game.move_number ?? 0) + 1,
+          turn_started_at: new Date().toISOString(),
+        })
+        .eq('id', gameId)
+        .eq('status', 'active')
+        .eq('current_turn_user_id', game.current_turn_user_id)
+        .eq('turn_started_at', game.turn_started_at)
+        .select(gameFields)
+        .maybeSingle();
+      if (timeoutError) throw timeoutError;
+      if (!timedOutGame) {
+        return response({ error: 'The turn was already advanced.' }, 409);
+      }
+      await sendPushNotification(
+        [nextPlayer.user_id],
+        'Your turn',
+        'Your opponent ran out of time in LetterLoom.',
+        { game_id: gameId, event: 'turn_timeout' },
       );
     }
 

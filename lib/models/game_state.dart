@@ -19,6 +19,7 @@ class GameState {
   final GameSettings settings;
   final Statistics statistics;
   final String? lastMoveMessage; // Information about the last move
+  final DateTime? turnStartedAt;
 
   const GameState({
     required this.board,
@@ -35,6 +36,7 @@ class GameState {
     required this.settings,
     required this.statistics,
     this.lastMoveMessage,
+    this.turnStartedAt,
   });
 
   GameState copyWith({
@@ -53,6 +55,7 @@ class GameState {
     Statistics? statistics,
     String? lastMoveMessage,
     bool clearLastMoveMessage = false,
+    DateTime? turnStartedAt,
   }) {
     return GameState(
       board: board ?? this.board,
@@ -69,6 +72,7 @@ class GameState {
       settings: settings ?? this.settings,
       statistics: statistics ?? this.statistics,
       lastMoveMessage: clearLastMoveMessage ? null : (lastMoveMessage ?? this.lastMoveMessage),
+      turnStartedAt: turnStartedAt ?? this.turnStartedAt,
     );
   }
 
@@ -88,6 +92,7 @@ class GameState {
       'settings': settings.toJson(),
       'statistics': statistics.toJson(),
       'lastMoveMessage': lastMoveMessage,
+      'turnStartedAt': turnStartedAt?.toIso8601String(),
     };
   }
 
@@ -126,6 +131,9 @@ class GameState {
       settings: GameSettings.fromJson(json['settings'] as Map<String, dynamic>),
       statistics: Statistics.fromJson(json['statistics'] as Map<String, dynamic>),
       lastMoveMessage: json['lastMoveMessage'] as String?,
+      turnStartedAt: json['turnStartedAt'] == null
+          ? null
+          : DateTime.tryParse(json['turnStartedAt'] as String),
     );
   }
 }

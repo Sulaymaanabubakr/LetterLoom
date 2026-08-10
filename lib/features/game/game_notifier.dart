@@ -21,6 +21,7 @@ final gameProvider = StateNotifierProvider<GameNotifier, GameState>((ref) {
 });
 
 class GameNotifier extends StateNotifier<GameState> {
+  static const Duration turnDuration = Duration(seconds: 60);
   final PersistenceManager _persistence = PersistenceManager();
   final RulesValidator _rulesValidator = RulesValidator();
   final DictionaryService _dictionary = DictionaryService();
@@ -80,6 +81,7 @@ class GameNotifier extends StateNotifier<GameState> {
           // Ensure we sync the latest settings and statistics
           settings: state.settings,
           statistics: state.statistics,
+          turnStartedAt: saved.turnStartedAt ?? DateTime.now(),
         );
 
         // If we loaded and it was computer's turn, resume computer move
@@ -142,6 +144,7 @@ class GameNotifier extends StateNotifier<GameState> {
       settings: state.settings,
       statistics: state.statistics,
       lastMoveMessage: "New game started! Your turn first.",
+      turnStartedAt: DateTime.now(),
     );
 
     if (persist) {
@@ -300,7 +303,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
   // --- Move Actions (Pass, Exchange, Submit) ---
 
-  void passTurn() {
+  void passTurn({bool isTimeout = false}) {
     if (state.status != 'playerTurn') return;
     recallAllNewPlacements();
 
@@ -327,7 +330,9 @@ class GameNotifier extends StateNotifier<GameState> {
       moveHistory: newHistory,
       currentTurn: 'computer',
       status: 'computerThinking',
-      lastMoveMessage: "You passed your turn.",
+      lastMoveMessage: isTimeout
+          ? "Time expired. Your turn was passed."
+          : "You passed your turn.",
     );
 
     _persistence.saveGame(state);
@@ -335,6 +340,13 @@ class GameNotifier extends StateNotifier<GameState> {
     if (_checkGameOver()) return;
 
     _runComputerTurn();
+  }
+
+  /// Called by the turn countdown when the local player's turn expires.
+  void handleTurnTimeout() {
+    if (state.currentTurn == 'player' && state.status == 'playerTurn') {
+      passTurn(isTimeout: true);
+    }
   }
 
   bool exchangeTiles(List<Tile> tilesToExchange) {
@@ -542,6 +554,7 @@ class GameNotifier extends StateNotifier<GameState> {
       currentTurn: 'player',
       status: 'playerTurn',
       lastMoveMessage: "Computer passed its turn.",
+      turnStartedAt: DateTime.now(),
     );
 
     _persistence.saveGame(state);
@@ -600,6 +613,7 @@ class GameNotifier extends StateNotifier<GameState> {
       currentTurn: 'player',
       status: 'playerTurn',
       lastMoveMessage: "Computer exchanged ${exchangeTileIds.length} tiles.",
+      turnStartedAt: DateTime.now(),
     );
 
     _persistence.saveGame(state);
@@ -698,6 +712,7 @@ class GameNotifier extends StateNotifier<GameState> {
       status: 'playerTurn',
       lastMoveMessage:
           "Computer played ${aiMove.word} for ${aiMove.score} pts!",
+      turnStartedAt: DateTime.now(),
     );
 
     _persistence.saveGame(state);

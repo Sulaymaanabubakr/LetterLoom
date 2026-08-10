@@ -56,6 +56,32 @@ class MultiplayerGameNotifier extends GameNotifier {
     }
   }
 
+  @override
+  void handleTurnTimeout() {
+    if (state.status != 'playerTurn' && state.status != 'waitingForOpponent') {
+      return;
+    }
+    _timeoutTurn();
+  }
+
+  Future<void> _timeoutTurn() async {
+    try {
+      final snapshot = await _repository.timeoutTurn(gameId);
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      final myTurn = snapshot.game.currentTurnUserId == currentUserId;
+      state = snapshot.hydrate(state).copyWith(
+        currentTurn: myTurn ? 'player' : 'computer',
+        status: myTurn ? 'playerTurn' : 'waitingForOpponent',
+        lastMoveMessage: myTurn
+            ? 'Your opponent ran out of time. Your turn.'
+            : 'Time expired. Opponent\'s turn.',
+      );
+    } catch (_) {
+      // A second client may have claimed the timeout first. Realtime will
+      // deliver the authoritative state shortly afterward.
+    }
+  }
+
   List<List<BoardCell>> _cloneBoard(List<List<BoardCell>> source) {
     return List.generate(
       GameConfig.boardSize,
@@ -123,7 +149,7 @@ class MultiplayerGameNotifier extends GameNotifier {
   }
 
   @override
-  void passTurn() {
+  void passTurn({bool isTimeout = false}) {
     if (state.currentTurn != 'player' || state.status != 'playerTurn') return;
 
     recallAllNewPlacements();
@@ -166,10 +192,16 @@ class MultiplayerGameNotifier extends GameNotifier {
 
   Future<void> _sync(GameState nextState) async {
     try {
-      await _repository.syncGameState(
+      final snapshot = await _repository.syncGameState(
         gameId: gameId,
         state: nextState,
         nextTurnUserId: opponentUserId,
+      );
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      final myTurn = snapshot.game.currentTurnUserId == currentUserId;
+      state = snapshot.hydrate(state).copyWith(
+        currentTurn: myTurn ? 'player' : 'computer',
+        status: myTurn ? 'playerTurn' : 'waitingForOpponent',
       );
     } catch (_) {
       state = state.copyWith(
