@@ -1,0 +1,272 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_theme.dart';
+import '../../models/board_cell.dart';
+import '../../models/tile.dart';
+import '../../core/ad_service.dart';
+import '../../core/billing_service.dart';
+import '../../core/toast_utils.dart';
+import 'hint_service.dart';
+import 'hint_engine.dart';
+
+class HintModal extends ConsumerStatefulWidget {
+  final List<List<BoardCell>> boardGrid;
+  final List<Tile> playerRack;
+  final Function(HintResult result) onHintGenerated;
+
+  const HintModal({
+    super.key,
+    required this.boardGrid,
+    required this.playerRack,
+    required this.onHintGenerated,
+  });
+
+  static Future<void> show({
+    required BuildContext context,
+    required List<List<BoardCell>> boardGrid,
+    required List<Tile> playerRack,
+    required Function(HintResult result) onHintGenerated,
+  }) async {
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => HintModal(
+        boardGrid: boardGrid,
+        playerRack: playerRack,
+        onHintGenerated: onHintGenerated,
+      ),
+    );
+  }
+
+  @override
+  ConsumerState<HintModal> createState() => _HintModalState();
+}
+
+class _HintModalState extends ConsumerState<HintModal> {
+  void _requestHint(String hintType) async {
+    final hintNotifier = ref.read(hintServiceProvider.notifier);
+
+    // Compute hint first to ensure legal move exists BEFORE consuming hint
+    final result = HintEngine.generateHint(
+      boardGrid: widget.boardGrid,
+      playerRack: widget.playerRack,
+      hintType: hintType,
+    );
+
+    if (result == null) {
+      if (mounted) {
+        ToastUtils.showToast(
+          context,
+          'No legal moves found on board right now.',
+          isError: true,
+        );
+      }
+      return;
+    }
+
+    final success = await hintNotifier.consumeHint(hintType);
+    if (!success) {
+      if (mounted) {
+        _showGetMoreHintsDialog(hintType);
+      }
+      return;
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop();
+      widget.onHintGenerated(result);
+    }
+  }
+
+  void _showGetMoreHintsDialog(String hintType) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.panelDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppTheme.shinyGold, width: 1.2),
+        ),
+        title: Text(
+          'Out of Hints',
+          style: GoogleFonts.lora(color: AppTheme.ivoryText, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'You have used all your daily free $hintType hints. Watch an ad or buy a hint pack to get more!',
+          style: GoogleFonts.inter(color: AppTheme.mutedIvory),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.mutedIvory)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.emeraldGreen),
+            icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white, size: 18),
+            label: const Text('Watch Ad', style: TextStyle(color: Colors.white)),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await AdService().showRewardedAd(
+                hintType: hintType,
+                onRewardEarned: (type, amount) async {
+                  final granted = await ref
+                      .read(hintServiceProvider.notifier)
+                      .grantAdReward(type);
+                  if (mounted) {
+                    if (granted) {
+                      ToastUtils.showToast(context, '+1 $type hint earned!');
+                    } else {
+                      ToastUtils.showToast(
+                        context,
+                        'Daily ad limit reached.',
+                        isError: true,
+                      );
+                    }
+                  }
+                },
+                onError: (err) {
+                  if (mounted) {
+                    ToastUtils.showToast(context, err, isError: true);
+                  }
+                },
+              );
+            },
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.shinyGold),
+            icon: const Icon(Icons.shopping_bag_rounded, color: Colors.black, size: 18),
+            label: const Text('Buy Pack', style: TextStyle(color: Colors.black)),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final pack = BillingService.availablePacks.firstWhere(
+                (p) => p.hintType == hintType || p.hintType == 'mixed',
+              );
+              await BillingService().purchasePack(
+                pack,
+                onPurchaseFulfilled: (type, amount) async {
+                  await ref
+                      .read(hintServiceProvider.notifier)
+                      .addPurchasedHints(type, amount);
+                  if (mounted) {
+                    ToastUtils.showToast(context, 'Purchased +$amount $type hints!');
+                  }
+                },
+                onError: (err) {
+                  if (mounted) {
+                    ToastUtils.showToast(context, err, isError: true);
+                  }
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hintState = ref.watch(hintServiceProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF021710),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: AppTheme.shinyGold, width: 1.5)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Need a Hint?',
+                  style: GoogleFonts.lora(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.ivoryText,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppTheme.shinyGold),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildHintOptionCard(
+              title: 'Move Hint',
+              subtitle: 'Highlights board region of a legal move',
+              icon: Icons.grid_view_rounded,
+              remainingText: '${hintState.totalMoveHints()} available',
+              onTap: () => _requestHint('move'),
+            ),
+            const SizedBox(height: 12),
+            _buildHintOptionCard(
+              title: 'Letter Hint',
+              subtitle: 'Reveals one letter in position (e.g. _ A _ E)',
+              icon: Icons.text_fields_rounded,
+              remainingText: '${hintState.totalLetterHints()} available',
+              onTap: () => _requestHint('letter'),
+            ),
+            const SizedBox(height: 12),
+            _buildHintOptionCard(
+              title: 'Strong Hint',
+              subtitle: 'Reveals full word, placement, and score',
+              icon: Icons.auto_awesome_rounded,
+              remainingText: '${hintState.totalStrongHints()} available',
+              onTap: () => _requestHint('strong'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHintOptionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required String remainingText,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.panelDark,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.4)),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(
+            color: Color(0xFF021710),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppTheme.shinyGold),
+        ),
+        title: Text(title, style: GoogleFonts.lora(color: AppTheme.ivoryText, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mutedIvory)),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.shinyGold.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.5)),
+          ),
+          child: Text(
+            remainingText,
+            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.shinyGold, fontWeight: FontWeight.bold),
+          ),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}

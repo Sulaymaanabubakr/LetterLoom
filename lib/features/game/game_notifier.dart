@@ -15,13 +15,18 @@ import '../../ai/ai_isolate.dart';
 import '../../ai/ai_engine.dart';
 import '../../storage/persistence_manager.dart';
 import '../../core/music_manager.dart';
+import '../../core/app_config.dart';
+import '../progression/progression_service.dart';
+import '../achievements/achievements_service.dart';
+import '../auth/auth_service.dart';
 
 final gameProvider = StateNotifierProvider<GameNotifier, GameState>((ref) {
-  return GameNotifier();
+  return GameNotifier(ref);
 });
 
 class GameNotifier extends StateNotifier<GameState> {
   static const Duration turnDuration = Duration(seconds: 120);
+  final Ref? ref;
   final PersistenceManager _persistence = PersistenceManager();
   final RulesValidator _rulesValidator = RulesValidator();
   final DictionaryService _dictionary = DictionaryService();
@@ -29,7 +34,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
   GameState get currentState => state;
 
-  GameNotifier()
+  GameNotifier([this.ref])
     : super(
         GameState(
           board: _createEmptyBoard(),
@@ -812,6 +817,23 @@ class GameNotifier extends StateNotifier<GameState> {
 
     _persistence.saveStatistics(updatedStats);
     _persistence.deleteGameSave(); // Clear active save
+
+    if (ref != null) {
+      try {
+        final isWin = result == 'win';
+        final xpAmount = isWin ? AppConfig.xpMatchWin : AppConfig.xpMatchComplete;
+        ref!.read(progressionProvider).addXP(xpAmount, reason: 'Match Finish ($result)');
+        ref!.read(achievementsProvider.notifier).recordGameFinished(
+          isWin: isWin,
+          playerScore: pScore,
+          opponentScore: cScore,
+          difficulty: state.difficulty,
+          isRanked: false,
+          wasTrailing30: false,
+          currentWinStreak: ref!.read(authProvider).currentStreak,
+        );
+      } catch (_) {}
+    }
   }
 
   // --- Setting updates ---

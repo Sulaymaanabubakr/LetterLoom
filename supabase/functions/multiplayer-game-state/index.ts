@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const gameId = String(body.game_id ?? '');
     const action = String(body.action ?? 'get');
-    if (!gameId || !['get', 'initialize', 'restart', 'sync', 'timeout'].includes(action)) {
+    if (!gameId || !['get', 'initialize', 'move', 'timeout'].includes(action)) {
       return response({ error: 'A valid room and action are required.' }, 400);
     }
 
@@ -35,6 +35,40 @@ Deno.serve(async (req) => {
     if (membershipError) throw membershipError;
     if (!membership) return response({ error: 'You are not a player in this room.' }, 403);
 
+    if (action === 'initialize') {
+      const { error: initializeError } = await admin.rpc('initialize_multiplayer_game', {
+        p_game_id: gameId,
+      });
+      if (initializeError) return response({ error: initializeError.message }, 409);
+    }
+
+    if (action === 'move') {
+      const clientActionId = String(body.client_action_id ?? '').trim();
+      const moveType = String(body.move_type ?? '');
+      const placements = Array.isArray(body.placements) ? body.placements : [];
+      const exchangeIds = Array.isArray(body.exchange_ids) ? body.exchange_ids : [];
+      if (!clientActionId || !['play', 'pass', 'exchange'].includes(moveType)) {
+        return response({ error: 'A move type and idempotency key are required.' }, 400);
+      }
+      const { data: moveResponse, error: moveError } = await admin.rpc(
+        'apply_multiplayer_move',
+        {
+          p_game_id: gameId,
+          p_user_id: user.id,
+          p_client_action_id: clientActionId,
+          p_move_type: moveType,
+          p_placements: placements,
+          p_exchange_ids: exchangeIds,
+        },
+      );
+      if (moveError) {
+        const status = moveError.message.includes('not your turn') ||
+          moveError.message.includes('turn expired') ? 409 : 400;
+        return response({ error: moveError.message }, status);
+      }
+      return response({ move: moveResponse });
+    }
+
     const { data: game, error: gameError } = await admin
       .from('multiplayer_games')
       .select(gameFields)
@@ -43,136 +77,25 @@ Deno.serve(async (req) => {
     if (gameError) throw gameError;
     if (!game) return response({ error: 'Room not found.' }, 404);
 
-    if (action === 'initialize' || action === 'restart') {
-      if (membership.player_number !== 1) return response({ error: 'Only the room owner can initialize the board.' }, 403);
-      if (game.status !== 'active') return response({ error: 'Both players must join before starting the board.' }, 409);
-      if (action === 'initialize' && Array.isArray(game.board) && game.board.length > 0) return response({ game }, 200);
-
-      const state = body.state;
-      if (!state || !Array.isArray(state.board) || !Array.isArray(state.tileBag)) {
-        return response({ error: 'Initial board state is required.' }, 400);
-      }
-      const { data: players, error: playersError } = await admin
-        .from('multiplayer_players')
-        .select('user_id, player_number')
-        .eq('game_id', gameId);
-      if (playersError) throw playersError;
-      const playerTwo = (players ?? []).find((player) => player.player_number === 2);
-      if (!playerTwo) return response({ error: 'The second player has not joined.' }, 409);
-
-      const { error: updateError } = await admin.from('multiplayer_games').update({
-        board: state.board,
-        player_one_score: state.playerScore ?? 0,
-        player_two_score: state.computerScore ?? 0,
-        consecutive_passes: state.consecutivePasses ?? 0,
-        move_number: 0,
-        current_turn_user_id: user.id,
-        turn_started_at: new Date().toISOString(),
-      }).eq('id', gameId);
-      if (updateError) throw updateError;
-      const { error: bagError } = await admin.from('multiplayer_game_private').upsert({
-        game_id: gameId,
-        tile_bag: state.tileBag,
-      });
-      if (bagError) throw bagError;
-      const { error: ownerRackError } = await admin.from('multiplayer_player_private').upsert({
-        game_id: gameId,
-        user_id: user.id,
-        rack: state.playerRack ?? [],
-      });
-      if (ownerRackError) throw ownerRackError;
-      const { error: playerTwoRackError } = await admin.from('multiplayer_player_private').upsert({
-        game_id: gameId,
-        user_id: playerTwo.user_id,
-        rack: state.computerRack ?? [],
-      });
-      if (playerTwoRackError) throw playerTwoRackError;
-    }
-
-    if (action === 'sync') {
-      if (game.status !== 'active') return response({ error: 'This room is not active.' }, 409);
-      if (game.current_turn_user_id !== user.id) return response({ error: 'It is not your turn.' }, 409);
-      const state = body.state;
-      const nextTurnUserId = String(body.next_turn_user_id ?? '');
-      if (!state || !Array.isArray(state.board) || !nextTurnUserId) {
-        return response({ error: 'A complete move state is required.' }, 400);
-      }
-      const playerOneScore = membership.player_number === 1
-        ? (state.playerScore ?? game.player_one_score)
-        : (state.computerScore ?? game.player_one_score);
-      const playerTwoScore = membership.player_number === 1
-        ? (state.computerScore ?? game.player_two_score)
-        : (state.playerScore ?? game.player_two_score);
-      const { error: updateError } = await admin.from('multiplayer_games').update({
-        board: state.board,
-        player_one_score: playerOneScore,
-        player_two_score: playerTwoScore,
-        consecutive_passes: state.consecutivePasses ?? game.consecutive_passes,
-        move_number: state.moveNumber ?? game.move_number + 1,
-        current_turn_user_id: nextTurnUserId,
-        turn_started_at: new Date().toISOString(),
-      }).eq('id', gameId).eq('current_turn_user_id', user.id);
-      if (updateError) throw updateError;
-      const { error: rackUpdateError } = await admin.from('multiplayer_player_private').upsert({
-        game_id: gameId,
-        user_id: user.id,
-        rack: state.playerRack ?? [],
-      });
-      if (rackUpdateError) throw rackUpdateError;
-      const { error: bagUpdateError } = await admin.from('multiplayer_game_private').upsert({
-        game_id: gameId,
-        tile_bag: state.tileBag ?? [],
-      });
-      if (bagUpdateError) throw bagUpdateError;
-      await sendPushNotification(
-        [nextTurnUserId],
-        'Your turn',
-        'Your opponent made a move in LetterLoom.',
-        { game_id: gameId, event: 'turn' },
-      );
-    }
-
     if (action === 'timeout') {
       if (game.status !== 'active') return response({ error: 'This room is not active.' }, 409);
       if (!game.turn_started_at) return response({ error: 'This turn has no countdown.' }, 409);
       if (Date.now() < Date.parse(game.turn_started_at) + 120_000) {
         return response({ error: 'The turn countdown has not expired.' }, 409);
       }
-
-      const { data: players, error: playersError } = await admin
-        .from('multiplayer_players')
-        .select('user_id, player_number')
-        .eq('game_id', gameId);
-      if (playersError) throw playersError;
-      const nextPlayer = (players ?? []).find(
-        (player) => player.user_id !== game.current_turn_user_id,
-      );
-      if (!nextPlayer) return response({ error: 'The second player has not joined.' }, 409);
-
-      const { data: timedOutGame, error: timeoutError } = await admin
-        .from('multiplayer_games')
-        .update({
-          current_turn_user_id: nextPlayer.user_id,
-          consecutive_passes: (game.consecutive_passes ?? 0) + 1,
-          move_number: (game.move_number ?? 0) + 1,
-          turn_started_at: new Date().toISOString(),
-        })
-        .eq('id', gameId)
-        .eq('status', 'active')
-        .eq('current_turn_user_id', game.current_turn_user_id)
-        .eq('turn_started_at', game.turn_started_at)
-        .select(gameFields)
-        .maybeSingle();
-      if (timeoutError) throw timeoutError;
-      if (!timedOutGame) {
-        return response({ error: 'The turn was already advanced.' }, 409);
+      const timedOutUserId = game.current_turn_user_id as string;
+      const timeoutActionId = `timeout_${gameId}_${game.turn_started_at}`;
+      const { error: timeoutError } = await admin.rpc('apply_multiplayer_move', {
+        p_game_id: gameId,
+        p_user_id: timedOutUserId,
+        p_client_action_id: timeoutActionId,
+        p_move_type: 'timeout',
+        p_placements: [],
+        p_exchange_ids: [],
+      });
+      if (timeoutError) {
+        return response({ error: timeoutError.message }, 409);
       }
-      await sendPushNotification(
-        [nextPlayer.user_id],
-        'Your turn',
-        'Your opponent ran out of time in LetterLoom.',
-        { game_id: gameId, event: 'turn_timeout' },
-      );
     }
 
     const { data: currentGame, error: currentGameError } = await admin
@@ -200,6 +123,15 @@ Deno.serve(async (req) => {
       .eq('game_id', gameId)
       .order('player_number');
     if (roomPlayersError) throw roomPlayersError;
+
+    if (action === 'timeout' && currentGame.current_turn_user_id) {
+      await sendPushNotification(
+        [currentGame.current_turn_user_id],
+        'Your turn',
+        'Your opponent ran out of time in LetterLoom.',
+        { game_id: gameId, event: 'turn_timeout' },
+      );
+    }
 
     return response({
       game: currentGame,

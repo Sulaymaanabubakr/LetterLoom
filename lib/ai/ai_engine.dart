@@ -134,11 +134,21 @@ class AIEngine {
       _dictionaryService.loadMock(words);
     }
 
-    final AIMove selectedMove = _calculateMove(grid, rack, difficulty);
+    final AIMove selectedMove = _calculateMove(
+      grid,
+      rack,
+      difficulty,
+      deterministic: args['deterministic'] == true,
+    );
     return selectedMove.toJson();
   }
 
-  static AIMove _calculateMove(List<List<BoardCell>> grid, List<Tile> rack, String difficulty) {
+  static AIMove _calculateMove(
+    List<List<BoardCell>> grid,
+    List<Tile> rack,
+    String difficulty, {
+    bool deterministic = false,
+  }) {
     final List<AIMove> candidates = [];
     bool hasLockedTiles = false;
 
@@ -173,7 +183,9 @@ class AIEngine {
 
     final random = Random();
     if (difficulty == 'hard') {
-      // Pick the best move (or one of the top 3 randomly to add slight variety)
+      // Daily Challenge passes deterministic=true so its advertised optimum
+      // is stable across runs. Normal hard AI retains variety.
+      if (deterministic) return candidates.first;
       final limit = min(3, candidates.length);
       return candidates[random.nextInt(limit)];
     } else if (difficulty == 'medium') {

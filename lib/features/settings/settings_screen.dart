@@ -11,128 +11,18 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   void _showResetConfirmDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF021710),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-        ),
-        title: Center(
-          child: Text(
-            'Reset Statistics?',
-            style: GoogleFonts.lora(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.shinyGold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        content: Text(
+    showPremiumConfirmationSheet(
+      context,
+      title: 'Reset Statistics?',
+      message:
           'This will permanently delete all records of games, wins, and losses.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: AppTheme.mutedIvory,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Cancel',
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Reset',
-                  isDanger: true,
-                  onTap: () {
-                    ref.read(gameProvider.notifier).resetStatistics();
-                    Navigator.of(context).pop();
-                    ToastUtils.show(context, 'Statistics cleared!');
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _premiumDialogButton({
-    required String label,
-    required VoidCallback onTap,
-    bool isPrimary = false,
-    bool isDanger = false,
-  }) {
-    Gradient gradient;
-    Border? border;
-    Color textColor;
-
-    if (isPrimary) {
-      gradient = const LinearGradient(
-        colors: AppTheme.goldGradient,
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      textColor = const Color(0xFF1E1402);
-    } else if (isDanger) {
-      gradient = const LinearGradient(
-        colors: [Color(0xFF5A120A), Color(0xFF2E0502)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      border = Border.all(
-        color: AppTheme.shinyGold.withValues(alpha: 0.55),
-        width: 1.2,
-      );
-      textColor = Colors.white;
-    } else {
-      gradient = const LinearGradient(
-        colors: AppTheme.darkGreenGradient,
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      );
-      border = Border.all(
-        color: AppTheme.shinyGold.withValues(alpha: 0.55),
-        width: 1.2,
-      );
-      textColor = AppTheme.shinyGold;
-    }
-
-    return Container(
-      height: 46,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: border,
-        gradient: gradient,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Center(
-            child: Text(
-              label.toUpperCase(),
-              style: GoogleFonts.lora(
-                fontSize: 13.5,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+      confirmLabel: 'Reset',
+      danger: true,
+    ).then((confirmed) {
+      if (!confirmed) return;
+      ref.read(gameProvider.notifier).resetStatistics();
+      if (context.mounted) ToastUtils.show(context, 'Statistics cleared!');
+    });
   }
 
   @override

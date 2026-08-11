@@ -6,11 +6,15 @@ import 'dictionary/dictionary_service.dart';
 import 'features/home/home_screen.dart';
 import 'core/supabase_bootstrap.dart';
 import 'core/push_notification_service.dart';
+import 'core/ad_service.dart';
+import 'core/billing_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseBootstrap.initialize();
   unawaited(PushNotificationService.initialize());
+  unawaited(AdService().initialize());
+  unawaited(BillingService().initialize());
   runApp(const ProviderScope(child: LetterLoomApp()));
 }
 

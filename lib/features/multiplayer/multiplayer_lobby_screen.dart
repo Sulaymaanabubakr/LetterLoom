@@ -681,12 +681,6 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           );
       final opponentName = opponent['display_name'] as String?;
       final state = snapshot.hydrate(seed.currentState);
-      Future<void> restartMatch() async {
-        final restartSeed = GameNotifier();
-        restartSeed.startNewGame('easy', persist: false);
-        await _repository.restartGameState(room.id, restartSeed.currentState);
-      }
-
       Future<void> leaveMatch() async {
         await _repository.manageRoom(room.id, 'leave');
         if (mounted) {
@@ -730,7 +724,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
               controllerProvider: provider,
               isMultiplayer: true,
               opponentName: opponentName,
-              onMultiplayerRestart: _isRoomOwner ? restartMatch : null,
+              onMultiplayerRestart: null,
               onMultiplayerEnd: _isRoomOwner ? endMatch : null,
               onMultiplayerLeave: _isRoomOwner ? null : leaveMatch,
             ),
@@ -769,117 +763,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     required String message,
     required String confirmLabel,
   }) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: AppTheme.darkGreenGradient,
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.shinyGold, width: 1.3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('➔  ', style: _ornamentStyle()),
-                      Text(
-                        title.toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.lora(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.shinyGold,
-                        ),
-                      ),
-                      Text('  ➔', style: _ornamentStyle()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: AppTheme.mutedIvory,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _modalButton(
-                          'Cancel',
-                          () => Navigator.pop(context, false),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _modalButton(
-                          confirmLabel,
-                          () => Navigator.pop(context, true),
-                          primary: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ) ??
-        false;
-  }
-
-  Widget _modalButton(
-    String label,
-    VoidCallback onTap, {
-    bool primary = false,
-  }) {
-    return Container(
-      height: 46,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: primary
-            ? const LinearGradient(colors: AppTheme.goldGradient)
-            : const LinearGradient(colors: AppTheme.darkGreenGradient),
-        border: primary
-            ? null
-            : Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Center(
-            child: Text(
-              label.toUpperCase(),
-              style: GoogleFonts.lora(
-                fontSize: 12.5,
-                fontWeight: FontWeight.bold,
-                color: primary ? const Color(0xFF1E1402) : AppTheme.shinyGold,
-              ),
-            ),
-          ),
-        ),
-      ),
+    return showPremiumConfirmationSheet(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
     );
   }
 

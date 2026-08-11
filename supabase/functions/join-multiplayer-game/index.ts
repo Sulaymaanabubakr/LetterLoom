@@ -69,6 +69,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (updateError) throw updateError;
+    const { error: initializeError } = await admin.rpc('initialize_multiplayer_game', {
+      p_game_id: game.id,
+    });
+    if (initializeError) throw initializeError;
     await sendPushNotification(
       [game.created_by_user_id as string],
       'Opponent joined',

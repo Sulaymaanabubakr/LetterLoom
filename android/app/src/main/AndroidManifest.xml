@@ -7,6 +7,16 @@
         android:label="LetterLoom"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+        <!-- Google test application id. Replace for release in the Play
+             Console/manifest configuration before monetized production. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+        <!-- Play Games uses this placeholder until the Play Console app id is
+             provisioned. The Flutter wrapper fails closed when unavailable. -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="000000000000" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

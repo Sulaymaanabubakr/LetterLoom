@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/game_state.dart';
 import '../models/statistics.dart';
 import '../models/game_settings.dart';
+import '../models/player_profile.dart';
 
 class CorruptedSaveException implements Exception {
   final String message;
@@ -167,6 +168,59 @@ class PersistenceManager {
     } catch (e) {
       debugPrint("Error loading settings, resetting to default: $e");
       return const GameSettings();
+    }
+  }
+
+  // --- Profile Persistence ---
+
+  static const String _profileSaveFileName = 'letterloom_profile_v2.json';
+
+  Future<void> saveProfile(PlayerProfile profile) async {
+    try {
+      final file = await _getFile(_profileSaveFileName);
+      final jsonString = jsonEncode(profile.toJson());
+      await file.writeAsString(jsonString);
+    } catch (e) {
+      debugPrint("Error saving profile: $e");
+    }
+  }
+
+  Future<PlayerProfile?> loadProfile() async {
+    try {
+      final file = await _getFile(_profileSaveFileName);
+      if (!await file.exists()) return null;
+      final String jsonString = await file.readAsString();
+      if (jsonString.trim().isEmpty) return null;
+      final Map<String, dynamic> jsonMap =
+          jsonDecode(jsonString) as Map<String, dynamic>;
+      return PlayerProfile.fromJson(jsonMap);
+    } catch (e) {
+      debugPrint("Error loading profile: $e");
+      return null;
+    }
+  }
+
+  // --- Generic JSON Payload Persistence (Hints, Achievements, Cosmetics, Challenges, Missions) ---
+
+  Future<void> saveJsonData(String fileName, Map<String, dynamic> data) async {
+    try {
+      final file = await _getFile(fileName);
+      await file.writeAsString(jsonEncode(data));
+    } catch (e) {
+      debugPrint("Error saving $fileName: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>?> loadJsonData(String fileName) async {
+    try {
+      final file = await _getFile(fileName);
+      if (!await file.exists()) return null;
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return null;
+      return jsonDecode(content) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint("Error loading $fileName: $e");
+      return null;
     }
   }
 }

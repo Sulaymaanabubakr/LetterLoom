@@ -92,43 +92,34 @@ class MultiplayerRepository {
     await ensureSignedIn();
     final response = await _client.functions.invoke(
       'multiplayer-game-state',
-      body: {
-        'game_id': gameId,
-        'action': 'initialize',
-        'state': state.toJson(),
-      },
+      body: {'game_id': gameId, 'action': 'initialize'},
     );
     return MultiplayerStateSnapshot.fromJson(response.data);
   }
 
-  Future<MultiplayerStateSnapshot> restartGameState(
-    String gameId,
-    GameState state,
-  ) async {
-    await ensureSignedIn();
-    final response = await _client.functions.invoke(
-      'multiplayer-game-state',
-      body: {'game_id': gameId, 'action': 'restart', 'state': state.toJson()},
-    );
-    return MultiplayerStateSnapshot.fromJson(response.data);
-  }
-
-  Future<MultiplayerStateSnapshot> syncGameState({
+  Future<MultiplayerStateSnapshot> submitMove({
     required String gameId,
-    required GameState state,
-    required String nextTurnUserId,
+    required String clientActionId,
+    required String moveType,
+    List<Map<String, dynamic>> placements = const [],
+    List<String> exchangeIds = const [],
   }) async {
     await ensureSignedIn();
     final response = await _client.functions.invoke(
       'multiplayer-game-state',
       body: {
         'game_id': gameId,
-        'action': 'sync',
-        'state': state.toJson(),
-        'next_turn_user_id': nextTurnUserId,
+        'action': 'move',
+        'client_action_id': clientActionId,
+        'move_type': moveType,
+        'placements': placements,
+        'exchange_ids': exchangeIds,
       },
     );
-    return MultiplayerStateSnapshot.fromJson(response.data);
+    if (response.data is! Map || response.data['move'] is! Map) {
+      throw const MultiplayerException('The authoritative move response was incomplete.');
+    }
+    return loadGameState(gameId);
   }
 
   Future<MultiplayerStateSnapshot> timeoutTurn(String gameId) async {

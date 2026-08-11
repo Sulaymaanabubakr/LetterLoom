@@ -10,6 +10,9 @@ import 'game_notifier.dart';
 import '../../core/haptic_utils.dart';
 import '../../core/sound_manager.dart';
 import '../../core/toast_utils.dart';
+import '../hints/hint_modal.dart';
+import 'post_game_analysis.dart';
+import 'post_game_analysis_dialog.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   final StateNotifierProvider<GameNotifier, GameState>? controllerProvider;
@@ -58,10 +61,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       _timeoutRequested = false;
     }
     final start = state.turnStartedAt;
-    final isTimedTurn = state.turnStartedAt != null &&
+    final isTimedTurn =
+        state.turnStartedAt != null &&
         (state.status == 'playerTurn' ||
             (widget.isMultiplayer && state.status == 'waitingForOpponent'));
-    if (isTimedTurn && start != null &&
+    if (isTimedTurn &&
+        start != null &&
         DateTime.now().isAfter(start.add(_turnDuration))) {
       if (!_timeoutRequested) {
         _timeoutRequested = true;
@@ -244,99 +249,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     required String confirmLabel,
     bool danger = false,
   }) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: AppTheme.darkGreenGradient,
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.shinyGold, width: 1.3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '➔  ',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.shinyGold,
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          title.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lora(
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.shinyGold,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '  ➔',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.shinyGold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: AppTheme.mutedIvory,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _premiumDialogButton(
-                          label: 'Cancel',
-                          onTap: () => Navigator.of(dialogContext).pop(false),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _premiumDialogButton(
-                          label: confirmLabel,
-                          isPrimary: !danger,
-                          isDanger: danger,
-                          onTap: () => Navigator.of(dialogContext).pop(true),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ) ??
-        false;
+    return showPremiumConfirmationSheet(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      danger: danger,
+    );
   }
 
   void _showPauseDialog() {
@@ -390,6 +309,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               label: 'Resume Match',
               isPrimary: true,
               onTap: () => Navigator.of(context).pop(),
+            ),
+            const SizedBox(height: 12),
+            _premiumDialogButton(
+              label: 'Match Breakdown',
+              onTap: () {
+                Navigator.of(context).pop();
+                PostGameAnalysisDialog.show(
+                  context,
+                  PostGameSummary.fromGameState(ref.read(_provider)),
+                );
+              },
             ),
             const SizedBox(height: 12),
             if (widget.isMultiplayer &&
@@ -510,173 +440,45 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
   void _confirmRestart() {
     final state = ref.read(_provider);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF021710),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-        ),
-        title: Center(
-          child: Text(
-            'Restart Match?',
-            style: GoogleFonts.lora(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.shinyGold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        content: Text(
-          'Your current progress will be lost. Restart this match?',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: AppTheme.mutedIvory,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Cancel',
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Restart',
-                  isDanger: true,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    ref.read(_provider.notifier).startNewGame(state.difficulty);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    showPremiumConfirmationSheet(
+      context,
+      title: 'Restart Match?',
+      message: 'Your current progress will be lost. Restart this match?',
+      confirmLabel: 'Restart',
+      danger: true,
+    ).then((confirmed) {
+      if (confirmed) {
+        ref.read(_provider.notifier).startNewGame(state.difficulty);
+      }
+    });
   }
 
   void _confirmAbandon() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF021710),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-        ),
-        title: Center(
-          child: Text(
-            'Abandon Game?',
-            style: GoogleFonts.lora(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.shinyGold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        content: Text(
+    showPremiumConfirmationSheet(
+      context,
+      title: 'Abandon Game?',
+      message:
           'Abandoning is recorded as a Loss in statistics. Return to main menu?',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: AppTheme.mutedIvory,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Cancel',
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Abandon',
-                  isDanger: true,
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    await ref.read(_provider.notifier).abandonGame();
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+      confirmLabel: 'Abandon',
+      danger: true,
+    ).then((confirmed) async {
+      if (!confirmed) return;
+      await ref.read(_provider.notifier).abandonGame();
+      if (context.mounted) Navigator.of(context).pop();
+    });
   }
 
   void _showPassConfirm() {
     final settings = ref.read(_provider).settings;
     HapticUtils.trigger(HapticType.tap, settings);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF021710),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-        ),
-        title: Center(
-          child: Text(
-            'Pass Turn?',
-            style: GoogleFonts.lora(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.shinyGold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        content: Text(
-          'You will score 0 points for this turn. Continue?',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: AppTheme.mutedIvory,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Cancel',
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _premiumDialogButton(
-                  label: 'Pass',
-                  isPrimary: true,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    ref.read(_provider.notifier).passTurn();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    showPremiumConfirmationSheet(
+      context,
+      title: 'Pass Turn?',
+      message: 'You will score 0 points for this turn. Continue?',
+      confirmLabel: 'Pass',
+    ).then((confirmed) {
+      if (confirmed) ref.read(_provider.notifier).passTurn();
+    });
   }
 
   void _showExchangeDialog() {
@@ -1262,7 +1064,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             : const Color(0xFF0B2A1E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: urgent ? Colors.redAccent : AppTheme.shinyGold.withValues(alpha: 0.6),
+          color: urgent
+              ? Colors.redAccent
+              : AppTheme.shinyGold.withValues(alpha: 0.6),
         ),
       ),
       child: Text(
@@ -1798,7 +1602,43 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          // Circular Hint Button (Casual / Solo only)
+          if (!widget.isMultiplayer) ...[
+            InkWell(
+              onTap: () {
+                HintModal.show(
+                  context: context,
+                  boardGrid: state.board,
+                  playerRack: state.playerRack,
+                  onHintGenerated: (hint) {
+                    ToastUtils.showToast(
+                      context,
+                      'Hint [${hint.hintType.toUpperCase()}]: ${hint.maskedPattern} (${hint.score} pts)',
+                    );
+                  },
+                );
+              },
+              borderRadius: BorderRadius.circular(28),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                  color: const Color(0xFF010A07),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.lightbulb_rounded,
+                    color: AppTheme.shinyGold,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           // Play Word Pill Button
           Expanded(
             child: Opacity(

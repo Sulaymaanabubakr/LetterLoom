@@ -37,10 +37,16 @@ dependencies:
   flutter_riverpod: ^2.6.1
   path_provider: ^2.1.6
   google_fonts: ^8.2.1
+  flutter_svg: ^2.2.1
   audioplayers: ^6.8.1
   supabase_flutter: ^2.17.1
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
+  google_sign_in: ^6.2.2
+  shared_preferences: ^2.3.2
+  google_mobile_ads: ^9.0.0
+  in_app_purchase: ^3.2.3
+  games_services: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +74,7 @@ flutter:
   assets:
     - assets/dictionary/enable1.txt
     - assets/images/logo.png
+    - assets/images/google_g_logo.svg
     - assets/audio/
 
   # An image asset can refer to one or more resolution-specific "variants", see

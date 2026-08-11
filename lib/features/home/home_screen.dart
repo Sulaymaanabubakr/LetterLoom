@@ -11,6 +11,15 @@ import '../statistics/statistics_screen.dart';
 import '../how_to_play/how_to_play_screen.dart';
 import '../about/about_screen.dart';
 import '../multiplayer/multiplayer_lobby_screen.dart';
+import '../auth/auth_service.dart';
+import '../auth/save_progress_modal.dart';
+import '../profile/profile_screen.dart';
+import '../daily/daily_challenge_screen.dart';
+import '../daily/daily_rewards_service.dart';
+import '../achievements/achievements_screen.dart';
+import '../leaderboards/leaderboards_screen.dart';
+import '../word_of_the_day/word_of_the_day_service.dart';
+import '../ranked/ranked_matchmaking_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +38,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _checkSavedGame();
     // Ensure menu music plays whenever we return to HomeScreen
     MusicManager.instance.setTrack(MusicTrack.menu);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DailyRewardsService.checkAndShowDailyReward(context, ref);
+    });
   }
 
   Future<void> _checkSavedGame() async {
@@ -376,7 +388,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 48),
+                  // Top Header Bar (Guest Save icon or Profile Entry)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SizedBox(width: 40),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final profile = ref.watch(authProvider);
+                          if (profile.isGuest) {
+                            return IconButton(
+                              icon: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF07281D),
+                                  border: Border.all(
+                                    color: AppTheme.shinyGold.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.cloud_upload_rounded,
+                                  color: AppTheme.shinyGold,
+                                  size: 20,
+                                ),
+                              ),
+                              onPressed: () => SaveProgressModal.show(context),
+                            );
+                          } else {
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => const ProfileScreen(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.panelDark,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: AppTheme.shinyGold.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.person_rounded,
+                                      color: AppTheme.shinyGold,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '@${profile.username}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.ivoryText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   // Logo & Branding
                   Center(
                     child: Column(
@@ -511,8 +596,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   const SizedBox(height: 12),
                   _buildPremiumButton(
+                    title: 'Daily Challenge',
+                    subtitle: 'Play today\'s deterministic puzzle',
+                    iconData: Icons.today_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const DailyChallengeScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Ranked 1v1',
+                    subtitle: 'Compete in rating divisions',
+                    iconData: Icons.sports_esports_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      RankedMatchmakingService.startRankedMatchmaking(context, ref);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
                     title: 'Play Online',
-                    subtitle: 'Challenge someone from anywhere',
+                    subtitle: 'Casual room with friends',
                     iconData: Icons.groups_rounded,
                     isPrimary: false,
                     onPressed: () {
@@ -521,6 +630,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           builder: (context) => const MultiplayerLobbyScreen(),
                         ),
                       );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Leaderboards',
+                    subtitle: 'Global rankings & high scores',
+                    iconData: Icons.leaderboard_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const LeaderboardsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Achievements',
+                    subtitle: 'View unlocks & progress',
+                    iconData: Icons.workspace_premium_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AchievementsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPremiumButton(
+                    title: 'Word of the Day',
+                    subtitle: 'Expand your Loom lexicon',
+                    iconData: Icons.auto_stories_rounded,
+                    isPrimary: false,
+                    onPressed: () {
+                      WordOfTheDayService.showModal(context);
                     },
                   ),
                   const SizedBox(height: 12),

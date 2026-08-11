@@ -17,6 +17,10 @@ class ToastUtils {
 
     overlayState.insert(overlayEntry);
   }
+
+  static void showToast(BuildContext context, String message, {bool isError = false}) {
+    show(context, message, isError: isError);
+  }
 }
 
 class _ToastWidget extends StatefulWidget {

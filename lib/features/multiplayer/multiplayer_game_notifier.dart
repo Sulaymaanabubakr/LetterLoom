@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../game_engine/game_config.dart';
@@ -15,6 +16,7 @@ class MultiplayerGameNotifier extends GameNotifier {
   final String opponentUserId;
   final MultiplayerRepository _repository;
   StreamSubscription<MultiplayerGame?>? _roomSubscription;
+  String? _pendingActionId;
 
   MultiplayerGameNotifier({
     required this.gameId,
@@ -160,7 +162,7 @@ class MultiplayerGameNotifier extends GameNotifier {
       lastMoveMessage: "You passed your turn. Opponent's turn.",
     );
     state = nextState;
-    _sync(nextState);
+    _submitAuthoritativeMove(nextState, moveType: 'pass');
   }
 
   @override
@@ -177,6 +179,22 @@ class MultiplayerGameNotifier extends GameNotifier {
         }
       }
     }
+    final placements = <Map<String, dynamic>>[];
+    for (var row = 0; row < GameConfig.boardSize; row++) {
+      for (var col = 0; col < GameConfig.boardSize; col++) {
+        final cell = state.board[row][col];
+        if (cell.tile != null && cell.isNewPlacement) {
+          placements.add({
+            'id': cell.tile!.id,
+            'row': row,
+            'col': col,
+            'letter': cell.tile!.letter,
+            'isBlank': cell.tile!.isBlank,
+            'blankLetter': cell.tile!.blankLetter,
+          });
+        }
+      }
+    }
     final nextState = state.copyWith(
       board: board,
       playerScore: state.playerScore + validation.totalScore,
@@ -186,20 +204,29 @@ class MultiplayerGameNotifier extends GameNotifier {
       lastMoveMessage: "Move submitted. Opponent's turn.",
     );
     state = nextState;
-    _sync(nextState);
+    _submitAuthoritativeMove(nextState, moveType: 'play', placements: placements);
     return null;
   }
 
-  Future<void> _sync(GameState nextState) async {
+  Future<void> _submitAuthoritativeMove(
+    GameState nextState, {
+    required String moveType,
+    List<Map<String, dynamic>> placements = const [],
+  }) async {
+    final actionId = _pendingActionId ??
+        'll_${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
+    _pendingActionId = actionId;
     try {
-      final snapshot = await _repository.syncGameState(
+      final snapshot = await _repository.submitMove(
         gameId: gameId,
-        state: nextState,
-        nextTurnUserId: opponentUserId,
+        clientActionId: actionId,
+        moveType: moveType,
+        placements: placements,
       );
+      _pendingActionId = null;
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       final myTurn = snapshot.game.currentTurnUserId == currentUserId;
-      state = snapshot.hydrate(state).copyWith(
+      state = snapshot.hydrate(nextState).copyWith(
         currentTurn: myTurn ? 'player' : 'computer',
         status: myTurn ? 'playerTurn' : 'waitingForOpponent',
       );
@@ -207,7 +234,7 @@ class MultiplayerGameNotifier extends GameNotifier {
       state = state.copyWith(
         currentTurn: 'player',
         status: 'playerTurn',
-        lastMoveMessage: 'Move could not be synchronized.',
+        lastMoveMessage: 'Move could not be verified by the server.',
       );
     }
   }
