@@ -12,6 +12,9 @@ class MultiplayerGame {
   final bool isOwner;
   final List<dynamic> board;
   final DateTime? turnStartedAt;
+  final DateTime? pausedAt;
+  final String? pausedByUserId;
+  final String mode;
 
   const MultiplayerGame({
     required this.id,
@@ -27,6 +30,9 @@ class MultiplayerGame {
     this.isOwner = false,
     this.board = const [],
     this.turnStartedAt,
+    this.pausedAt,
+    this.pausedByUserId,
+    this.mode = 'casual',
   });
 
   factory MultiplayerGame.fromJson(Map<String, dynamic> json) {
@@ -46,6 +52,11 @@ class MultiplayerGame {
       turnStartedAt: json['turn_started_at'] == null
           ? null
           : DateTime.tryParse(json['turn_started_at'] as String),
+      pausedAt: json['paused_at'] == null
+          ? null
+          : DateTime.tryParse(json['paused_at'] as String),
+      pausedByUserId: json['paused_by_user_id'] as String?,
+      mode: json['mode'] as String? ?? 'casual',
     );
   }
 
@@ -64,6 +75,9 @@ class MultiplayerGame {
       isOwner: isOwner ?? this.isOwner,
       board: board,
       turnStartedAt: turnStartedAt,
+      pausedAt: pausedAt,
+      pausedByUserId: pausedByUserId,
+      mode: mode,
     );
   }
 }

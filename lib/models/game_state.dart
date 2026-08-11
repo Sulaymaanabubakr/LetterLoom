@@ -5,6 +5,7 @@ import 'game_settings.dart';
 import 'statistics.dart';
 
 class GameState {
+  static const int turnDurationSeconds = 120;
   final List<List<BoardCell>> board;
   final List<Tile> playerRack;
   final List<Tile> computerRack;
@@ -20,6 +21,7 @@ class GameState {
   final Statistics statistics;
   final String? lastMoveMessage; // Information about the last move
   final DateTime? turnStartedAt;
+  final int? turnSecondsRemaining;
 
   const GameState({
     required this.board,
@@ -37,6 +39,7 @@ class GameState {
     required this.statistics,
     this.lastMoveMessage,
     this.turnStartedAt,
+    this.turnSecondsRemaining,
   });
 
   GameState copyWith({
@@ -56,6 +59,8 @@ class GameState {
     String? lastMoveMessage,
     bool clearLastMoveMessage = false,
     DateTime? turnStartedAt,
+    int? turnSecondsRemaining,
+    bool clearTurnSecondsRemaining = false,
   }) {
     return GameState(
       board: board ?? this.board,
@@ -73,6 +78,9 @@ class GameState {
       statistics: statistics ?? this.statistics,
       lastMoveMessage: clearLastMoveMessage ? null : (lastMoveMessage ?? this.lastMoveMessage),
       turnStartedAt: turnStartedAt ?? this.turnStartedAt,
+      turnSecondsRemaining: clearTurnSecondsRemaining
+          ? null
+          : (turnSecondsRemaining ?? this.turnSecondsRemaining),
     );
   }
 
@@ -93,6 +101,7 @@ class GameState {
       'statistics': statistics.toJson(),
       'lastMoveMessage': lastMoveMessage,
       'turnStartedAt': turnStartedAt?.toIso8601String(),
+      'turnSecondsRemaining': turnSecondsRemaining,
     };
   }
 
@@ -134,6 +143,7 @@ class GameState {
       turnStartedAt: json['turnStartedAt'] == null
           ? null
           : DateTime.tryParse(json['turnStartedAt'] as String),
+      turnSecondsRemaining: (json['turnSecondsRemaining'] as num?)?.toInt(),
     );
   }
 }

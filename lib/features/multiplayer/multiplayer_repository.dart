@@ -131,6 +131,55 @@ class MultiplayerRepository {
     return MultiplayerStateSnapshot.fromJson(response.data);
   }
 
+  Future<void> pauseGame(String gameId) async {
+    await ensureSignedIn();
+    final response = await _client.functions.invoke(
+      'multiplayer-game-state',
+      body: {'game_id': gameId, 'action': 'pause'},
+    );
+    if (response.data is! Map || response.data['pause'] == null) {
+      throw const MultiplayerException('The match could not be paused.');
+    }
+  }
+
+  Future<void> resumeGame(String gameId) async {
+    await ensureSignedIn();
+    final response = await _client.functions.invoke(
+      'multiplayer-game-state',
+      body: {'game_id': gameId, 'action': 'resume'},
+    );
+    if (response.data is! Map || response.data['pause'] == null) {
+      throw const MultiplayerException('The match could not be resumed.');
+    }
+  }
+
+  Future<RankedMatchmakingResult> rankedMatchmaking({
+    required String action,
+    String? displayName,
+  }) async {
+    await ensureSignedIn();
+    final response = await _client.functions.invoke(
+      'ranked-matchmaking',
+      body: {
+        'action': action,
+        if (displayName != null) 'display_name': displayName.trim(),
+      },
+    );
+    final data = response.data;
+    if (data is! Map) {
+      throw const MultiplayerException('The ranked queue response was incomplete.');
+    }
+    return RankedMatchmakingResult.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  Future<void> settleRankedMatch(String gameId) async {
+    await ensureSignedIn();
+    await _client.functions.invoke(
+      'settle-ranked-match',
+      body: {'game_id': gameId},
+    );
+  }
+
   Future<MultiplayerGame> joinGame(String roomCode, String displayName) async {
     await ensureSignedIn();
     final response = await _client.functions.invoke(
@@ -186,6 +235,24 @@ class MultiplayerRooms {
     return MultiplayerRooms(
       myGames: read('my_games'),
       availableGames: read('available_games'),
+    );
+  }
+}
+
+class RankedMatchmakingResult {
+  final String status;
+  final MultiplayerGame? game;
+
+  const RankedMatchmakingResult({required this.status, this.game});
+
+  factory RankedMatchmakingResult.fromJson(Map<String, dynamic> json) {
+    return RankedMatchmakingResult(
+      status: json['status'] as String? ?? 'waiting',
+      game: json['game'] is Map
+          ? MultiplayerGame.fromJson(
+              Map<String, dynamic>.from(json['game'] as Map),
+            )
+          : null,
     );
   }
 }
@@ -258,7 +325,9 @@ class MultiplayerStateSnapshot {
       computerScore: isPlayerOne ? game.playerTwoScore : game.playerOneScore,
       consecutivePasses: game.consecutivePasses,
       currentTurn: isMyTurn ? 'player' : 'computer',
-      status: game.status == 'active'
+      status: game.pausedAt != null
+          ? 'gamePaused'
+          : game.status == 'active'
           ? (isMyTurn ? 'playerTurn' : 'waitingForOpponent')
           : 'gamePaused',
       lastMoveMessage: game.status == 'active'

@@ -38,7 +38,8 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends ConsumerState<GameScreen> {
+class _GameScreenState extends ConsumerState<GameScreen>
+    with WidgetsBindingObserver {
   static const double _edgeContentTightening = 24.0;
   static const Duration _turnDuration = GameNotifier.turnDuration;
   Tile? _selectedRackTile;
@@ -50,6 +51,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _turnCountdownTimer = Timer.periodic(
       const Duration(seconds: 1),
       (_) => _tickTurnCountdown(),
@@ -88,14 +90,33 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _turnCountdownTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    final notifier = ref.read(_provider.notifier);
+    if (lifecycleState == AppLifecycleState.resumed) {
+      notifier.resumeGame();
+      if (mounted) setState(() {});
+    } else if (lifecycleState == AppLifecycleState.inactive ||
+        lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.hidden) {
+      notifier.pauseGame();
+      // Persist immediately using the frozen pause instant. This prevents an
+      // app background/termination from charging the player turn time.
+      unawaited(notifier.persistPausedGame());
+    }
   }
 
   int _remainingTurnSeconds(GameState state) {
     final start = state.turnStartedAt;
     if (start == null) return 0;
-    final remaining = start.add(_turnDuration).difference(DateTime.now());
+    final pausedAt = ref.read(_provider.notifier).pauseStartedAt;
+    final clockNow = pausedAt ?? DateTime.now();
+    final remaining = start.add(_turnDuration).difference(clockNow);
     if (remaining.isNegative) return 0;
     return (remaining.inMilliseconds / 1000).ceil();
   }
@@ -275,44 +296,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF021710),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-        ),
-        title: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '→',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.shinyGold,
-                ),
-              ),
-              Text(
-                'GAME PAUSED',
-                style: GoogleFonts.lora(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.shinyGold,
-                ),
-              ),
-              Text(
-                '←',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.shinyGold,
-                ),
-              ),
-            ],
-          ),
-        ),
-        content: Column(
+      useSafeArea: false,
+      builder: (context) => PremiumDialog(
+        title: 'Game Paused',
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -420,7 +407,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             if (!widget.isMultiplayer) ...[
               _premiumDialogButton(
                 label: 'Save & Exit',
-                onTap: () {
+                onTap: () async {
+                  await ref.read(_provider.notifier).saveGameForExit();
                   Navigator.of(context).pop();
                   Navigator.of(context).pop();
                 },
@@ -512,23 +500,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF021710),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-              ),
-              title: Center(
-                child: Text(
-                  'Exchange Tiles',
-                  style: GoogleFonts.lora(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.shinyGold,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-              content: Column(
+            return PremiumDialog(
+              title: 'Exchange Tiles',
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
@@ -1110,6 +1084,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             : 'Computer is playing...';
       case 'gameCompleted':
         return 'Game over!';
+      case 'gamePaused':
+        return 'Match paused — resume when ready.';
       default:
         return '';
     }

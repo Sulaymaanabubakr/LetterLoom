@@ -10,6 +10,7 @@ class PostGameAnalysisDialog extends StatelessWidget {
   static void show(BuildContext context, PostGameSummary summary) {
     showDialog(
       context: context,
+      useSafeArea: false,
       builder: (context) => PostGameAnalysisDialog(summary: summary),
     );
   }

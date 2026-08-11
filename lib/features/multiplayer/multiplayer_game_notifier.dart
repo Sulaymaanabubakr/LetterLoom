@@ -17,6 +17,7 @@ class MultiplayerGameNotifier extends GameNotifier {
   final MultiplayerRepository _repository;
   StreamSubscription<MultiplayerGame?>? _roomSubscription;
   String? _pendingActionId;
+  bool _rankedSettlementRequested = false;
 
   MultiplayerGameNotifier({
     required this.gameId,
@@ -33,17 +34,29 @@ class MultiplayerGameNotifier extends GameNotifier {
 
   Future<void> _receiveRoomUpdate(MultiplayerGame? room) async {
     if (room == null || room.currentTurnUserId == null) return;
+    // Do not hydrate/reconcile a live server update into the visible board
+    // while the app is backgrounded or the pause sheet owns the match.
+    if (isGamePaused) return;
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     try {
       final snapshot = await _repository.loadGameState(gameId);
       final myTurn = snapshot.game.currentTurnUserId == currentUserId;
       final hydrated = snapshot.hydrate(state);
+      if (snapshot.game.pausedAt != null) {
+        state = hydrated.copyWith(
+          currentTurn: myTurn ? 'player' : 'computer',
+          status: 'gamePaused',
+          lastMoveMessage: 'Match paused. Waiting for a player to resume.',
+        );
+        return;
+      }
       if (snapshot.game.status != 'active') {
         state = hydrated.copyWith(
           currentTurn: 'computer',
           status: 'gamePaused',
           lastMoveMessage: 'This match has ended.',
         );
+        await _settleIfRanked(snapshot.game);
         return;
       }
       state = hydrated.copyWith(
@@ -55,6 +68,54 @@ class MultiplayerGameNotifier extends GameNotifier {
       );
     } catch (_) {
       // The realtime event can arrive before the private rack is readable.
+    }
+  }
+
+  @override
+  void pauseGame() {
+    super.pauseGame();
+    unawaited(_repository.pauseGame(gameId));
+  }
+
+  @override
+  void resumeGame() {
+    super.resumeGame();
+    unawaited(_resumeServerGame());
+  }
+
+  Future<void> _resumeServerGame() async {
+    try {
+      await _repository.resumeGame(gameId);
+    } catch (_) {
+      return;
+    }
+    await _refreshAfterResume();
+  }
+
+  Future<void> _refreshAfterResume() async {
+    try {
+      final snapshot = await _repository.loadGameState(gameId);
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      final myTurn = snapshot.game.currentTurnUserId == currentUserId;
+      state = snapshot.hydrate(state).copyWith(
+        currentTurn: myTurn ? 'player' : 'computer',
+        status: snapshot.game.pausedAt != null
+            ? 'gamePaused'
+            : (myTurn ? 'playerTurn' : 'waitingForOpponent'),
+      );
+      await _settleIfRanked(snapshot.game);
+    } catch (_) {
+      // The realtime stream will retry the authoritative refresh.
+    }
+  }
+
+  Future<void> _settleIfRanked(MultiplayerGame game) async {
+    if (game.mode != 'ranked' || game.status == 'active' || _rankedSettlementRequested) return;
+    _rankedSettlementRequested = true;
+    try {
+      await _repository.settleRankedMatch(game.id);
+    } catch (_) {
+      _rankedSettlementRequested = false;
     }
   }
 
@@ -228,8 +289,11 @@ class MultiplayerGameNotifier extends GameNotifier {
       final myTurn = snapshot.game.currentTurnUserId == currentUserId;
       state = snapshot.hydrate(nextState).copyWith(
         currentTurn: myTurn ? 'player' : 'computer',
-        status: myTurn ? 'playerTurn' : 'waitingForOpponent',
+        status: snapshot.game.status == 'active'
+            ? (myTurn ? 'playerTurn' : 'waitingForOpponent')
+            : 'gamePaused',
       );
+      await _settleIfRanked(snapshot.game);
     } catch (_) {
       state = state.copyWith(
         currentTurn: 'player',

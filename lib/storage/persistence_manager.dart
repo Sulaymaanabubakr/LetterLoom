@@ -30,10 +30,20 @@ class PersistenceManager {
 
   // --- Active Game Persistence ---
 
-  Future<void> saveGame(GameState state) async {
+  Future<void> saveGame(GameState state, {DateTime? clockNow}) async {
     try {
       final file = await _getFile(_gameSaveFileName);
-      final payload = <String, dynamic>{...state.toJson(), 'saveMode': 'solo'};
+      final now = clockNow ?? DateTime.now();
+      final remaining = state.turnStartedAt == null
+          ? null
+          : (GameState.turnDurationSeconds -
+                  now.difference(state.turnStartedAt!).inSeconds)
+              .clamp(0, GameState.turnDurationSeconds);
+      final payload = <String, dynamic>{
+        ...state.toJson(),
+        'turnSecondsRemaining': remaining,
+        'saveMode': 'solo',
+      };
       final jsonString = jsonEncode(payload);
       await file.writeAsString(jsonString);
     } catch (e) {

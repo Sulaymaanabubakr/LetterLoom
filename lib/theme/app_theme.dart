@@ -104,6 +104,34 @@ class AppTheme {
           side: BorderSide(color: shinyGold.withValues(alpha: 0.5), width: 1),
         ),
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: shinyGold,
+          foregroundColor: darkCharcoal,
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: shinyGold,
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: shinyGold,
+          side: BorderSide(color: shinyGold.withValues(alpha: 0.7)),
+          minimumSize: const Size(0, 44),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
     );
   }
 
@@ -262,77 +290,83 @@ class PremiumPageHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: SizedBox(
             height: 42,
-            child: Stack(
-              alignment: Alignment.center,
+            child: Row(
               children: [
-                Positioned(
-                  left: 0,
-                  child: InkWell(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.shinyGold.withValues(alpha: 0.65),
-                          width: 1.2,
-                        ),
-                        color: const Color(0xFF010E0A),
+                InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                        width: 1.2,
                       ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: AppTheme.shinyGold,
-                        size: 15,
+                      color: const Color(0xFF010E0A),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppTheme.shinyGold,
+                      size: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '→',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.shinyGold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [
+                                Color(0xFFFFF1CC),
+                                Color(0xFFD4AF37),
+                                Color(0xFF8A640F),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ).createShader(bounds),
+                            child: Text(
+                              title.toUpperCase(),
+                              maxLines: 1,
+                              style: GoogleFonts.lora(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '←',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.shinyGold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '→',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.shinyGold,
-                        ),
-                      ),
-                      ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          colors: [
-                            Color(0xFFFFF1CC),
-                            Color(0xFFD4AF37),
-                            Color(0xFF8A640F),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ).createShader(bounds),
-                        child: Text(
-                          title.toUpperCase(),
-                          style: GoogleFonts.lora(
-                            fontSize: 21,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '←',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.shinyGold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (action != null) Positioned(right: 0, child: action!),
+                const SizedBox(width: 14),
+                SizedBox(width: 42, child: action ?? const SizedBox.shrink()),
               ],
             ),
           ),
@@ -403,8 +437,17 @@ class PremiumDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      alignment: Alignment.bottomCenter,
       backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide.none,
+      ),
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -412,8 +455,10 @@ class PremiumDialog extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.shinyGold, width: 1.3),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: const Border(
+            top: BorderSide(color: AppTheme.shinyGold, width: 1.5),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.45),
@@ -428,12 +473,16 @@ class PremiumDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  '→',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.shinyGold,
+                SizedBox(
+                  width: 18,
+                  child: Text(
+                    '→',
+                    textAlign: TextAlign.left,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.shinyGold,
+                    ),
                   ),
                 ),
                 Flexible(
@@ -447,12 +496,16 @@ class PremiumDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                Text(
-                  '←',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.shinyGold,
+                SizedBox(
+                  width: 18,
+                  child: Text(
+                    '←',
+                    textAlign: TextAlign.right,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.shinyGold,
+                    ),
                   ),
                 ),
               ],
@@ -463,9 +516,63 @@ class PremiumDialog extends StatelessWidget {
               const SizedBox(height: 20),
               Row(children: actions),
             ],
+            const SizedBox(height: 20),
+            const PremiumDivider(),
           ],
         ),
       ),
+    );
+  }
+}
+
+class PremiumDivider extends StatelessWidget {
+  const PremiumDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  AppTheme.shinyGold.withValues(alpha: 0.4),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Transform.rotate(
+          angle: 3.14159 / 4,
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: AppTheme.emeraldGreen,
+              border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.shinyGold.withValues(alpha: 0.4),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

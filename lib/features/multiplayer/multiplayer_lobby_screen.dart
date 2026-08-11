@@ -33,6 +33,12 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   List<MultiplayerGame> _myGames = const [];
   bool _isRoomOwner = false;
 
+  String _friendlyError(Object error) {
+    debugPrint('[Multiplayer] $error');
+    if (error is MultiplayerException) return error.message;
+    return 'Online play is temporarily unavailable. Please try again.';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -80,7 +86,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       if (mounted) {
         setState(() {
           _isLoadingRooms = false;
-          if (showErrors) _error = error.toString();
+          if (showErrors) _error = _friendlyError(error);
         });
       }
     }
@@ -95,7 +101,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     try {
       await action();
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = _friendlyError(error));
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }

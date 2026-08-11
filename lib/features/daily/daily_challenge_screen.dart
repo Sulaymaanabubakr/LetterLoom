@@ -170,21 +170,10 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.panelDark,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.5),
-        ),
-        title: Text(
-          'Daily Challenge Complete!',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.lora(
-            color: AppTheme.ivoryText,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
+      useSafeArea: false,
+      builder: (context) => PremiumDialog(
+        title: 'Daily Challenge Complete',
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
@@ -226,15 +215,15 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
           ],
         ),
         actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.shinyGold,
-              foregroundColor: Colors.black,
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.shinyGold,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('CONTINUE'),
             ),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Continue'),
           ),
         ],
       ),

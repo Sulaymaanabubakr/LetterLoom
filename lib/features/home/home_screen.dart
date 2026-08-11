@@ -16,10 +16,11 @@ import '../auth/save_progress_modal.dart';
 import '../profile/profile_screen.dart';
 import '../daily/daily_challenge_screen.dart';
 import '../daily/daily_rewards_service.dart';
+import '../hints/hint_service.dart';
 import '../achievements/achievements_screen.dart';
 import '../leaderboards/leaderboards_screen.dart';
-import '../word_of_the_day/word_of_the_day_service.dart';
 import '../ranked/ranked_matchmaking_service.dart';
+import '../word_of_the_day/word_of_the_day_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +32,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _canContinue = false;
   bool _checkingSave = true;
+  // Kept disabled while older hot-reload sessions are still attached.
+  final bool _showLegacyInlineHeader = false;
 
   @override
   void initState() {
@@ -373,411 +376,616 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildHeaderChip({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B402E), Color(0xFF021710)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppTheme.shinyGold, size: 17),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.ivoryText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _avatarEmoji(String avatarId) {
+    const avatars = <String, String>{
+      'avatar_owl': '🦉',
+      'avatar_knight': '⚔️',
+      'avatar_crown': '👑',
+      'avatar_falcon': '🦅',
+      'avatar_dragon': '🐉',
+      'avatar_wizard': '🧙‍♂️',
+      'avatar_lion': '🦁',
+      'avatar_panther': '🐆',
+    };
+    return avatars[avatarId] ?? avatars['avatar_owl']!;
+  }
+
+  Widget _buildHomeHeader() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final profile = ref.watch(authProvider);
+        final hints = ref.watch(hintServiceProvider);
+        final totalHints =
+            hints.totalMoveHints() +
+            hints.totalLetterHints() +
+            hints.totalStrongHints();
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0D4933), Color(0xFF021710)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppTheme.shinyGold.withValues(alpha: 0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: AppTheme.shinyGold.withValues(alpha: 0.1),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildHeaderChip(
+                        icon: Icons.lightbulb_rounded,
+                        label: '$totalHints Helps',
+                      ),
+                      const SizedBox(width: 6),
+                      _buildHeaderChip(
+                        icon: Icons.local_fire_department_rounded,
+                        label: '${profile.currentStreak} Streak',
+                      ),
+                      const SizedBox(width: 6),
+                      _buildHeaderChip(
+                        icon: Icons.star_rounded,
+                        label: 'Lv ${profile.level}',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  if (profile.isGuest) {
+                    SaveProgressModal.show(context);
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    );
+                  }
+                },
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.panelDark,
+                    border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.shinyGold.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    _avatarEmoji(profile.avatarId),
+                    style: const TextStyle(fontSize: 23),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: PremiumBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 28.0,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 12.0),
+                child: _buildHomeHeader(),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top Header Bar (Guest Save icon or Profile Entry)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const SizedBox(width: 40),
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final profile = ref.watch(authProvider);
-                          if (profile.isGuest) {
-                            return IconButton(
-                              icon: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: const Color(0xFF07281D),
-                                  border: Border.all(
-                                    color: AppTheme.shinyGold.withValues(
-                                      alpha: 0.6,
-                                    ),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.cloud_upload_rounded,
-                                  color: AppTheme.shinyGold,
-                                  size: 20,
-                                ),
-                              ),
-                              onPressed: () => SaveProgressModal.show(context),
-                            );
-                          } else {
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const ProfileScreen(),
-                                  ),
-                                );
-                              },
-                              child: Container(
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 28.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_showLegacyInlineHeader)
+                          // Home header: live hint balance on the left and avatar on the right.
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final profile = ref.watch(authProvider);
+                              final hints = ref.watch(hintServiceProvider);
+                              final totalHints =
+                                  hints.totalMoveHints() +
+                                  hints.totalLetterHints() +
+                                  hints.totalStrongHints();
+                              return Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
-                                  vertical: 6,
+                                  vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.panelDark,
-                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0D4933),
+                                      Color(0xFF021710),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                     color: AppTheme.shinyGold.withValues(
-                                      alpha: 0.6,
+                                      alpha: 0.5,
                                     ),
                                   ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                    BoxShadow(
+                                      color: AppTheme.shinyGold.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      blurRadius: 12,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(
-                                      Icons.person_rounded,
-                                      color: AppTheme.shinyGold,
-                                      size: 18,
+                                    Expanded(
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: [
+                                            _buildHeaderChip(
+                                              icon: Icons.lightbulb_rounded,
+                                              label: '$totalHints Helps',
+                                            ),
+                                            const SizedBox(width: 6),
+                                            _buildHeaderChip(
+                                              icon: Icons
+                                                  .local_fire_department_rounded,
+                                              label:
+                                                  '${profile.currentStreak} Streak',
+                                            ),
+                                            const SizedBox(width: 6),
+                                            _buildHeaderChip(
+                                              icon: Icons.star_rounded,
+                                              label: 'Lv ${profile.level}',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '@${profile.username}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.ivoryText,
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (profile.isGuest) {
+                                          SaveProgressModal.show(context);
+                                        } else {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ProfileScreen(),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: Container(
+                                        width: 44,
+                                        height: 44,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppTheme.panelDark,
+                                          border: Border.all(
+                                            color: AppTheme.shinyGold,
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppTheme.shinyGold
+                                                  .withValues(alpha: 0.25),
+                                              blurRadius: 10,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          _avatarEmoji(profile.avatarId),
+                                          style: const TextStyle(fontSize: 23),
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Logo & Branding
-                  Center(
-                    child: Column(
-                      children: [
-                        // Luxury Logo Container
-                        Container(
-                          width: 135,
-                          height: 135,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.65),
-                                offset: const Offset(0, 10),
-                                blurRadius: 18,
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
                         const SizedBox(height: 16),
-                        // App Title with Gold Gradient
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [
-                              Color(0xFFFFF1CC), // light shiny gold highlight
-                              Color(0xFFD4AF37), // rich gold
-                              Color(0xFF8A640F), // antique bronze gold shadow
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ).createShader(bounds),
-                          child: Text(
-                            'LetterLoom',
-                            style: GoogleFonts.lora(
-                              fontSize: 50,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 2.0,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withValues(alpha: 0.4),
-                                  offset: const Offset(0, 3),
-                                  blurRadius: 6,
+                        // Logo & Branding
+                        Center(
+                          child: Column(
+                            children: [
+                              // Luxury Logo Container
+                              Container(
+                                width: 135,
+                                height: 135,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.65,
+                                      ),
+                                      offset: const Offset(0, 10),
+                                      blurRadius: 18,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(28),
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              // App Title with Gold Gradient
+                              ShaderMask(
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(
+                                          0xFFFFF1CC,
+                                        ), // light shiny gold highlight
+                                        Color(0xFFD4AF37), // rich gold
+                                        Color(
+                                          0xFF8A640F,
+                                        ), // antique bronze gold shadow
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
+                                child: Text(
+                                  'LetterLoom',
+                                  style: GoogleFonts.lora(
+                                    fontSize: 50,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 2.0,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                        offset: const Offset(0, 3),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Subtitle with Gold Ornaments
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        '→',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppTheme.shinyGold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Solo Offline • Online Play',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.mutedIvory,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 20,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '←',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppTheme.shinyGold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        // Subtitle with Gold Ornaments
+                        const SizedBox(height: 24),
+                        // Menu cards arranged two per row for quicker scanning.
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.55,
+                          children: [
+                            _buildPremiumButton(
+                              title: 'New Game',
+                              subtitle: 'Start a new word challenge',
+                              iconData: null,
+                              isPrimary: true,
+                              onPressed: _showDifficultyDialog,
+                            ),
+                            if (!_checkingSave)
+                              _buildPremiumButton(
+                                title: 'Continue Game',
+                                subtitle: 'Resume your last match',
+                                iconData: Icons.history_rounded,
+                                isPrimary: false,
+                                onPressed: _canContinue
+                                    ? () async {
+                                        await ref
+                                            .read(gameProvider.notifier)
+                                            .loadSavedGame();
+                                        MusicManager.instance.setTrack(
+                                          MusicTrack.game,
+                                        );
+                                        if (context.mounted) {
+                                          Navigator.of(context)
+                                              .push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const GameScreen(),
+                                                ),
+                                              )
+                                              .then((_) {
+                                                MusicManager.instance.setTrack(
+                                                  MusicTrack.menu,
+                                                );
+                                                _checkSavedGame();
+                                              });
+                                        }
+                                      }
+                                    : null,
+                              ),
+                            _buildPremiumButton(
+                              title: 'Daily Challenge',
+                              subtitle: 'Today\'s puzzle',
+                              iconData: Icons.today_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const DailyChallengeScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Competitive Duel',
+                              subtitle: 'Find a rated opponent',
+                              iconData: Icons.sports_esports_rounded,
+                              isPrimary: false,
+                              onPressed: () => RankedMatchmakingService.startRankedMatchmaking(context, ref),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Play Online',
+                              subtitle: 'Casual room with friends',
+                              iconData: Icons.groups_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const MultiplayerLobbyScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Leaderboards',
+                              subtitle: 'Global rankings & high scores',
+                              iconData: Icons.leaderboard_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const LeaderboardsScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Achievements',
+                              subtitle: 'View unlocks & progress',
+                              iconData: Icons.workspace_premium_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AchievementsScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Word of the Day',
+                              subtitle: 'Expand your Loom lexicon',
+                              iconData: Icons.auto_stories_rounded,
+                              isPrimary: false,
+                              onPressed: () =>
+                                  WordOfTheDayService.showModal(context),
+                            ),
+                            _buildPremiumButton(
+                              title: 'How to Play',
+                              subtitle: 'Learn the rules & scoring',
+                              iconData: Icons.menu_book_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const HowToPlayScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Statistics',
+                              subtitle: 'View your records & progress',
+                              iconData: Icons.bar_chart_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const StatisticsScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'Settings',
+                              subtitle: 'Customize your experience',
+                              iconData: Icons.settings_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen(),
+                                ),
+                              ),
+                            ),
+                            _buildPremiumButton(
+                              title: 'About the Loom',
+                              subtitle: 'Our story, lexicon, & credits',
+                              iconData: Icons.info_outline_rounded,
+                              isPrimary: false,
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AboutScreen(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // Divider & Footer Line (No Copyright text)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox(
-                              width: 20,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  '→',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.shinyGold,
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      AppTheme.shinyGold.withValues(alpha: 0.4),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                            Text(
-                              'Solo Offline • Online Play',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.mutedIvory,
-                                letterSpacing: 1.5,
+                            const SizedBox(width: 12),
+                            Transform.rotate(
+                              angle: 3.14159 / 4,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.emeraldGreen,
+                                  border: Border.all(
+                                    color: AppTheme.shinyGold,
+                                    width: 1.5,
+                                  ),
+                                ),
                               ),
                             ),
-                            SizedBox(
-                              width: 20,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '←',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.shinyGold,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppTheme.shinyGold.withValues(alpha: 0.4),
+                                      Colors.transparent,
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  // Menu cards arranged two per row for quicker scanning.
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.55,
-                    children: [
-                      _buildPremiumButton(
-                        title: 'New Game',
-                        subtitle: 'Start a new word challenge',
-                        iconData: null,
-                        isPrimary: true,
-                        onPressed: _showDifficultyDialog,
-                      ),
-                      if (!_checkingSave)
-                        _buildPremiumButton(
-                          title: 'Continue Game',
-                          subtitle: 'Resume your last match',
-                          iconData: Icons.history_rounded,
-                          isPrimary: false,
-                          onPressed: _canContinue
-                              ? () async {
-                                  await ref
-                                      .read(gameProvider.notifier)
-                                      .loadSavedGame();
-                                  MusicManager.instance.setTrack(
-                                    MusicTrack.game,
-                                  );
-                                  if (context.mounted) {
-                                    Navigator.of(context)
-                                        .push(
-                                          MaterialPageRoute(
-                                            builder: (_) => const GameScreen(),
-                                          ),
-                                        )
-                                        .then((_) {
-                                          MusicManager.instance.setTrack(
-                                            MusicTrack.menu,
-                                          );
-                                          _checkSavedGame();
-                                        });
-                                  }
-                                }
-                              : null,
-                        ),
-                      _buildPremiumButton(
-                        title: 'Daily Challenge',
-                        subtitle: 'Today\'s puzzle',
-                        iconData: Icons.today_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const DailyChallengeScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Ranked 1v1',
-                        subtitle: 'Compete in rating divisions',
-                        iconData: Icons.sports_esports_rounded,
-                        isPrimary: false,
-                        onPressed: () =>
-                            RankedMatchmakingService.startRankedMatchmaking(
-                              context,
-                              ref,
-                            ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Play Online',
-                        subtitle: 'Casual room with friends',
-                        iconData: Icons.groups_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const MultiplayerLobbyScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Leaderboards',
-                        subtitle: 'Global rankings & high scores',
-                        iconData: Icons.leaderboard_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const LeaderboardsScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Achievements',
-                        subtitle: 'View unlocks & progress',
-                        iconData: Icons.workspace_premium_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const AchievementsScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Word of the Day',
-                        subtitle: 'Expand your Loom lexicon',
-                        iconData: Icons.auto_stories_rounded,
-                        isPrimary: false,
-                        onPressed: () => WordOfTheDayService.showModal(context),
-                      ),
-                      _buildPremiumButton(
-                        title: 'How to Play',
-                        subtitle: 'Learn the rules & scoring',
-                        iconData: Icons.menu_book_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const HowToPlayScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Statistics',
-                        subtitle: 'View your records & progress',
-                        iconData: Icons.bar_chart_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const StatisticsScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'Settings',
-                        subtitle: 'Customize your experience',
-                        iconData: Icons.settings_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SettingsScreen(),
-                          ),
-                        ),
-                      ),
-                      _buildPremiumButton(
-                        title: 'About the Loom',
-                        subtitle: 'Our story, lexicon, & credits',
-                        iconData: Icons.info_outline_rounded,
-                        isPrimary: false,
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const AboutScreen(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Divider & Footer Line (No Copyright text)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                AppTheme.shinyGold.withValues(alpha: 0.4),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Transform.rotate(
-                        angle: 3.14159 / 4,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: AppTheme.emeraldGreen,
-                            border: Border.all(
-                              color: AppTheme.shinyGold,
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.shinyGold.withValues(alpha: 0.4),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

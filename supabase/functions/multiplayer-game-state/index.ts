@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
 import { sendPushNotification } from '../_shared/push.ts';
 
-const gameFields = 'id, room_code, status, current_turn_user_id, turn_started_at, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at';
+const gameFields = 'id, room_code, status, current_turn_user_id, turn_started_at, paused_at, paused_by_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at, mode';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const gameId = String(body.game_id ?? '');
     const action = String(body.action ?? 'get');
-    if (!gameId || !['get', 'initialize', 'move', 'timeout'].includes(action)) {
+    if (!gameId || !['get', 'initialize', 'move', 'timeout', 'pause', 'resume'].includes(action)) {
       return response({ error: 'A valid room and action are required.' }, 400);
     }
 
@@ -40,6 +40,15 @@ Deno.serve(async (req) => {
         p_game_id: gameId,
       });
       if (initializeError) return response({ error: initializeError.message }, 409);
+    }
+
+    if (action === 'pause' || action === 'resume') {
+      const { data: pauseState, error: pauseError } = await admin.rpc(
+        action === 'pause' ? 'pause_multiplayer_game' : 'resume_multiplayer_game',
+        { p_game_id: gameId, p_user_id: user.id },
+      );
+      if (pauseError) return response({ error: pauseError.message }, 409);
+      return response({ pause: pauseState });
     }
 
     if (action === 'move') {
@@ -79,6 +88,7 @@ Deno.serve(async (req) => {
 
     if (action === 'timeout') {
       if (game.status !== 'active') return response({ error: 'This room is not active.' }, 409);
+      if (game.paused_at) return response({ error: 'The match is paused.' }, 409);
       if (!game.turn_started_at) return response({ error: 'This turn has no countdown.' }, 409);
       if (Date.now() < Date.parse(game.turn_started_at) + 120_000) {
         return response({ error: 'The turn countdown has not expired.' }, 409);

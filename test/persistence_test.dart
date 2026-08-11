@@ -58,6 +58,7 @@ void main() {
         settings: const GameSettings(soundEnabled: false, hapticEnabled: true),
         statistics: const Statistics(wins: 5, losses: 2),
         turnStartedAt: DateTime.utc(2026, 8, 9, 17, 0),
+        turnSecondsRemaining: 47,
       );
 
       // Serialize
@@ -77,6 +78,7 @@ void main() {
       expect(restored.statistics.wins, 5);
       expect(restored.statistics.losses, 2);
       expect(restored.turnStartedAt, DateTime.utc(2026, 8, 9, 17, 0));
+      expect(restored.turnSecondsRemaining, 47);
 
       // Check board tile restored
       final centreCell = restored.board[7][7];
@@ -99,6 +101,26 @@ void main() {
       expect(restored.moveHistory[0].word, 'AX');
       expect(restored.moveHistory[0].score, 9);
       expect(restored.moveHistory[0].tilesUsed, ['A', 'X']);
+    });
+
+    test('preserves a frozen turn budget for a saved paused match', () {
+      const state = GameState(
+        board: [],
+        playerRack: [],
+        computerRack: [],
+        tileBag: [],
+        playerScore: 0,
+        computerScore: 0,
+        currentTurn: 'player',
+        difficulty: 'easy',
+        consecutivePasses: 0,
+        moveHistory: [],
+        status: 'playerTurn',
+        settings: GameSettings(),
+        statistics: Statistics(),
+        turnSecondsRemaining: 19,
+      );
+      expect(GameState.fromJson(state.toJson()).turnSecondsRemaining, 19);
     });
 
     test('records personal gameplay details', () {

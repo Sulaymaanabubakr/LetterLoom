@@ -45,24 +45,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final controller = TextEditingController(text: profile.username);
     showDialog(
       context: context,
+      useSafeArea: false,
       builder: (context) {
         String? errorMessage;
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: AppTheme.panelDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppTheme.shinyGold, width: 1.2),
-              ),
-              title: Text(
-                'Change Username',
-                style: GoogleFonts.lora(
-                  color: AppTheme.ivoryText,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Column(
+            return PremiumDialog(
+              title: 'Change Username',
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
@@ -99,19 +89,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: AppTheme.mutedIvory),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('CANCEL'),
                   ),
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.shinyGold,
-                    foregroundColor: const Color(0xFF1E1402),
-                  ),
-                  onPressed: () async {
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.shinyGold,
+                      foregroundColor: const Color(0xFF1E1402),
+                    ),
+                    onPressed: () async {
                     final validation = UsernameGenerator.validate(
                       controller.text,
                     );
@@ -142,7 +132,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       });
                     }
                   },
-                  child: const Text('Save'),
+                    child: const Text('SAVE'),
+                  ),
                 ),
               ],
             );

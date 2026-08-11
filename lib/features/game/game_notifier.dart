@@ -34,6 +34,7 @@ class GameNotifier extends StateNotifier<GameState> {
   DateTime? _pausedAt;
 
   bool get isGamePaused => _pausedAt != null;
+  DateTime? get pauseStartedAt => _pausedAt;
 
   GameState get currentState => state;
 
@@ -85,11 +86,20 @@ class GameNotifier extends StateNotifier<GameState> {
     try {
       final saved = await _persistence.loadGame();
       if (saved != null) {
+        final remaining = saved.turnSecondsRemaining;
         state = saved.copyWith(
           // Ensure we sync the latest settings and statistics
           settings: state.settings,
           statistics: state.statistics,
-          turnStartedAt: saved.turnStartedAt ?? DateTime.now(),
+          turnStartedAt: remaining == null
+              // Older saves stored a wall-clock timestamp only. Treat them
+              // as frozen at restore time instead of charging time spent
+              // outside the app.
+              ? DateTime.now()
+              : DateTime.now().subtract(
+                  Duration(seconds: GameState.turnDurationSeconds - remaining),
+                ),
+          clearTurnSecondsRemaining: true,
         );
 
         // If we loaded and it was computer's turn, resume computer move
@@ -125,6 +135,19 @@ class GameNotifier extends StateNotifier<GameState> {
         turnStartedAt: startedAt.add(DateTime.now().difference(pausedAt)),
       );
     }
+  }
+
+  /// Persist a paused solo match with its frozen remaining time, then release
+  /// the in-memory pause lock so reopening the same provider can continue.
+  Future<void> saveGameForExit() async {
+    final pausedAt = _pausedAt;
+    await _persistence.saveGame(state, clockNow: pausedAt ?? DateTime.now());
+    _pausedAt = null;
+  }
+
+  /// Persist a backgrounded match while keeping its in-memory pause lock.
+  Future<void> persistPausedGame() async {
+    await _persistence.saveGame(state, clockNow: _pausedAt ?? DateTime.now());
   }
 
   Future<void> _waitWhilePaused() async {

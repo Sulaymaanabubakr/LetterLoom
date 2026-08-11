@@ -45,6 +45,32 @@ class HintModal extends ConsumerStatefulWidget {
 }
 
 class _HintModalState extends ConsumerState<HintModal> {
+  String _helperName(String type) {
+    switch (type) {
+      case 'move':
+        return 'Word Path';
+      case 'letter':
+        return 'Letter Spark';
+      case 'strong':
+        return 'Word Weaver';
+      default:
+        return 'Helper';
+    }
+  }
+
+  String _helperDescription(String type) {
+    switch (type) {
+      case 'move':
+        return 'Shows a playable word on the board';
+      case 'letter':
+        return 'Highlights a useful letter to play';
+      case 'strong':
+        return 'Reveals the strongest play available';
+      default:
+        return 'Gives you a little help';
+    }
+  }
+
   void _requestHint(String hintType) async {
     final hintNotifier = ref.read(hintServiceProvider.notifier);
 
@@ -83,30 +109,26 @@ class _HintModalState extends ConsumerState<HintModal> {
   void _showGetMoreHintsDialog(String hintType) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.panelDark,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppTheme.shinyGold, width: 1.2),
-        ),
-        title: Text(
-          'Out of Hints',
-          style: GoogleFonts.lora(color: AppTheme.ivoryText, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'You have used all your daily free $hintType hints. Watch an ad or buy a hint pack to get more!',
+      useSafeArea: false,
+      builder: (context) => PremiumDialog(
+        title: 'Daily Helps Used',
+        child: Text(
+          'You have used today\'s ${_helperName(hintType)} helps. Watch a short video or get a help pack for more.',
           style: GoogleFonts.inter(color: AppTheme.mutedIvory),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.mutedIvory)),
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('CLOSE'),
+            ),
           ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.emeraldGreen),
-            icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white, size: 18),
-            label: const Text('Watch Ad', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
+          Expanded(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.emeraldGreen),
+              icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white, size: 18),
+              label: const Text('WATCH VIDEO', style: TextStyle(color: Colors.white)),
+              onPressed: () async {
               Navigator.of(context).pop();
               await AdService().showRewardedAd(
                 hintType: hintType,
@@ -116,7 +138,7 @@ class _HintModalState extends ConsumerState<HintModal> {
                       .grantAdReward(type);
                   if (mounted) {
                     if (granted) {
-                      ToastUtils.showToast(context, '+1 $type hint earned!');
+                      ToastUtils.showToast(context, '+1 ${_helperName(type)} help earned!');
                     } else {
                       ToastUtils.showToast(
                         context,
@@ -132,34 +154,34 @@ class _HintModalState extends ConsumerState<HintModal> {
                   }
                 },
               );
-            },
+              },
+            ),
           ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.shinyGold),
-            icon: const Icon(Icons.shopping_bag_rounded, color: Colors.black, size: 18),
-            label: const Text('Buy Pack', style: TextStyle(color: Colors.black)),
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final pack = BillingService.availablePacks.firstWhere(
-                (p) => p.hintType == hintType || p.hintType == 'mixed',
-              );
-              await BillingService().purchasePack(
-                pack,
-                onPurchaseFulfilled: (type, amount) async {
-                  await ref
-                      .read(hintServiceProvider.notifier)
-                      .addPurchasedHints(type, amount);
-                  if (mounted) {
-                    ToastUtils.showToast(context, 'Purchased +$amount $type hints!');
-                  }
-                },
-                onError: (err) {
-                  if (mounted) {
-                    ToastUtils.showToast(context, err, isError: true);
-                  }
-                },
-              );
-            },
+          Expanded(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.shinyGold),
+              icon: const Icon(Icons.shopping_bag_rounded, color: Colors.black, size: 18),
+              label: const Text('GET PACK', style: TextStyle(color: Colors.black)),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final pack = BillingService.availablePacks.firstWhere(
+                  (p) => p.hintType == hintType || p.hintType == 'mixed',
+                );
+                await BillingService().purchasePack(
+                  pack,
+                  onPurchaseFulfilled: (type, amount) async {
+                    await ref.read(hintServiceProvider.notifier).addPurchasedHints(type, amount);
+                    if (mounted) {
+                      ToastUtils.showToast(context, 'Added $amount ${_helperName(type)} helps.');
+                    }
+                  },
+                  onError: (error) {
+                    if (mounted) ToastUtils.showToast(context, 'Purchase could not be completed.', isError: true);
+                    debugPrint('[Hints] Purchase failed: $error');
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -186,7 +208,7 @@ class _HintModalState extends ConsumerState<HintModal> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Need a Hint?',
+                  'Choose Your Help',
                   style: GoogleFonts.lora(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -201,26 +223,26 @@ class _HintModalState extends ConsumerState<HintModal> {
             ),
             const SizedBox(height: 16),
             _buildHintOptionCard(
-              title: 'Move Hint',
-              subtitle: 'Highlights board region of a legal move',
+              title: _helperName('move'),
+              subtitle: _helperDescription('move'),
               icon: Icons.grid_view_rounded,
-              remainingText: '${hintState.totalMoveHints()} available',
+              remainingText: '${hintState.totalMoveHints()} left',
               onTap: () => _requestHint('move'),
             ),
             const SizedBox(height: 12),
             _buildHintOptionCard(
-              title: 'Letter Hint',
-              subtitle: 'Reveals one letter in position (e.g. _ A _ E)',
+              title: _helperName('letter'),
+              subtitle: _helperDescription('letter'),
               icon: Icons.text_fields_rounded,
-              remainingText: '${hintState.totalLetterHints()} available',
+              remainingText: '${hintState.totalLetterHints()} left',
               onTap: () => _requestHint('letter'),
             ),
             const SizedBox(height: 12),
             _buildHintOptionCard(
-              title: 'Strong Hint',
-              subtitle: 'Reveals full word, placement, and score',
+              title: _helperName('strong'),
+              subtitle: _helperDescription('strong'),
               icon: Icons.auto_awesome_rounded,
-              remainingText: '${hintState.totalStrongHints()} available',
+              remainingText: '${hintState.totalStrongHints()} left',
               onTap: () => _requestHint('strong'),
             ),
           ],
@@ -236,11 +258,11 @@ class _HintModalState extends ConsumerState<HintModal> {
     required String remainingText,
     required VoidCallback onTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.panelDark,
+    return Material(
+      color: AppTheme.panelDark,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.4)),
+        side: BorderSide(color: AppTheme.shinyGold.withValues(alpha: 0.4)),
       ),
       child: ListTile(
         leading: Container(

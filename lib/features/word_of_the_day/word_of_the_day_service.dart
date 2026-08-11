@@ -72,6 +72,7 @@ class WordOfTheDayService {
     final wordData = getTodayWord();
     showDialog(
       context: context,
+      useSafeArea: false,
       builder: (context) => PremiumDialog(
         title: 'Word of the Day',
         child: Column(
