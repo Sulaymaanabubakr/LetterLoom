@@ -20,7 +20,10 @@ class StatisticsScreen extends ConsumerWidget {
             children: [
               // Custom Header Bar with Back Button & Ornate Title
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 12.0,
+                ),
                 child: SizedBox(
                   height: 42,
                   child: Stack(
@@ -31,7 +34,10 @@ class StatisticsScreen extends ConsumerWidget {
                         left: 0,
                         child: InkWell(
                           onTap: () {
-                            HapticUtils.trigger(HapticType.tap, gameState.settings);
+                            HapticUtils.trigger(
+                              HapticType.tap,
+                              gameState.settings,
+                            );
                             Navigator.of(context).pop();
                           },
                           borderRadius: BorderRadius.circular(12),
@@ -41,7 +47,9 @@ class StatisticsScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                color: AppTheme.shinyGold.withValues(
+                                  alpha: 0.65,
+                                ),
                                 width: 1.2,
                               ),
                               color: const Color(0xFF010E0A),
@@ -63,7 +71,7 @@ class StatisticsScreen extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                '➔  ',
+                                '→',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -71,15 +79,16 @@ class StatisticsScreen extends ConsumerWidget {
                                 ),
                               ),
                               ShaderMask(
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFFF1CC),
-                                    Color(0xFFD4AF37),
-                                    Color(0xFF8A640F),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ).createShader(bounds),
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFFF1CC),
+                                        Color(0xFFD4AF37),
+                                        Color(0xFF8A640F),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
                                 child: Text(
                                   'STATISTICS',
                                   style: GoogleFonts.lora(
@@ -91,7 +100,7 @@ class StatisticsScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                '  ➔',
+                                '←',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -133,7 +142,10 @@ class StatisticsScreen extends ConsumerWidget {
                         height: 8,
                         decoration: BoxDecoration(
                           color: AppTheme.emeraldGreen,
-                          border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold,
+                            width: 1.2,
+                          ),
                         ),
                       ),
                     ),
@@ -158,7 +170,10 @@ class StatisticsScreen extends ConsumerWidget {
               // Scroll Area
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 4.0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -167,7 +182,10 @@ class StatisticsScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
                           gradient: const LinearGradient(
                             colors: AppTheme.darkGreenGradient,
                             begin: Alignment.topCenter,
@@ -192,19 +210,23 @@ class StatisticsScreen extends ConsumerWidget {
                               children: [
                                 const CustomPaint(
                                   size: Size(45, 60),
-                                  painter: LaurelWreathPainter(isLeft: true, color: AppTheme.shinyGold),
+                                  painter: LaurelWreathPainter(
+                                    isLeft: true,
+                                    color: AppTheme.shinyGold,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFF1CC),
-                                      Color(0xFFD4AF37),
-                                      Color(0xFF8A640F),
-                                    ],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ).createShader(bounds),
+                                  shaderCallback: (bounds) =>
+                                      const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFF1CC),
+                                          Color(0xFFD4AF37),
+                                          Color(0xFF8A640F),
+                                        ],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ).createShader(bounds),
                                   child: Text(
                                     '${stats.winPercentage.toStringAsFixed(1)}%',
                                     style: GoogleFonts.lora(
@@ -217,7 +239,10 @@ class StatisticsScreen extends ConsumerWidget {
                                 const SizedBox(width: 16),
                                 const CustomPaint(
                                   size: Size(45, 60),
-                                  painter: LaurelWreathPainter(isLeft: false, color: AppTheme.shinyGold),
+                                  painter: LaurelWreathPainter(
+                                    isLeft: false,
+                                    color: AppTheme.shinyGold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -229,7 +254,9 @@ class StatisticsScreen extends ConsumerWidget {
                                 Expanded(
                                   child: Container(
                                     height: 1,
-                                    color: AppTheme.shinyGold.withValues(alpha: 0.25),
+                                    color: AppTheme.shinyGold.withValues(
+                                      alpha: 0.25,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -240,7 +267,10 @@ class StatisticsScreen extends ConsumerWidget {
                                     height: 6,
                                     decoration: BoxDecoration(
                                       color: AppTheme.emeraldGreen,
-                                      border: Border.all(color: AppTheme.shinyGold, width: 1.0),
+                                      border: Border.all(
+                                        color: AppTheme.shinyGold,
+                                        width: 1.0,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -248,7 +278,9 @@ class StatisticsScreen extends ConsumerWidget {
                                 Expanded(
                                   child: Container(
                                     height: 1,
-                                    color: AppTheme.shinyGold.withValues(alpha: 0.25),
+                                    color: AppTheme.shinyGold.withValues(
+                                      alpha: 0.25,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -257,13 +289,29 @@ class StatisticsScreen extends ConsumerWidget {
                             // Four Stat Icons Grid
                             Row(
                               children: [
-                                _buildRecordMetric('GAMES', stats.totalGames, Icons.assignment_turned_in_outlined),
+                                _buildRecordMetric(
+                                  'GAMES',
+                                  stats.totalGames,
+                                  Icons.assignment_turned_in_outlined,
+                                ),
                                 _buildMetricDivider(),
-                                _buildRecordMetric('WINS', stats.wins, Icons.emoji_events_outlined),
+                                _buildRecordMetric(
+                                  'WINS',
+                                  stats.wins,
+                                  Icons.emoji_events_outlined,
+                                ),
                                 _buildMetricDivider(),
-                                _buildRecordMetric('LOSSES', stats.losses, Icons.shield_outlined),
+                                _buildRecordMetric(
+                                  'LOSSES',
+                                  stats.losses,
+                                  Icons.shield_outlined,
+                                ),
                                 _buildMetricDivider(),
-                                _buildRecordMetric('TIES', stats.ties, Icons.handshake_outlined),
+                                _buildRecordMetric(
+                                  'TIES',
+                                  stats.ties,
+                                  Icons.handshake_outlined,
+                                ),
                               ],
                             ),
                           ],
@@ -273,10 +321,16 @@ class StatisticsScreen extends ConsumerWidget {
                       // Personal Records Category
                       _buildCategoryHeader('Personal Records'),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
                           gradient: const LinearGradient(
                             colors: AppTheme.darkGreenGradient,
                             begin: Alignment.topCenter,
@@ -299,7 +353,9 @@ class StatisticsScreen extends ConsumerWidget {
                             _buildRowDivider(),
                             _buildDetailedRecordRow(
                               'Longest Word Played',
-                              stats.longestWord.isEmpty ? '-' : stats.longestWord,
+                              stats.longestWord.isEmpty
+                                  ? '-'
+                                  : stats.longestWord,
                               Icons.abc_rounded,
                             ),
                             _buildRowDivider(),
@@ -321,10 +377,16 @@ class StatisticsScreen extends ConsumerWidget {
                       // Difficulty Victories Category
                       _buildCategoryHeader('Difficulty Victories'),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 18.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 18.0,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
                           gradient: const LinearGradient(
                             colors: AppTheme.darkGreenGradient,
                             begin: Alignment.topCenter,
@@ -334,9 +396,24 @@ class StatisticsScreen extends ConsumerWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildDifficultyVictoryBox('EASY', stats.winsEasy, const Color(0xFF0C462B), Colors.greenAccent),
-                            _buildDifficultyVictoryBox('MEDIUM', stats.winsMedium, const Color(0xFF5E3C0C), const Color(0xFFECA042)),
-                            _buildDifficultyVictoryBox('HARD', stats.winsHard, const Color(0xFF4C100C), const Color(0xFFE0524B)),
+                            _buildDifficultyVictoryBox(
+                              'EASY',
+                              stats.winsEasy,
+                              const Color(0xFF0C462B),
+                              Colors.greenAccent,
+                            ),
+                            _buildDifficultyVictoryBox(
+                              'MEDIUM',
+                              stats.winsMedium,
+                              const Color(0xFF5E3C0C),
+                              const Color(0xFFECA042),
+                            ),
+                            _buildDifficultyVictoryBox(
+                              'HARD',
+                              stats.winsHard,
+                              const Color(0xFF4C100C),
+                              const Color(0xFFE0524B),
+                            ),
                           ],
                         ),
                       ),
@@ -366,7 +443,10 @@ class StatisticsScreen extends ConsumerWidget {
                               height: 10,
                               decoration: BoxDecoration(
                                 color: AppTheme.emeraldGreen,
-                                border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                                border: Border.all(
+                                  color: AppTheme.shinyGold,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -445,13 +525,12 @@ class StatisticsScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF010A07),
-              border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.55), width: 1.0),
+              border: Border.all(
+                color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                width: 1.0,
+              ),
             ),
-            child: Icon(
-              icon,
-              color: AppTheme.shinyGold,
-              size: 18,
-            ),
+            child: Icon(icon, color: AppTheme.shinyGold, size: 18),
           ),
           const SizedBox(height: 10),
           Text(
@@ -505,13 +584,12 @@ class StatisticsScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF010A07),
-              border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.5), width: 1.0),
+              border: Border.all(
+                color: AppTheme.shinyGold.withValues(alpha: 0.5),
+                width: 1.0,
+              ),
             ),
-            child: Icon(
-              icon,
-              color: AppTheme.shinyGold,
-              size: 16,
-            ),
+            child: Icon(icon, color: AppTheme.shinyGold, size: 16),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -537,7 +615,12 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDifficultyVictoryBox(String difficulty, int winsCount, Color bgColor, Color badgeColor) {
+  Widget _buildDifficultyVictoryBox(
+    String difficulty,
+    int winsCount,
+    Color bgColor,
+    Color badgeColor,
+  ) {
     return Column(
       children: [
         // Badge Label
@@ -546,7 +629,10 @@ class StatisticsScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: badgeColor.withValues(alpha: 0.5), width: 1),
+            border: Border.all(
+              color: badgeColor.withValues(alpha: 0.5),
+              width: 1,
+            ),
           ),
           child: Text(
             difficulty,
@@ -567,7 +653,9 @@ class StatisticsScreen extends ConsumerWidget {
             children: [
               CustomPaint(
                 size: const Size(72, 72),
-                painter: MiniLaurelWreathPainter(color: badgeColor.withValues(alpha: 0.35)),
+                painter: MiniLaurelWreathPainter(
+                  color: badgeColor.withValues(alpha: 0.35),
+                ),
               ),
               Center(
                 child: Container(
@@ -576,7 +664,10 @@ class StatisticsScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF010A07),
-                    border: Border.all(color: badgeColor.withValues(alpha: 0.4), width: 1.2),
+                    border: Border.all(
+                      color: badgeColor.withValues(alpha: 0.4),
+                      width: 1.2,
+                    ),
                   ),
                   child: const Center(
                     child: Icon(
@@ -642,6 +733,7 @@ class LaurelWreathPainter extends CustomPainter {
         canvas.drawPath(leaf, paint);
         canvas.restore();
       }
+
       drawLeaf(w * 0.8, h * 0.82, -0.6);
       drawLeaf(w * 0.55, h * 0.70, -0.9);
       drawLeaf(w * 0.38, h * 0.55, -1.2);
@@ -666,6 +758,7 @@ class LaurelWreathPainter extends CustomPainter {
         canvas.drawPath(leaf, paint);
         canvas.restore();
       }
+
       drawLeaf(w * 0.2, h * 0.82, 0.6);
       drawLeaf(w * 0.45, h * 0.70, 0.9);
       drawLeaf(w * 0.62, h * 0.55, 1.2);

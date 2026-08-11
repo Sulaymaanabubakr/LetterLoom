@@ -6,11 +6,13 @@ import '../../theme/app_theme.dart';
 import '../../models/board_cell.dart';
 import '../../models/tile.dart';
 import '../../models/game_state.dart';
+import '../../ai/ai_engine.dart';
 import 'game_notifier.dart';
 import '../../core/haptic_utils.dart';
 import '../../core/sound_manager.dart';
 import '../../core/toast_utils.dart';
 import '../hints/hint_modal.dart';
+import '../hints/hint_engine.dart';
 import 'post_game_analysis.dart';
 import 'post_game_analysis_dialog.dart';
 
@@ -43,6 +45,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   Timer? _turnCountdownTimer;
   DateTime? _countdownTurnStartedAt;
   bool _timeoutRequested = false;
+  HintResult? _activeHint;
 
   @override
   void initState() {
@@ -56,9 +59,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   void _tickTurnCountdown() {
     if (!mounted) return;
     final state = ref.read(_provider);
+    if (ref.read(_provider.notifier).isGamePaused) {
+      setState(() {});
+      return;
+    }
     if (_countdownTurnStartedAt != state.turnStartedAt) {
       _countdownTurnStartedAt = state.turnStartedAt;
       _timeoutRequested = false;
+      if (_activeHint != null) {
+        setState(() => _activeHint = null);
+      }
     }
     final start = state.turnStartedAt;
     final isTimedTurn =
@@ -258,10 +268,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  void _showPauseDialog() {
+  Future<void> _showPauseDialog() async {
     final settings = ref.read(_provider).settings;
     HapticUtils.trigger(HapticType.tap, settings);
-    showDialog(
+    ref.read(_provider.notifier).pauseGame();
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
@@ -275,7 +286,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                '➔  ',
+                '→',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -291,7 +302,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 ),
               ),
               Text(
-                '  ➔',
+                '←',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -436,6 +447,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         ),
       ),
     );
+    if (!mounted) return;
+    ref.read(_provider.notifier).resumeGame();
+    setState(() {});
   }
 
   void _confirmRestart() {
@@ -765,7 +779,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '➔  ',
+                          '→',
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -793,7 +807,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                           ),
                         ),
                         Text(
-                          '  ➔',
+                          '←',
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -1251,6 +1265,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final cell = state.board[r][c];
     final tile = cell.tile;
     final isNew = cell.isNewPlacement;
+    final hintPlacement = state.status == 'playerTurn'
+        ? _hintPlacementAt(r, c)
+        : null;
 
     Widget cellContent;
 
@@ -1331,12 +1348,58 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               }
             }
           },
-          child: Container(
-            decoration: AppTheme.cellDecoration(cell.type, isHover: isHover),
-            child: cellContent,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: AppTheme.cellDecoration(
+                  cell.type,
+                  isHover: isHover,
+                ),
+                child: cellContent,
+              ),
+              if (hintPlacement != null && tile == null)
+                IgnorePointer(child: _buildHintCell(hintPlacement, size)),
+            ],
           ),
         );
       },
+    );
+  }
+
+  PlacedTileInput? _hintPlacementAt(int row, int col) {
+    final hint = _activeHint;
+    if (hint == null) return null;
+    for (final placement in hint.placements) {
+      if (placement.row == row && placement.col == col) return placement;
+    }
+    return null;
+  }
+
+  Widget _buildHintCell(PlacedTileInput placement, double size) {
+    final hint = _activeHint!;
+    final showLetter = hint.hintType != 'move';
+    return Container(
+      margin: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: AppTheme.shinyGold.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.68),
+          width: 1.2,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          showLetter ? (placement.blankLetter ?? placement.letter) : '?',
+          style: TextStyle(
+            fontFamily: 'Lora',
+            fontSize: size * 0.42,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.shinyGold.withValues(alpha: 0.52),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1612,10 +1675,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   boardGrid: state.board,
                   playerRack: state.playerRack,
                   onHintGenerated: (hint) {
-                    ToastUtils.showToast(
-                      context,
-                      'Hint [${hint.hintType.toUpperCase()}]: ${hint.maskedPattern} (${hint.score} pts)',
-                    );
+                    if (!mounted) return;
+                    setState(() => _activeHint = hint);
                   },
                 );
               },

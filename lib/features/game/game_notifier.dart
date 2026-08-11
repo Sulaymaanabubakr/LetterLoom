@@ -31,6 +31,9 @@ class GameNotifier extends StateNotifier<GameState> {
   final RulesValidator _rulesValidator = RulesValidator();
   final DictionaryService _dictionary = DictionaryService();
   Timer? _aiAnimationTimer;
+  DateTime? _pausedAt;
+
+  bool get isGamePaused => _pausedAt != null;
 
   GameState get currentState => state;
 
@@ -102,6 +105,32 @@ class GameNotifier extends StateNotifier<GameState> {
 
   Future<void> deleteSavedGame() async {
     await _persistence.deleteGameSave();
+  }
+
+  /// Freeze the local match while the pause sheet is visible. This also
+  /// prevents an in-flight computer turn from committing its move.
+  void pauseGame() {
+    _pausedAt ??= DateTime.now();
+  }
+
+  /// Resume the match without charging the player for time spent paused.
+  void resumeGame() {
+    final pausedAt = _pausedAt;
+    if (pausedAt == null) return;
+    _pausedAt = null;
+
+    final startedAt = state.turnStartedAt;
+    if (startedAt != null) {
+      state = state.copyWith(
+        turnStartedAt: startedAt.add(DateTime.now().difference(pausedAt)),
+      );
+    }
+  }
+
+  Future<void> _waitWhilePaused() async {
+    while (_pausedAt != null) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   void startNewGame(String difficulty, {bool persist = true}) {
@@ -515,6 +544,8 @@ class GameNotifier extends StateNotifier<GameState> {
         await Future.delayed(Duration(milliseconds: 1200 - elapsed));
       }
 
+      await _waitWhilePaused();
+
       if (state.status != 'computerThinking') return;
 
       if (aiMove.isPass) {
@@ -531,6 +562,7 @@ class GameNotifier extends StateNotifier<GameState> {
       if (elapsed < 1200) {
         await Future.delayed(Duration(milliseconds: 1200 - elapsed));
       }
+      await _waitWhilePaused();
       if (state.status == 'computerThinking') {
         _applyComputerPass();
       }
@@ -637,6 +669,7 @@ class GameNotifier extends StateNotifier<GameState> {
     _aiAnimationTimer = Timer.periodic(Duration(milliseconds: delayMs), (
       timer,
     ) {
+      if (_pausedAt != null) return;
       if (currentIndex >= placements.length) {
         timer.cancel();
         _finalizeComputerMove(aiMove);
@@ -821,17 +854,23 @@ class GameNotifier extends StateNotifier<GameState> {
     if (ref != null) {
       try {
         final isWin = result == 'win';
-        final xpAmount = isWin ? AppConfig.xpMatchWin : AppConfig.xpMatchComplete;
-        ref!.read(progressionProvider).addXP(xpAmount, reason: 'Match Finish ($result)');
-        ref!.read(achievementsProvider.notifier).recordGameFinished(
-          isWin: isWin,
-          playerScore: pScore,
-          opponentScore: cScore,
-          difficulty: state.difficulty,
-          isRanked: false,
-          wasTrailing30: false,
-          currentWinStreak: ref!.read(authProvider).currentStreak,
-        );
+        final xpAmount = isWin
+            ? AppConfig.xpMatchWin
+            : AppConfig.xpMatchComplete;
+        ref!
+            .read(progressionProvider)
+            .addXP(xpAmount, reason: 'Match Finish ($result)');
+        ref!
+            .read(achievementsProvider.notifier)
+            .recordGameFinished(
+              isWin: isWin,
+              playerScore: pScore,
+              opponentScore: cScore,
+              difficulty: state.difficulty,
+              isRanked: false,
+              wasTrailing30: false,
+              currentWinStreak: ref!.read(authProvider).currentStreak,
+            );
       } catch (_) {}
     }
   }

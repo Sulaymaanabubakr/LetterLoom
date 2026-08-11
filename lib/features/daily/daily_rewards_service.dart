@@ -244,7 +244,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '➔  ',
+                        '→',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -274,7 +274,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
                         ),
                       ),
                       Text(
-                        '  ➔',
+                        '←',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -284,23 +284,26 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
                     ],
                   ),
                 ),
-                InkWell(
-                  onTap: _claiming ? null : () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                Transform.translate(
+                  offset: const Offset(8, -10),
+                  child: InkWell(
+                    onTap: _claiming ? null : () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                        ),
+                        color: const Color(0xFF010E0A),
                       ),
-                      color: const Color(0xFF010E0A),
-                    ),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      color: AppTheme.shinyGold,
-                      size: 16,
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: AppTheme.shinyGold,
+                        size: 16,
+                      ),
                     ),
                   ),
                 ),

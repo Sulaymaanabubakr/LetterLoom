@@ -85,7 +85,7 @@ class SettingsScreen extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                '➔  ',
+                                '→',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -114,7 +114,7 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                '  ➔',
+                                '←',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,

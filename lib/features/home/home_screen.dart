@@ -82,7 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '➔  ',
+                        '→',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -109,7 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       Text(
-                        '  ➔',
+                        '←',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -404,7 +404,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   shape: BoxShape.circle,
                                   color: const Color(0xFF07281D),
                                   border: Border.all(
-                                    color: AppTheme.shinyGold.withValues(alpha: 0.6),
+                                    color: AppTheme.shinyGold.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                 ),
                                 child: const Icon(
@@ -433,7 +435,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   color: AppTheme.panelDark,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: AppTheme.shinyGold.withValues(alpha: 0.6),
+                                    color: AppTheme.shinyGold.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                 ),
                                 child: Row(
@@ -522,16 +526,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              '➔  ',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.shinyGold,
+                            SizedBox(
+                              width: 20,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '→',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.shinyGold,
+                                  ),
+                                ),
                               ),
                             ),
                             Text(
                               'Solo Offline • Online Play',
+                              textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
@@ -539,12 +550,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 letterSpacing: 1.5,
                               ),
                             ),
-                            Text(
-                              '  ➔',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.shinyGold,
+                            SizedBox(
+                              width: 20,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '←',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.shinyGold,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -553,178 +570,160 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Menu Buttons
-                  _buildPremiumButton(
-                    title: 'New Game',
-                    subtitle: 'Start a new word challenge',
-                    iconData: null,
-                    isPrimary: true,
-                    onPressed: _showDifficultyDialog,
-                  ),
-                  const SizedBox(height: 12),
-                  if (!_checkingSave)
-                    _buildPremiumButton(
-                      title: 'Continue Game',
-                      subtitle: 'Resume your last match',
-                      iconData: Icons.history_rounded,
-                      isPrimary: false,
-                      onPressed: _canContinue
-                          ? () async {
-                              await ref
-                                  .read(gameProvider.notifier)
-                                  .loadSavedGame();
-                              // Switch to calm game-screen kalimba music (non-blocking)
-                              MusicManager.instance.setTrack(MusicTrack.game);
-                              if (context.mounted) {
-                                Navigator.of(context)
-                                    .push(
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const GameScreen(),
-                                      ),
-                                    )
-                                    .then((_) {
-                                      // Back on home — restore menu music (non-blocking)
-                                      MusicManager.instance.setTrack(
-                                        MusicTrack.menu,
-                                      );
-                                      _checkSavedGame();
-                                    });
-                              }
-                            }
-                          : null,
-                    ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Daily Challenge',
-                    subtitle: 'Play today\'s deterministic puzzle',
-                    iconData: Icons.today_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const DailyChallengeScreen(),
+                  // Menu cards arranged two per row for quicker scanning.
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.55,
+                    children: [
+                      _buildPremiumButton(
+                        title: 'New Game',
+                        subtitle: 'Start a new word challenge',
+                        iconData: null,
+                        isPrimary: true,
+                        onPressed: _showDifficultyDialog,
+                      ),
+                      if (!_checkingSave)
+                        _buildPremiumButton(
+                          title: 'Continue Game',
+                          subtitle: 'Resume your last match',
+                          iconData: Icons.history_rounded,
+                          isPrimary: false,
+                          onPressed: _canContinue
+                              ? () async {
+                                  await ref
+                                      .read(gameProvider.notifier)
+                                      .loadSavedGame();
+                                  MusicManager.instance.setTrack(
+                                    MusicTrack.game,
+                                  );
+                                  if (context.mounted) {
+                                    Navigator.of(context)
+                                        .push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const GameScreen(),
+                                          ),
+                                        )
+                                        .then((_) {
+                                          MusicManager.instance.setTrack(
+                                            MusicTrack.menu,
+                                          );
+                                          _checkSavedGame();
+                                        });
+                                  }
+                                }
+                              : null,
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Ranked 1v1',
-                    subtitle: 'Compete in rating divisions',
-                    iconData: Icons.sports_esports_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      RankedMatchmakingService.startRankedMatchmaking(context, ref);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Play Online',
-                    subtitle: 'Casual room with friends',
-                    iconData: Icons.groups_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const MultiplayerLobbyScreen(),
+                      _buildPremiumButton(
+                        title: 'Daily Challenge',
+                        subtitle: 'Today\'s puzzle',
+                        iconData: Icons.today_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DailyChallengeScreen(),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Leaderboards',
-                    subtitle: 'Global rankings & high scores',
-                    iconData: Icons.leaderboard_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const LeaderboardsScreen(),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Ranked 1v1',
+                        subtitle: 'Compete in rating divisions',
+                        iconData: Icons.sports_esports_rounded,
+                        isPrimary: false,
+                        onPressed: () =>
+                            RankedMatchmakingService.startRankedMatchmaking(
+                              context,
+                              ref,
+                            ),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Play Online',
+                        subtitle: 'Casual room with friends',
+                        iconData: Icons.groups_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MultiplayerLobbyScreen(),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Achievements',
-                    subtitle: 'View unlocks & progress',
-                    iconData: Icons.workspace_premium_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const AchievementsScreen(),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Leaderboards',
+                        subtitle: 'Global rankings & high scores',
+                        iconData: Icons.leaderboard_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const LeaderboardsScreen(),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Word of the Day',
-                    subtitle: 'Expand your Loom lexicon',
-                    iconData: Icons.auto_stories_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      WordOfTheDayService.showModal(context);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'How to Play',
-                    subtitle: 'Learn the rules & scoring',
-                    iconData: Icons.menu_book_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const HowToPlayScreen(),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Achievements',
+                        subtitle: 'View unlocks & progress',
+                        iconData: Icons.workspace_premium_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AchievementsScreen(),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Statistics',
-                    subtitle: 'View your records & progress',
-                    iconData: Icons.bar_chart_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const StatisticsScreen(),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Word of the Day',
+                        subtitle: 'Expand your Loom lexicon',
+                        iconData: Icons.auto_stories_rounded,
+                        isPrimary: false,
+                        onPressed: () => WordOfTheDayService.showModal(context),
+                      ),
+                      _buildPremiumButton(
+                        title: 'How to Play',
+                        subtitle: 'Learn the rules & scoring',
+                        iconData: Icons.menu_book_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const HowToPlayScreen(),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'Settings',
-                    subtitle: 'Customize your experience',
-                    iconData: Icons.settings_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const SettingsScreen(),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Statistics',
+                        subtitle: 'View your records & progress',
+                        iconData: Icons.bar_chart_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const StatisticsScreen(),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumButton(
-                    title: 'About the Loom',
-                    subtitle: 'Our story, lexicon, & credits',
-                    iconData: Icons.info_outline_rounded,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const AboutScreen(),
+                      ),
+                      _buildPremiumButton(
+                        title: 'Settings',
+                        subtitle: 'Customize your experience',
+                        iconData: Icons.settings_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
                         ),
-                      );
-                    },
+                      ),
+                      _buildPremiumButton(
+                        title: 'About the Loom',
+                        subtitle: 'Our story, lexicon, & credits',
+                        iconData: Icons.info_outline_rounded,
+                        isPrimary: false,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AboutScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   // Divider & Footer Line (No Copyright text)
@@ -804,7 +803,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Opacity(
       opacity: disabled ? 0.45 : 1.0,
       child: Container(
-        height: 72,
+        height: 96,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           boxShadow: isPrimary && !disabled
@@ -862,51 +861,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onTap: onPressed,
                   borderRadius: BorderRadius.circular(16),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    child: Stack(
                       children: [
-                        // Left Circular Icon Frame
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isPrimary
-                                ? const Color(0xFF031A12)
-                                : const Color(0xFF010A07),
-                            border: Border.all(
-                              color: isPrimary
-                                  ? AppTheme.shinyGold.withValues(alpha: 0.2)
-                                  : AppTheme.shinyGold.withValues(alpha: 0.65),
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Center(
-                            child: isPrimary
-                                ? const CustomPaint(
-                                    size: Size(22, 22),
-                                    painter: ChessKnightPainter(
-                                      color: AppTheme.shinyGold,
-                                    ),
-                                  )
-                                : Icon(
-                                    iconData,
-                                    color: AppTheme.shinyGold,
-                                    size: 20,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Middle Text Info (Serif Title, Sans-serif Subtitle)
-                        Expanded(
+                        Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isPrimary
+                                      ? const Color(0xFF031A12)
+                                      : const Color(0xFF010A07),
+                                  border: Border.all(
+                                    color: isPrimary
+                                        ? AppTheme.shinyGold.withValues(
+                                            alpha: 0.2,
+                                          )
+                                        : AppTheme.shinyGold.withValues(
+                                            alpha: 0.65,
+                                          ),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: isPrimary
+                                      ? const CustomPaint(
+                                          size: Size(22, 22),
+                                          painter: ChessKnightPainter(
+                                            color: AppTheme.shinyGold,
+                                          ),
+                                        )
+                                      : Icon(
+                                          iconData,
+                                          color: AppTheme.shinyGold,
+                                          size: 17,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
                               Text(
                                 title,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.lora(
-                                  fontSize: 18,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: textPrimaryColor,
                                 ),
@@ -914,22 +917,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 subtitle,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
-                                  fontSize: 12,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w400,
                                   color: textSecondaryColor,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        // Right Chevron Arrow
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 15,
-                          color: isPrimary
-                              ? const Color(0xFF1E1402)
-                              : AppTheme.shinyGold,
                         ),
                       ],
                     ),

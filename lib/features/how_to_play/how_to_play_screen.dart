@@ -15,7 +15,10 @@ class HowToPlayScreen extends StatelessWidget {
             children: [
               // Custom Header Bar with Back Button & Ornate Title
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 12.0,
+                ),
                 child: SizedBox(
                   height: 42,
                   child: Stack(
@@ -33,7 +36,9 @@ class HowToPlayScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                color: AppTheme.shinyGold.withValues(
+                                  alpha: 0.65,
+                                ),
                                 width: 1.2,
                               ),
                               color: const Color(0xFF010E0A),
@@ -55,7 +60,7 @@ class HowToPlayScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                '➔  ',
+                                '→',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -63,15 +68,16 @@ class HowToPlayScreen extends StatelessWidget {
                                 ),
                               ),
                               ShaderMask(
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFFF1CC),
-                                    Color(0xFFD4AF37),
-                                    Color(0xFF8A640F),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ).createShader(bounds),
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFFF1CC),
+                                        Color(0xFFD4AF37),
+                                        Color(0xFF8A640F),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
                                 child: Text(
                                   'How to Play',
                                   style: GoogleFonts.lora(
@@ -82,7 +88,7 @@ class HowToPlayScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '  ➔',
+                                '←',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -124,7 +130,10 @@ class HowToPlayScreen extends StatelessWidget {
                         height: 8,
                         decoration: BoxDecoration(
                           color: AppTheme.emeraldGreen,
-                          border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold,
+                            width: 1.2,
+                          ),
                         ),
                       ),
                     ),
@@ -149,7 +158,10 @@ class HowToPlayScreen extends StatelessWidget {
               // Main content scroll area
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 4.0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -167,7 +179,9 @@ class HowToPlayScreen extends StatelessWidget {
                                 color: const Color(0xFF031A12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.shinyGold.withValues(alpha: 0.15),
+                                    color: AppTheme.shinyGold.withValues(
+                                      alpha: 0.15,
+                                    ),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -177,7 +191,9 @@ class HowToPlayScreen extends StatelessWidget {
                                 children: [
                                   const Positioned.fill(
                                     child: CustomPaint(
-                                      painter: EmblemLPainter(color: AppTheme.shinyGold),
+                                      painter: EmblemLPainter(
+                                        color: AppTheme.shinyGold,
+                                      ),
                                     ),
                                   ),
                                   Center(
@@ -280,10 +296,26 @@ class HowToPlayScreen extends StatelessWidget {
                               runSpacing: 10,
                               alignment: WrapAlignment.center,
                               children: [
-                                _buildPremiumSpaceLegend('DL', 'Double Letter', AppTheme.doubleLetterColor),
-                                _buildPremiumSpaceLegend('TL', 'Triple Letter', AppTheme.tripleLetterColor),
-                                _buildPremiumSpaceLegend('DW', 'Double Word\n(including Center Star)', AppTheme.doubleWordColor),
-                                _buildPremiumSpaceLegend('TW', 'Triple Word', AppTheme.tripleWordColor),
+                                _buildPremiumSpaceLegend(
+                                  'DL',
+                                  'Double Letter',
+                                  AppTheme.doubleLetterColor,
+                                ),
+                                _buildPremiumSpaceLegend(
+                                  'TL',
+                                  'Triple Letter',
+                                  AppTheme.tripleLetterColor,
+                                ),
+                                _buildPremiumSpaceLegend(
+                                  'DW',
+                                  'Double Word\n(including Center Star)',
+                                  AppTheme.doubleWordColor,
+                                ),
+                                _buildPremiumSpaceLegend(
+                                  'TW',
+                                  'Triple Word',
+                                  AppTheme.tripleWordColor,
+                                ),
                               ],
                             ),
                           ],
@@ -302,7 +334,9 @@ class HowToPlayScreen extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF031A12),
                                 border: Border.all(
-                                  color: AppTheme.shinyGold.withValues(alpha: 0.45),
+                                  color: AppTheme.shinyGold.withValues(
+                                    alpha: 0.45,
+                                  ),
                                   width: 1.2,
                                 ),
                               ),
@@ -345,7 +379,9 @@ class HowToPlayScreen extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF031A12),
                                 border: Border.all(
-                                  color: AppTheme.shinyGold.withValues(alpha: 0.45),
+                                  color: AppTheme.shinyGold.withValues(
+                                    alpha: 0.45,
+                                  ),
                                   width: 1.2,
                                 ),
                               ),
@@ -380,7 +416,10 @@ class HowToPlayScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.45),
+                            width: 1.2,
+                          ),
                           gradient: const LinearGradient(
                             colors: AppTheme.darkGreenGradient,
                             begin: Alignment.topCenter,
@@ -396,7 +435,10 @@ class HowToPlayScreen extends StatelessWidget {
                                 height: 10,
                                 decoration: BoxDecoration(
                                   color: AppTheme.emeraldGreen,
-                                  border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+                                  border: Border.all(
+                                    color: AppTheme.shinyGold,
+                                    width: 1.2,
+                                  ),
                                 ),
                               ),
                             ),
@@ -434,7 +476,10 @@ class HowToPlayScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45), width: 1.2),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.45),
+          width: 1.2,
+        ),
         gradient: const LinearGradient(
           colors: AppTheme.darkGreenGradient,
           begin: Alignment.topCenter,
@@ -513,8 +558,6 @@ class HowToPlayScreen extends StatelessWidget {
     );
   }
 
-
-
   Widget _buildPremiumSpaceLegend(String abbrev, String label, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -525,7 +568,10 @@ class HowToPlayScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.15),
+              width: 1,
+            ),
           ),
           child: Center(
             child: Text(
@@ -541,10 +587,7 @@ class HowToPlayScreen extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: AppTheme.mutedIvory,
-          ),
+          style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mutedIvory),
         ),
       ],
     );
@@ -614,7 +657,10 @@ class MiniBoardPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, h), const Radius.circular(8)),
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, w, h),
+        const Radius.circular(8),
+      ),
       borderPaint,
     );
 
@@ -637,6 +683,7 @@ class MiniBoardPainter extends CustomPainter {
       canvas.drawLine(Offset(left, top), Offset(right, bottom), xPaint);
       canvas.drawLine(Offset(right, top), Offset(left, bottom), xPaint);
     }
+
     drawX(0, 0);
     drawX(0, 4);
     drawX(4, 0);

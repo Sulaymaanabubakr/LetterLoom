@@ -42,7 +42,7 @@ class SaveProgressModal extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '➔  ',
+                        '→',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -69,7 +69,7 @@ class SaveProgressModal extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '  ➔',
+                        '←',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -79,25 +79,28 @@ class SaveProgressModal extends ConsumerWidget {
                     ],
                   ),
                 ),
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.shinyGold.withValues(alpha: 0.55),
-                        width: 1.0,
+                Transform.translate(
+                  offset: const Offset(8, -10),
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                          width: 1.0,
+                        ),
+                        color: const Color(0xFF010E0A),
                       ),
-                      color: const Color(0xFF010E0A),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.close_rounded,
-                        color: AppTheme.shinyGold,
-                        size: 16,
+                      child: const Center(
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: AppTheme.shinyGold,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),
@@ -178,11 +181,20 @@ class SaveProgressModal extends ConsumerWidget {
                           },
                         );
                     if (success && context.mounted) {
-                      Navigator.of(context).pop();
-                      ToastUtils.showToast(
-                        context,
-                        'Account connected! Progress saved.',
-                      );
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!context.mounted) return;
+                        final navigator = Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        );
+                        if (navigator.canPop()) navigator.pop();
+                        if (context.mounted) {
+                          ToastUtils.showToast(
+                            context,
+                            'Account connected! Progress saved.',
+                          );
+                        }
+                      });
                     }
                   },
                   borderRadius: BorderRadius.circular(14),

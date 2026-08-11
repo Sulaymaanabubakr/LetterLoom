@@ -56,6 +56,17 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     if (_challengeState.isCompleted) return;
     final cell = _boardGrid[row][col];
 
+    if (cell.tile != null && cell.isNewPlacement) {
+      setState(() {
+        _rack.add(cell.tile!);
+        _boardGrid[row][col] = cell.copyWith(
+          clearTile: true,
+          isNewPlacement: false,
+        );
+      });
+      return;
+    }
+
     if (_selectedTile != null) {
       if (cell.tile == null) {
         setState(() {
@@ -67,13 +78,32 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
           _selectedTile = null;
         });
       }
-    } else if (cell.tile != null && cell.isNewPlacement) {
-      // Recall placed tile
-      setState(() {
-        _rack.add(cell.tile!);
-        _boardGrid[row][col] = cell.copyWith(tile: null, isNewPlacement: false);
-      });
     }
+  }
+
+  bool get _hasNewPlacements => _boardGrid.any(
+    (row) => row.any((cell) => cell.tile != null && cell.isNewPlacement),
+  );
+
+  void _returnPlacedTiles() {
+    if (!_hasNewPlacements || _challengeState.isCompleted) return;
+    final returned = <Tile>[];
+    setState(() {
+      for (var row = 0; row < _boardGrid.length; row++) {
+        for (var col = 0; col < _boardGrid[row].length; col++) {
+          final cell = _boardGrid[row][col];
+          if (cell.tile != null && cell.isNewPlacement) {
+            returned.add(cell.tile!);
+            _boardGrid[row][col] = cell.copyWith(
+              clearTile: true,
+              isNewPlacement: false,
+            );
+          }
+        }
+      }
+      _rack.addAll(returned);
+      _selectedTile = null;
+    });
   }
 
   void _submitMove() async {
@@ -353,7 +383,7 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
                     ),
                     // Player Rack
                     Container(
-                      height: 70,
+                      height: 112,
                       margin: const EdgeInsets.symmetric(
                         vertical: 12,
                         horizontal: 16,
@@ -366,37 +396,79 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
                           color: AppTheme.shinyGold.withValues(alpha: 0.3),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: _rack.map((tile) {
-                          final isSelected = _selectedTile?.id == tile.id;
-                          return GestureDetector(
-                            onTap: () {
-                              if (_challengeState.isCompleted) return;
-                              setState(() {
-                                _selectedTile = isSelected ? null : tile;
-                              });
-                            },
-                            child: Container(
-                              width: 42,
-                              height: 48,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              decoration: AppTheme.tileDecoration(
-                                isSelected: isSelected,
-                              ),
-                              child: Center(
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
                                 child: Text(
-                                  tile.displayLetter,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.tileText,
+                                  _selectedTile == null
+                                      ? (_hasNewPlacements
+                                            ? 'Tap a placed letter to return it, or press Return.'
+                                            : 'Select a letter, then tap an empty board square.')
+                                      : 'Now tap an empty board square to place ${_selectedTile!.displayLetter}.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: AppTheme.mutedIvory,
                                   ),
                                 ),
                               ),
+                              if (_hasNewPlacements)
+                                TextButton.icon(
+                                  onPressed: _returnPlacedTiles,
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.undo_rounded,
+                                    size: 16,
+                                  ),
+                                  label: const Text('Return'),
+                                ),
+                            ],
+                          ),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: _rack.map((tile) {
+                                final isSelected = _selectedTile?.id == tile.id;
+                                return GestureDetector(
+                                  onTap: () {
+                                    if (_challengeState.isCompleted) return;
+                                    setState(() {
+                                      _selectedTile = isSelected ? null : tile;
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 42,
+                                    height: 48,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    decoration: AppTheme.tileDecoration(
+                                      isSelected: isSelected,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        tile.displayLetter,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.tileText,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                             ),
-                          );
-                        }).toList(),
+                          ),
+                        ],
                       ),
                     ),
                     // Submit Button

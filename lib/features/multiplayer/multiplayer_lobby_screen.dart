@@ -183,7 +183,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('➔  ', style: _ornamentStyle()),
+            Text('→', style: _ornamentStyle()),
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [
@@ -203,7 +203,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 ),
               ),
             ),
-            Text('  ➔', style: _ornamentStyle()),
+            Text('←', style: _ornamentStyle()),
           ],
         ),
         const SizedBox(height: 5),

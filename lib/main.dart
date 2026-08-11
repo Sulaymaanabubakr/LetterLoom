@@ -140,7 +140,7 @@ class _SplashScreenState extends State<SplashScreen>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('➔  ', style: _splashOrnamentStyle()),
+                  Text('→', style: _splashOrnamentStyle()),
                   const Text(
                     'Solo Offline · Online Play',
                     style: TextStyle(
@@ -150,7 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
                       letterSpacing: 0.7,
                     ),
                   ),
-                  Text('  ➔', style: _splashOrnamentStyle()),
+                  Text('←', style: _splashOrnamentStyle()),
                 ],
               ),
               const SizedBox(height: 64),

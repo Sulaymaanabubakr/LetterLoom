@@ -14,7 +14,10 @@ class AboutScreen extends StatelessWidget {
             children: [
               // Custom Header Bar with Back Button & Ornate Title
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 12.0,
+                ),
                 child: SizedBox(
                   height: 42,
                   child: Stack(
@@ -32,7 +35,9 @@ class AboutScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                                color: AppTheme.shinyGold.withValues(
+                                  alpha: 0.65,
+                                ),
                                 width: 1.2,
                               ),
                               color: const Color(0xFF010E0A),
@@ -54,7 +59,7 @@ class AboutScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                '➔  ',
+                                '→',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -62,15 +67,16 @@ class AboutScreen extends StatelessWidget {
                                 ),
                               ),
                               ShaderMask(
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFFF1CC),
-                                    Color(0xFFD4AF37),
-                                    Color(0xFF8A640F),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ).createShader(bounds),
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFFF1CC),
+                                        Color(0xFFD4AF37),
+                                        Color(0xFF8A640F),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
                                 child: Text(
                                   'About the Loom',
                                   style: GoogleFonts.lora(
@@ -81,7 +87,7 @@ class AboutScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '  ➔',
+                                '←',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -114,7 +120,10 @@ class AboutScreen extends StatelessWidget {
               // Scrollable Content
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 8.0,
+                  ),
                   child: Column(
                     children: [
                       // Section 1: The Tale
@@ -226,11 +235,7 @@ class AboutScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: AppTheme.shinyGold,
-                size: 22,
-              ),
+              Icon(icon, color: AppTheme.shinyGold, size: 22),
               const SizedBox(width: 10),
               Text(
                 title,

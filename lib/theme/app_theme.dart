@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/board_cell.dart';
 
 class AppTheme {
@@ -293,7 +294,7 @@ class PremiumPageHeader extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '➔  ',
+                        '→',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -321,7 +322,7 @@ class PremiumPageHeader extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '  ➔',
+                        '←',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -428,7 +429,7 @@ class PremiumDialog extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '➔  ',
+                  '→',
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -447,7 +448,7 @@ class PremiumDialog extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '  ➔',
+                  '←',
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -517,64 +518,72 @@ class _PremiumConfirmationSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                const SizedBox(width: 32),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '➔  ',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.shinyGold,
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lora(
-                            fontSize: 21,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.ivoryText,
+            SizedBox(
+              height: 58,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: AppTheme.shinyGold,
+                            size: 18,
                           ),
-                        ),
+                          const SizedBox(width: 7),
+                          Flexible(
+                            child: Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: GoogleFonts.lora(
+                                fontSize: 21,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.shinyGold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          const Icon(
+                            Icons.arrow_back_rounded,
+                            color: AppTheme.shinyGold,
+                            size: 18,
+                          ),
+                        ],
                       ),
-                      Text(
-                        '  ➔',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Positioned(
+                    top: -13,
+                    right: -8,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(false),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.55),
+                          ),
+                          color: const Color(0xFF010E0A),
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
                           color: AppTheme.shinyGold,
+                          size: 16,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(false),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.shinyGold.withValues(alpha: 0.55),
-                      ),
-                      color: const Color(0xFF010E0A),
-                    ),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      color: AppTheme.shinyGold,
-                      size: 16,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -663,13 +672,47 @@ class _ConfirmationButton extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Center(
-            child: Text(
-              label,
-              style: GoogleFonts.lora(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: primary ? AppTheme.darkCharcoal : AppTheme.shinyGold,
-                letterSpacing: 0.5,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (label.contains('GOOGLE')) ...[
+                    Text(
+                      'Continue with',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: primary
+                            ? AppTheme.darkCharcoal
+                            : AppTheme.shinyGold,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    ClipOval(
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        color: Colors.white,
+                        padding: const EdgeInsets.all(3),
+                        child: SvgPicture.asset(
+                          'assets/images/google_g_logo.svg',
+                          semanticsLabel: 'Google',
+                        ),
+                      ),
+                    ),
+                  ] else
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: primary
+                            ? AppTheme.darkCharcoal
+                            : AppTheme.shinyGold,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
