@@ -250,256 +250,290 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
             children: [
               const PremiumPageHeader(title: 'Daily Challenge'),
               Expanded(
-                child: Column(
-                  children: [
-                    // Header stats bar
-                    Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.panelDark,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppTheme.shinyGold.withValues(alpha: 0.4),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Column(
+                    children: [
+                      // Header stats bar
+                      Container(
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.panelDark,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Date: ${_challengeState.dateStr}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: AppTheme.mutedIvory,
+                                  ),
+                                ),
+                                Text(
+                                  'Target Score: ${_puzzleData.optimalScore}',
+                                  style: GoogleFonts.lora(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.shinyGold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.local_fire_department,
+                                  color: Colors.orange,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${_challengeState.streakDays} Day Streak',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.ivoryText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Date: ${_challengeState.dateStr}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppTheme.mutedIvory,
-                                ),
-                              ),
-                              Text(
-                                'Target Score: ${_puzzleData.optimalScore}',
-                                style: GoogleFonts.lora(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.shinyGold,
-                                ),
-                              ),
-                            ],
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Build your best word on today\'s board',
+                            style: GoogleFonts.lora(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.ivoryText,
+                            ),
                           ),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.local_fire_department,
-                                color: Colors.orange,
-                                size: 22,
+                        ),
+                      ),
+                      // Board View (Compact 15x15)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF031610),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.shinyGold.withValues(
+                                  alpha: 0.5,
+                                ),
+                                width: 1.2,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_challengeState.streakDays} Day Streak',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
+                            ),
+                            child: GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: 225,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 15,
+                                  ),
+                              itemBuilder: (context, index) {
+                                final r = index ~/ 15;
+                                final c = index % 15;
+                                final cell = _boardGrid[r][c];
+                                return GestureDetector(
+                                  onTap: () => _onCellTap(r, c),
+                                  child: Container(
+                                    margin: const EdgeInsets.all(0.5),
+                                    decoration: AppTheme.cellDecoration(
+                                      cell.type,
+                                    ),
+                                    child: Center(
+                                      child: cell.tile != null
+                                          ? Text(
+                                              cell.tile!.displayLetter,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                color: cell.isNewPlacement
+                                                    ? AppTheme.shinyGold
+                                                    : Colors.white,
+                                              ),
+                                            )
+                                          : Text(
+                                              AppTheme.cellLabel(cell.type),
+                                              style: const TextStyle(
+                                                fontSize: 7,
+                                                color: Colors.white38,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Player Rack
+                      Container(
+                        constraints: const BoxConstraints(minHeight: 112),
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.panelDark,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppTheme.shinyGold.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Your Letters',
+                                style: GoogleFonts.lora(
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.ivoryText,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Board View (Compact 15x15)
-                    Expanded(
-                      child: AspectRatio(
-                        aspectRatio: 1.0,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF031610),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppTheme.shinyGold.withValues(alpha: 0.5),
-                              width: 1.2,
                             ),
-                          ),
-                          child: GridView.builder(
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: 225,
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 15,
-                                ),
-                            itemBuilder: (context, index) {
-                              final r = index ~/ 15;
-                              final c = index % 15;
-                              final cell = _boardGrid[r][c];
-                              return GestureDetector(
-                                onTap: () => _onCellTap(r, c),
-                                child: Container(
-                                  margin: const EdgeInsets.all(0.5),
-                                  decoration: AppTheme.cellDecoration(
-                                    cell.type,
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _selectedTile == null
+                                        ? (_hasNewPlacements
+                                              ? 'Tap a placed letter to return it, or press Return.'
+                                              : 'Select a letter, then tap an empty board square.')
+                                        : 'Now tap an empty board square to place ${_selectedTile!.displayLetter}.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: AppTheme.mutedIvory,
+                                    ),
                                   ),
-                                  child: Center(
-                                    child: cell.tile != null
-                                        ? Text(
-                                            cell.tile!.displayLetter,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: cell.isNewPlacement
-                                                  ? AppTheme.shinyGold
-                                                  : Colors.white,
-                                            ),
-                                          )
-                                        : Text(
-                                            AppTheme.cellLabel(cell.type),
-                                            style: const TextStyle(
-                                              fontSize: 7,
-                                              color: Colors.white38,
-                                            ),
+                                ),
+                                if (_hasNewPlacements)
+                                  TextButton.icon(
+                                    onPressed: _returnPlacedTiles,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.undo_rounded,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Return'),
+                                  ),
+                              ],
+                            ),
+                            SizedBox(
+                              height: 56,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: _rack.map((tile) {
+                                  final isSelected =
+                                      _selectedTile?.id == tile.id;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      if (_challengeState.isCompleted) return;
+                                      setState(() {
+                                        _selectedTile = isSelected
+                                            ? null
+                                            : tile;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 42,
+                                      height: 48,
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      decoration: AppTheme.tileDecoration(
+                                        isSelected: isSelected,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          tile.displayLetter,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.tileText,
                                           ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Player Rack
-                    Container(
-                      height: 112,
-                      margin: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.panelDark,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppTheme.shinyGold.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _selectedTile == null
-                                      ? (_hasNewPlacements
-                                            ? 'Tap a placed letter to return it, or press Return.'
-                                            : 'Select a letter, then tap an empty board square.')
-                                      : 'Now tap an empty board square to place ${_selectedTile!.displayLetter}.',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: AppTheme.mutedIvory,
-                                  ),
-                                ),
-                              ),
-                              if (_hasNewPlacements)
-                                TextButton.icon(
-                                  onPressed: _returnPlacedTiles,
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                    ),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.undo_rounded,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Return'),
-                                ),
-                            ],
-                          ),
-                          Expanded(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: _rack.map((tile) {
-                                final isSelected = _selectedTile?.id == tile.id;
-                                return GestureDetector(
-                                  onTap: () {
-                                    if (_challengeState.isCompleted) return;
-                                    setState(() {
-                                      _selectedTile = isSelected ? null : tile;
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 42,
-                                    height: 48,
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    decoration: AppTheme.tileDecoration(
-                                      isSelected: isSelected,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        tile.displayLetter,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.tileText,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
+                                  );
+                                }).toList(),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Submit Button
-                    if (!_challengeState.isCompleted)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: 20,
-                          left: 24,
-                          right: 24,
+                          ],
                         ),
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.shinyGold,
-                            foregroundColor: const Color(0xFF1E1402),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Submit Button
+                      if (!_challengeState.isCompleted)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: 20,
+                            left: 24,
+                            right: 24,
                           ),
-                          icon: const Icon(Icons.check_circle_rounded),
-                          label: Text(
-                            'Submit Challenge Move',
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.shinyGold,
+                              foregroundColor: const Color(0xFF1E1402),
+                              minimumSize: const Size.fromHeight(50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: const Icon(Icons.check_circle_rounded),
+                            label: Text(
+                              'Submit Challenge Move',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onPressed: _submitMove,
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Text(
+                            'Challenge Completed! Come back tomorrow for a new puzzle.',
                             style: GoogleFonts.inter(
-                              fontSize: 16,
+                              color: AppTheme.shinyGold,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          onPressed: _submitMove,
                         ),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: Text(
-                          'Challenge Completed! Come back tomorrow for a new puzzle.',
-                          style: GoogleFonts.inter(
-                            color: AppTheme.shinyGold,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
