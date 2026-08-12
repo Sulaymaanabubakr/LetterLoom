@@ -63,7 +63,7 @@ class BillingService {
     PurchasedHintPack(
       productId: AppConfig.productMoveHintPack5,
       title: 'Move Hint Pack (5)',
-      description: 'Get 5 Word Path helps for any match',
+      description: 'Get 5 Word Path Boosts for any match',
       price: '\$0.99',
       hintType: 'move',
       count: 5,
@@ -71,7 +71,7 @@ class BillingService {
     PurchasedHintPack(
       productId: AppConfig.productLetterHintPack5,
       title: 'Letter Hint Pack (5)',
-      description: 'Get 5 Letter Spark helps for any match',
+      description: 'Get 5 Letter Spark Boosts for any match',
       price: '\$0.99',
       hintType: 'letter',
       count: 5,
@@ -79,7 +79,7 @@ class BillingService {
     PurchasedHintPack(
       productId: AppConfig.productStrongHintPack3,
       title: 'Strong Hint Pack (3)',
-      description: 'Get 3 Word Weaver helps for any match',
+      description: 'Get 3 Word Weaver Boosts for any match',
       price: '\$1.49',
       hintType: 'strong',
       count: 3,

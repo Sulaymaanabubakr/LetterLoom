@@ -208,7 +208,7 @@ class _BoostShopScreenState extends ConsumerState<BoostShopScreen> {
       if (context.mounted) {
         ToastUtils.showToast(
           context,
-          '${pack.title} added. Your new balance is visible above and in the Helps header.',
+          '${pack.title} added. Your new balance is visible above and in the Boosts header.',
         );
       }
     },

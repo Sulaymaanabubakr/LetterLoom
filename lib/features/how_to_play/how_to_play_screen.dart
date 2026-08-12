@@ -473,7 +473,7 @@ class HowToPlayScreen extends StatelessWidget {
                             ),
                             _buildBulletItem(
                               'Daily Rewards: ',
-                              'Open the game each day to collect the current reward. Keeping your claim streak going unlocks stronger help rewards later in the cycle.',
+                              'Open the game each day to collect the current reward. Keeping your claim streak going unlocks stronger boost rewards later in the cycle.',
                             ),
                             _buildBulletItem(
                               'Progress: ',
@@ -486,7 +486,7 @@ class HowToPlayScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            _buildCardTitle('8', 'Helps & Boosts'),
+                            _buildCardTitle('8', 'Boosts'),
                             const SizedBox(height: 12),
                             _buildBulletItem(
                               'Word Path: ',
@@ -502,7 +502,7 @@ class HowToPlayScreen extends StatelessWidget {
                             ),
                             _buildBulletItem(
                               'Getting More: ',
-                              'Daily help allowances refresh each day. When one is used up, you can earn more through an available rewarded ad or add boost packs from the Boost Shop. Purchased boosts remain in your balance.',
+                              'Daily boost allowances refresh each day. When one is used up, you can earn more through an available rewarded ad or add boost packs from the Boost Shop. Purchased boosts remain in your balance.',
                             ),
                           ],
                         ),

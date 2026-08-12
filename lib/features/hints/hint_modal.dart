@@ -210,12 +210,12 @@ class _HintModalState extends ConsumerState<HintModal> {
       context: dialogContext,
       useSafeArea: false,
       builder: (context) => PremiumDialog(
-        title: 'Get more help',
+        title: 'Get more boosts',
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'You have used today\'s ${_helperName(hintType)} helps. Watch ads or choose a boost pack to keep playing.',
+              'You have used today\'s ${_helperName(hintType)} boosts. Watch ads or choose a boost pack to keep playing.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: AppTheme.mutedIvory),
             ),
@@ -282,7 +282,7 @@ class _HintModalState extends ConsumerState<HintModal> {
         onError: (error) => errorMessage = error,
       );
       if (!earned && errorMessage == null) {
-        errorMessage = 'Watch the full ad to earn a help.';
+        errorMessage = 'Watch the full ad to earn a boost.';
       }
     } finally {
       if (dialogContext.mounted) {
@@ -296,7 +296,7 @@ class _HintModalState extends ConsumerState<HintModal> {
       ToastUtils.showToast(
         dialogContext,
         rewardGranted
-            ? '+1 ${_helperName(hintType)} help earned!'
+            ? '+1 ${_helperName(hintType)} boost earned!'
             : 'Daily ad limit reached.',
         isError: !rewardGranted,
       );
@@ -323,7 +323,7 @@ class _HintModalState extends ConsumerState<HintModal> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Choose Your Help',
+                  'Choose Your Boost',
                   style: GoogleFonts.lora(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,

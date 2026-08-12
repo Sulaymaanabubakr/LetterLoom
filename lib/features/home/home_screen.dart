@@ -552,7 +552,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         Semantics(
                           button: true,
-                          label: 'Open Boost Shop. $totalHints helps available',
+                          label:
+                              'Open Boost Shop. $totalHints boosts available',
                           child: InkWell(
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -562,7 +563,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             borderRadius: BorderRadius.circular(14),
                             child: _buildHeaderChip(
                               icon: Icons.lightbulb_rounded,
-                              label: '$totalHints Helps',
+                              label: '$totalHints Boosts',
                             ),
                           ),
                         ),
@@ -695,7 +696,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           children: [
                                             _buildHeaderChip(
                                               icon: Icons.lightbulb_rounded,
-                                              label: '$totalHints Helps',
+                                              label: '$totalHints Boosts',
                                             ),
                                             const SizedBox(width: 6),
                                             _buildHeaderChip(

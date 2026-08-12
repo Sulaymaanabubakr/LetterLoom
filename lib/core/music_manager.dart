@@ -17,6 +17,7 @@ class MusicManager with WidgetsBindingObserver {
   bool _musicEnabled = false;
   bool _isAppResumed = true;
   bool _isObservingLifecycle = false;
+  bool _pausedForLifecycle = false;
   MusicTrack _currentTrack = MusicTrack.menu;
 
   // Bundled local assets — instant playback, no network required
@@ -80,9 +81,9 @@ class MusicManager with WidgetsBindingObserver {
     if (!_isInitialized || !_musicEnabled) return;
 
     if (!_isAppResumed) {
-      _stopMusic();
+      _pauseForLifecycle();
     } else if (!wasResumed) {
-      _playCurrentTrack();
+      _resumeAfterLifecycle();
     }
   }
 
@@ -90,6 +91,7 @@ class MusicManager with WidgetsBindingObserver {
 
   /// Fire-and-forget using local AssetSource — plays immediately from disk.
   void _playCurrentTrack() {
+    _pausedForLifecycle = false;
     final asset = _trackAssets[_currentTrack]!;
     _audioPlayer.play(AssetSource(asset)).catchError((e) {
       debugPrint('MusicManager: error playing $_currentTrack: $e');
@@ -97,8 +99,39 @@ class MusicManager with WidgetsBindingObserver {
   }
 
   void _stopMusic() {
+    _pausedForLifecycle = false;
     _audioPlayer.stop().catchError((e) {
       debugPrint('MusicManager: error stopping music: $e');
     });
+  }
+
+  /// Preserve playback position when Android/iOS backgrounds the app. Calling
+  /// `stop` here resets an AssetSource to the beginning, which made game music
+  /// restart every time a paused match was resumed.
+  void _pauseForLifecycle() {
+    _audioPlayer
+        .pause()
+        .then((_) {
+          _pausedForLifecycle = true;
+        })
+        .catchError((e) {
+          debugPrint('MusicManager: error pausing music: $e');
+        });
+  }
+
+  void _resumeAfterLifecycle() {
+    if (_pausedForLifecycle) {
+      _audioPlayer
+          .resume()
+          .then((_) {
+            _pausedForLifecycle = false;
+          })
+          .catchError((e) {
+            debugPrint('MusicManager: error resuming music: $e');
+            _playCurrentTrack();
+          });
+      return;
+    }
+    _playCurrentTrack();
   }
 }
