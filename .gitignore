@@ -52,6 +52,15 @@ android/key.properties
 android/upload-keystore.jks
 build/symbols/
 
+# Signing certificates and exported credential archives
+certificates.zip
+*.cer
+*.crt
+*.der
+*.pem
+*.p12
+*.pfx
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

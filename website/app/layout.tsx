@@ -5,6 +5,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://letterloom.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  verification: {
+    google: "Z6AJMrsC1XxXeMP0zfj-hjzspb2xwIizjBhk09YIw1w",
+  },
   title: {
     default: "LetterLoom - Premium Word Game",
     template: "%s | LetterLoom",
