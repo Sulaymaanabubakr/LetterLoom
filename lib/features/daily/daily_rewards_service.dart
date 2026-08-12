@@ -200,7 +200,11 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
       detail: '+1 Strong Hint',
       icon: Icons.visibility_rounded,
     ),
-    (title: 'Wordsmith', detail: '+50 XP', icon: Icons.auto_awesome_rounded),
+    (
+      title: 'Wordsmith',
+      detail: 'Level progress +50',
+      icon: Icons.auto_awesome_rounded,
+    ),
     (
       title: 'Well Read',
       detail: '+2 Move Hints',
@@ -211,7 +215,11 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
       detail: '+2 Letter Hints',
       icon: Icons.workspace_premium_rounded,
     ),
-    (title: 'Full Week', detail: '+100 XP', icon: Icons.emoji_events_rounded),
+    (
+      title: 'Full Week',
+      detail: 'Level progress +100',
+      icon: Icons.emoji_events_rounded,
+    ),
   ];
 
   Future<void> _claim() async {

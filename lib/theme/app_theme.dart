@@ -316,52 +316,49 @@ class PremiumPageHeader extends StatelessWidget {
                 const SizedBox(width: 20),
                 Expanded(
                   child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '→',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '→',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.shinyGold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [
+                              Color(0xFFFFF1CC),
+                              Color(0xFFD4AF37),
+                              Color(0xFF8A640F),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ).createShader(bounds),
+                          child: Text(
+                            title.toUpperCase(),
+                            maxLines: 1,
+                            style: GoogleFonts.lora(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.shinyGold,
+                              color: Colors.white,
+                              letterSpacing: 1.1,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [
-                                Color(0xFFFFF1CC),
-                                Color(0xFFD4AF37),
-                                Color(0xFF8A640F),
-                              ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ).createShader(bounds),
-                            child: Text(
-                              title.toUpperCase(),
-                              maxLines: 1,
-                              style: GoogleFonts.lora(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '←',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.shinyGold,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '←',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.shinyGold,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

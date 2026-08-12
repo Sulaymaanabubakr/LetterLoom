@@ -53,17 +53,25 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   /// Update the current profile in memory and local storage.
   Future<bool> updateProfile(PlayerProfile updated) async {
     if (!updated.isGuest && SupabaseBootstrap.configured) {
+      final sessionUser = Supabase.instance.client.auth.currentUser;
+      if (sessionUser == null || sessionUser.isAnonymous) {
+        debugPrint(
+          '[Auth] Refusing to sync a signed-in profile without a session.',
+        );
+        return false;
+      }
+      final profileId = sessionUser.id;
       try {
         // Only profile-display fields are client editable. Progression,
         // economy, and competitive fields are server-owned.
         await Supabase.instance.client.from('player_profiles').upsert({
-          'id': updated.id,
+          'id': profileId,
           'username': updated.username,
           'lower_username': updated.username.toLowerCase(),
           'display_name': updated.displayName,
           'avatar_id': updated.avatarId,
           'country_code': updated.countryCode,
-        });
+        }, onConflict: 'id');
       } catch (e) {
         debugPrint('[Auth] Error syncing profile to Supabase: $e');
         return false;
@@ -92,29 +100,52 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
 
       String userId = googleUser.id;
       if (SupabaseBootstrap.configured && idToken.isNotEmpty) {
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        AuthResponse res;
         try {
-          final currentUser = Supabase.instance.client.auth.currentUser;
-          final res = currentUser?.isAnonymous == true
+          res = currentUser?.isAnonymous == true
               ? await Supabase.instance.client.auth.linkIdentityWithIdToken(
                   provider: OAuthProvider.google,
                   idToken: idToken,
-                  accessToken: accessToken,
+                  accessToken: accessToken.isEmpty ? null : accessToken,
                 )
               : await Supabase.instance.client.auth.signInWithIdToken(
                   provider: OAuthProvider.google,
                   idToken: idToken,
-                  accessToken: accessToken,
+                  accessToken: accessToken.isEmpty ? null : accessToken,
                 );
-          if (res.user != null) {
-            userId = res.user!.id;
+        } catch (linkError) {
+          // A Google identity that was previously connected belongs to an
+          // existing account. In that case linking to the anonymous guest
+          // correctly fails, so sign in to the existing account instead.
+          if (currentUser?.isAnonymous == true) {
+            try {
+              await Supabase.instance.client.auth.signOut();
+              res = await Supabase.instance.client.auth.signInWithIdToken(
+                provider: OAuthProvider.google,
+                idToken: idToken,
+                accessToken: accessToken.isEmpty ? null : accessToken,
+              );
+            } catch (signInError) {
+              debugPrint('[Auth] Supabase Google sign-in error: $signInError');
+              onError(
+                'Google Sign-In could not connect to LetterLoom. Please try again.',
+              );
+              return false;
+            }
+          } else {
+            debugPrint('[Auth] Supabase Google sign-in error: $linkError');
+            onError(
+              'Google Sign-In could not connect to LetterLoom. Please try again.',
+            );
+            return false;
           }
-        } catch (e) {
-          debugPrint('[Auth] Supabase OAuth error: $e');
-          onError(
-            'Google Sign-In could not connect to LetterLoom. Please try again.',
-          );
+        }
+        if (res.user == null) {
+          onError('Google Sign-In did not create a LetterLoom account.');
           return false;
         }
+        userId = res.user!.id;
       } else if (SupabaseBootstrap.configured) {
         onError('Google Sign-In did not return a valid identity token.');
         return false;

@@ -102,36 +102,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       foregroundColor: const Color(0xFF1E1402),
                     ),
                     onPressed: () async {
-                    final validation = UsernameGenerator.validate(
-                      controller.text,
-                    );
-                    if (!validation.isValid) {
-                      setDialogState(() {
-                        errorMessage = validation.errorMessage;
-                      });
-                      return;
-                    }
-
-                    final newUsername = UsernameGenerator.normalize(
-                      controller.text,
-                    );
-                    final updated = profile.copyWith(username: newUsername);
-                    final saved = await ref
-                        .read(authProvider.notifier)
-                        .updateProfile(updated);
-                    if (context.mounted && saved) {
-                      Navigator.of(context).pop();
-                      ToastUtils.showToast(
-                        context,
-                        'Username updated to @$newUsername',
+                      final validation = UsernameGenerator.validate(
+                        controller.text,
                       );
-                    } else if (context.mounted) {
-                      setDialogState(() {
-                        errorMessage =
-                            'That username is unavailable. Please choose another.';
-                      });
-                    }
-                  },
+                      if (!validation.isValid) {
+                        setDialogState(() {
+                          errorMessage = validation.errorMessage;
+                        });
+                        return;
+                      }
+
+                      final newUsername = UsernameGenerator.normalize(
+                        controller.text,
+                      );
+                      final updated = profile.copyWith(username: newUsername);
+                      final saved = await ref
+                          .read(authProvider.notifier)
+                          .updateProfile(updated);
+                      if (context.mounted && saved) {
+                        Navigator.of(context).pop();
+                        ToastUtils.showToast(
+                          context,
+                          'Username updated to @$newUsername',
+                        );
+                      } else if (context.mounted) {
+                        setDialogState(() {
+                          errorMessage =
+                              'That username is unavailable. Please choose another.';
+                        });
+                      }
+                    },
                     child: const Text('SAVE'),
                   ),
                 ),
@@ -440,7 +440,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            // Level & XP Bar
+                            // Level progress bar
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -453,7 +453,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${profile.xp} XP',
+                                  'Level progress',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     color: AppTheme.mutedIvory,

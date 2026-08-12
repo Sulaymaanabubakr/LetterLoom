@@ -1,142 +1,396 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import '../../models/board_cell.dart';
-import '../../models/tile.dart';
-import '../../game_engine/game_config.dart';
-import '../../ai/ai_engine.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/supabase_bootstrap.dart';
 import '../../storage/persistence_manager.dart';
+
+@immutable
+class DailyWord {
+  final String clue;
+  final String answer;
+  final int answerLength;
+  final List<String> letters;
+
+  const DailyWord({
+    required this.clue,
+    required this.answer,
+    int? answerLength,
+    required this.letters,
+  }) : answerLength = answerLength ?? answer.length;
+}
+
+@immutable
+class DailyChallengeData {
+  final String dateStr;
+  final String puzzleId;
+  final int difficultyTier;
+  final List<DailyWord> words;
+
+  const DailyChallengeData({
+    required this.dateStr,
+    required this.puzzleId,
+    required this.difficultyTier,
+    required this.words,
+  });
+
+  int get targetScore =>
+      words.fold<int>(0, (total, word) => total + word.answerLength);
+}
 
 @immutable
 class DailyChallengeState {
   final String dateStr;
+  final String puzzleId;
   final bool isCompleted;
   final int scoreAchieved;
   final int bestPossibleScore;
   final int starRating;
   final int streakDays;
+  final List<int> solvedWordIndexes;
+  final List<String> playedPuzzleIds;
 
   const DailyChallengeState({
     required this.dateStr,
+    this.puzzleId = '',
     required this.isCompleted,
     required this.scoreAchieved,
     required this.bestPossibleScore,
     required this.starRating,
     required this.streakDays,
+    this.solvedWordIndexes = const [],
+    this.playedPuzzleIds = const [],
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'dateStr': dateStr,
-      'isCompleted': isCompleted,
-      'scoreAchieved': scoreAchieved,
-      'bestPossibleScore': bestPossibleScore,
-      'starRating': starRating,
-      'streakDays': streakDays,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'dateStr': dateStr,
+    'puzzleId': puzzleId,
+    'isCompleted': isCompleted,
+    'scoreAchieved': scoreAchieved,
+    'bestPossibleScore': bestPossibleScore,
+    'starRating': starRating,
+    'streakDays': streakDays,
+    'solvedWordIndexes': solvedWordIndexes,
+    'playedPuzzleIds': playedPuzzleIds,
+  };
 
   factory DailyChallengeState.fromJson(Map<String, dynamic> json) {
     return DailyChallengeState(
       dateStr: json['dateStr'] as String? ?? '',
+      puzzleId: json['puzzleId'] as String? ?? '',
       isCompleted: json['isCompleted'] as bool? ?? false,
-      scoreAchieved: json['scoreAchieved'] as int? ?? 0,
-      bestPossibleScore: json['bestPossibleScore'] as int? ?? 0,
-      starRating: json['starRating'] as int? ?? 0,
-      streakDays: json['streakDays'] as int? ?? 0,
+      scoreAchieved: (json['scoreAchieved'] as num?)?.toInt() ?? 0,
+      bestPossibleScore: (json['bestPossibleScore'] as num?)?.toInt() ?? 0,
+      starRating: (json['starRating'] as num?)?.toInt() ?? 0,
+      streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
+      solvedWordIndexes: _intList(json['solvedWordIndexes']),
+      playedPuzzleIds: _stringList(json['playedPuzzleIds']),
     );
   }
-}
 
-class DailyChallengeData {
-  final String dateStr;
-  final List<List<BoardCell>> boardGrid;
-  final List<Tile> rack;
-  final int optimalScore;
+  static List<int> _intList(Object? value) => value is List
+      ? value.whereType<num>().map((item) => item.toInt()).toList()
+      : const [];
 
-  const DailyChallengeData({
-    required this.dateStr,
-    required this.boardGrid,
-    required this.rack,
-    required this.optimalScore,
-  });
+  static List<String> _stringList(Object? value) =>
+      value is List ? value.whereType<String>().toList() : const [];
 }
 
 class DailyChallengeService {
   static final PersistenceManager _persistence = PersistenceManager();
-  static const String _saveFileName = 'letterloom_daily_challenge_v1.json';
+  static const String _saveFileName = 'letterloom_daily_challenge_v2.json';
+
+  static const List<_PuzzleTemplate> _catalog = [
+    _PuzzleTemplate('garden-01', 0, [
+      _WordTemplate('A bright object in the sky', 'SUN'),
+      _WordTemplate('A hot morning drink', 'TEA'),
+      _WordTemplate('A place you live', 'HOME'),
+      _WordTemplate('A shining night shape', 'STAR'),
+      _WordTemplate('Something you read', 'BOOK'),
+      _WordTemplate('Have fun with a game', 'PLAY'),
+    ]),
+    _PuzzleTemplate('garden-02', 0, [
+      _WordTemplate('A small flying insect', 'BEE'),
+      _WordTemplate('Frozen water', 'ICE'),
+      _WordTemplate('A young dog', 'PUPPY'),
+      _WordTemplate('A colorful sky arc', 'RAINBOW'),
+      _WordTemplate('A soft sound', 'WHISPER'),
+      _WordTemplate('A place with many trees', 'FOREST'),
+    ]),
+    _PuzzleTemplate('garden-03', 0, [
+      _WordTemplate('A fast land animal', 'HORSE'),
+      _WordTemplate('A meal eaten at midday', 'LUNCH'),
+      _WordTemplate('A sweet baked treat', 'CAKE'),
+      _WordTemplate('A body of flowing water', 'RIVER'),
+      _WordTemplate('A bright flash in a storm', 'LIGHTNING'),
+      _WordTemplate('A place full of flowers', 'GARDEN'),
+    ]),
+    _PuzzleTemplate('grove-01', 1, [
+      _WordTemplate('A path through a place', 'JOURNEY'),
+      _WordTemplate('A clear open area', 'BRIGHT'),
+      _WordTemplate('A written message', 'LETTER'),
+      _WordTemplate('A cold winter crystal', 'FROST'),
+      _WordTemplate('A problem to solve', 'PUZZLE'),
+      _WordTemplate('A peaceful outdoor space', 'MEADOW'),
+    ]),
+    _PuzzleTemplate('grove-02', 1, [
+      _WordTemplate('A strong desire to know', 'CURIOSITY'),
+      _WordTemplate('A careful plan', 'STRATEGY'),
+      _WordTemplate('A sudden bright idea', 'INSIGHT'),
+      _WordTemplate('A place where books live', 'LIBRARY'),
+      _WordTemplate('A long period of time', 'MOMENT'),
+      _WordTemplate('A gentle movement of air', 'BREEZE'),
+    ]),
+    _PuzzleTemplate('grove-03', 1, [
+      _WordTemplate('A treasured memory', 'MOMENT'),
+      _WordTemplate('A calm feeling', 'SERENITY'),
+      _WordTemplate('A helpful answer', 'SOLUTION'),
+      _WordTemplate('A shining quality', 'BRILLIANCE'),
+      _WordTemplate('A hidden meaning', 'MYSTERY'),
+      _WordTemplate('A careful observer', 'WATCHER'),
+    ]),
+    _PuzzleTemplate('summit-01', 2, [
+      _WordTemplate('A soft evening light', 'TWILIGHT'),
+      _WordTemplate('A remarkable wonder', 'MARVEL'),
+      _WordTemplate('A difficult puzzle', 'ENIGMA'),
+      _WordTemplate('A quiet secret', 'WHISPER'),
+      _WordTemplate('A long expedition', 'ADVENTURE'),
+      _WordTemplate('A clever solution', 'INGENUITY'),
+    ]),
+    _PuzzleTemplate('summit-02', 2, [
+      _WordTemplate('A language expert', 'LINGUIST'),
+      _WordTemplate('A strong contrast', 'PARADOX'),
+      _WordTemplate('A thoughtful pause', 'REFLECTION'),
+      _WordTemplate('A graceful movement', 'ELEGANCE'),
+      _WordTemplate('A hidden route', 'PASSAGE'),
+      _WordTemplate('A bold undertaking', 'VENTURE'),
+    ]),
+    _PuzzleTemplate('summit-03', 2, [
+      _WordTemplate('A deep understanding', 'WISDOM'),
+      _WordTemplate('A winding maze', 'LABYRINTH'),
+      _WordTemplate('A persuasive skill', 'ELOQUENCE'),
+      _WordTemplate('A rare discovery', 'TREASURE'),
+      _WordTemplate('A complex pattern', 'MOSAIC'),
+      _WordTemplate('A thoughtful question', 'INQUIRY'),
+    ]),
+    _PuzzleTemplate('master-01', 3, [
+      _WordTemplate('Unusually difficult to understand', 'OBSCURE'),
+      _WordTemplate('A fortunate coincidence', 'SERENDIPITY'),
+      _WordTemplate('A person who studies stars', 'ASTRONOMER'),
+      _WordTemplate('The art of beautiful writing', 'CALLIGRAPHY'),
+      _WordTemplate('A subtle distinction', 'NUANCE'),
+      _WordTemplate('A powerful expression', 'RHETORIC'),
+    ]),
+    _PuzzleTemplate('master-02', 3, [
+      _WordTemplate('A complicated explanation', 'ELABORATION'),
+      _WordTemplate('A person who loves books', 'BIBLIOPHILE'),
+      _WordTemplate('A lack of certainty', 'AMBIGUITY'),
+      _WordTemplate('A deep, restful calm', 'TRANQUILITY'),
+      _WordTemplate('A clever word trick', 'PUNCTUATION'),
+      _WordTemplate('A meaningful conversation', 'DIALOGUE'),
+    ]),
+  ];
 
   static String getTodayString() {
     final now = DateTime.now().toUtc();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
-  /// Generates the deterministic daily challenge puzzle for the given date string.
-  static DailyChallengeData generatePuzzle([String? customDateStr]) {
-    final dateStr = customDateStr ?? getTodayString();
-    // String.hashCode is not a persistence/interop contract. Use a stable
-    // 32-bit hash so every client generates the same puzzle for a date.
-    var seed = 2166136261;
-    for (final codeUnit in dateStr.codeUnits) {
-      seed = ((seed ^ codeUnit) * 16777619) & 0x7fffffff;
-    }
-    final rand = Random(seed);
-
-    // Initial empty board grid
-    final grid = List.generate(GameConfig.boardSize, (r) {
-      return List.generate(GameConfig.boardSize, (c) {
-        return BoardCell(
-          row: r,
-          col: c,
-          type: GameConfig.getCellTypeAt(r, c),
-        );
-      });
-    });
-
-    // Place a deterministic seed word on center (e.g. 'LOOM')
-    const seedWord = 'LOOM';
-    for (int i = 0; i < seedWord.length; i++) {
-      final letter = seedWord[i];
-      grid[7][6 + i] = grid[7][6 + i].copyWith(
-        tile: Tile(
-          id: 'seed_$i',
-          letter: letter,
-          scoreValue: GameConfig.letterScores[letter] ?? 1,
-        ),
-        isNewPlacement: false,
+  static Future<DailyServerSnapshot?> syncRemote({
+    List<int>? solvedWordIndexes,
+  }) async {
+    if (!SupabaseBootstrap.configured) return null;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.isAnonymous) return null;
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'daily-word-mosaic',
+        body: {
+          'action': solvedWordIndexes == null ? 'get' : 'save',
+          if (solvedWordIndexes != null)
+            'solved_word_indexes': solvedWordIndexes,
+        },
       );
+      final payload = response.data;
+      if (payload is! Map ||
+          payload['puzzle'] is! Map ||
+          payload['progress'] is! Map)
+        return null;
+      final puzzle = Map<String, dynamic>.from(payload['puzzle'] as Map);
+      final progress = Map<String, dynamic>.from(payload['progress'] as Map);
+      final words = _parseRemoteWords(puzzle['words']);
+      final date = puzzle['date'] as String? ?? getTodayString();
+      final solved = (progress['solved_word_indexes'] as List? ?? const [])
+          .whereType<num>()
+          .map((item) => item.toInt())
+          .toList();
+      return DailyServerSnapshot(
+        data: DailyChallengeData(
+          dateStr: date,
+          puzzleId: puzzle['puzzle_id'] as String? ?? '',
+          difficultyTier: (puzzle['difficulty_tier'] as num?)?.toInt() ?? 0,
+          words: words,
+        ),
+        state: DailyChallengeState(
+          dateStr: date,
+          puzzleId: puzzle['puzzle_id'] as String? ?? '',
+          isCompleted: progress['completed'] as bool? ?? false,
+          scoreAchieved: (progress['score'] as num?)?.toInt() ?? 0,
+          bestPossibleScore: (puzzle['target_score'] as num?)?.toInt() ?? 0,
+          starRating: progress['completed'] == true
+              ? 3
+              : solved.isNotEmpty
+              ? 1
+              : 0,
+          streakDays: (progress['streak_days'] as num?)?.toInt() ?? 0,
+          solvedWordIndexes: solved,
+        ),
+      );
+    } catch (error) {
+      debugPrint('[DailyChallenge] Remote sync unavailable: $error');
+      return null;
     }
+  }
 
-    // Generate deterministic 7-tile rack
-    const vowels = ['A', 'E', 'I', 'O', 'U'];
-    const consonants = ['B', 'C', 'D', 'F', 'G', 'H', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'W'];
+  static bool get hasRemoteAccount {
+    if (!SupabaseBootstrap.configured) return false;
+    final user = Supabase.instance.client.auth.currentUser;
+    return user != null && !user.isAnonymous;
+  }
 
-    final rack = <Tile>[];
-    for (int i = 0; i < 3; i++) {
-      final l = vowels[rand.nextInt(vowels.length)];
-      rack.add(Tile(id: 'rack_v_$i', letter: l, scoreValue: GameConfig.letterScores[l] ?? 1));
+  static Future<DailyServerSnapshot?> submitRemoteWord({
+    required int wordIndex,
+    required List<String> letters,
+  }) async {
+    if (!hasRemoteAccount) return null;
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'daily-word-mosaic',
+        body: {'action': 'submit', 'word_index': wordIndex, 'letters': letters},
+      );
+      final payload = response.data;
+      if (payload is! Map || payload['accepted'] != true) return null;
+      return _snapshotFromPayload(Map<String, dynamic>.from(payload));
+    } catch (error) {
+      debugPrint('[DailyChallenge] Remote word submission failed: $error');
+      return null;
     }
-    for (int i = 0; i < 4; i++) {
-      final l = consonants[rand.nextInt(consonants.length)];
-      rack.add(Tile(id: 'rack_c_$i', letter: l, scoreValue: GameConfig.letterScores[l] ?? 1));
-    }
+  }
 
-    // Compute optimal move score using AI solver
-    final aiMoveRaw = AIEngine.computeMove({
-      'board': grid.map((r) => r.map((c) => c.toJson()).toList()).toList(),
-      'rack': rack.map((t) => t.toJson()).toList(),
-      'difficulty': 'hard',
-      'deterministic': true,
-    });
+  static DailyServerSnapshot? _snapshotFromPayload(
+    Map<String, dynamic> payload,
+  ) {
+    if (payload['puzzle'] is! Map || payload['progress'] is! Map) return null;
+    final puzzle = Map<String, dynamic>.from(payload['puzzle'] as Map);
+    final progress = Map<String, dynamic>.from(payload['progress'] as Map);
+    final words = _parseRemoteWords(puzzle['words']);
+    final date = puzzle['date'] as String? ?? getTodayString();
+    final puzzleId = puzzle['puzzle_id'] as String? ?? '';
+    final solved = (progress['solved_word_indexes'] as List? ?? const [])
+        .whereType<num>()
+        .map((item) => item.toInt())
+        .toList();
+    return DailyServerSnapshot(
+      data: DailyChallengeData(
+        dateStr: date,
+        puzzleId: puzzleId,
+        difficultyTier: (puzzle['difficulty_tier'] as num?)?.toInt() ?? 0,
+        words: words,
+      ),
+      state: DailyChallengeState(
+        dateStr: date,
+        puzzleId: puzzleId,
+        isCompleted: progress['completed'] as bool? ?? false,
+        scoreAchieved: (progress['score'] as num?)?.toInt() ?? 0,
+        bestPossibleScore: (puzzle['target_score'] as num?)?.toInt() ?? 0,
+        starRating: progress['completed'] == true
+            ? 3
+            : solved.isNotEmpty
+            ? 1
+            : 0,
+        streakDays: (progress['streak_days'] as num?)?.toInt() ?? 0,
+        solvedWordIndexes: solved,
+      ),
+    );
+  }
 
-    final aiMove = AIMove.fromJson(aiMoveRaw);
-    final optimalScore = aiMove.isPass || aiMove.isExchange ? 0 : aiMove.score;
+  static List<DailyWord> _parseRemoteWords(Object? rawWords) {
+    return (rawWords as List? ?? const []).whereType<Map>().map((item) {
+      final word = Map<String, dynamic>.from(item);
+      return DailyWord(
+        clue: word['clue'] as String? ?? '',
+        answer: word['solved_answer'] as String? ?? '',
+        answerLength: (word['answer_length'] as num?)?.toInt() ?? 0,
+        letters: (word['letters'] as List? ?? const [])
+            .whereType<String>()
+            .toList(),
+      );
+    }).toList();
+  }
 
+  static DailyChallengeData generatePuzzle(
+    String dateStr, {
+    int streakDays = 0,
+    String? puzzleId,
+    List<String> excludedPuzzleIds = const [],
+  }) {
+    final tier = _difficultyTier(streakDays);
+    final eligible = _catalog.where((p) => p.tier <= tier).toList();
+    final candidates = eligible
+        .where((p) => !excludedPuzzleIds.contains(p.id))
+        .toList();
+    final pool = candidates.isEmpty ? eligible : candidates;
+    final seed = _stableHash('$dateStr:$streakDays');
+    final selected = puzzleId == null
+        ? pool[seed % pool.length]
+        : _catalog.firstWhere(
+            (p) => p.id == puzzleId,
+            orElse: () => pool[seed % pool.length],
+          );
+    final random = Random(seed);
     return DailyChallengeData(
       dateStr: dateStr,
-      boardGrid: grid,
-      rack: rack,
-      optimalScore: optimalScore,
+      puzzleId: selected.id,
+      difficultyTier: tier,
+      words: selected.words
+          .map(
+            (word) => DailyWord(
+              clue: word.clue,
+              answer: word.answer,
+              letters: _scrambledLetters(word.answer, random, tier),
+            ),
+          )
+          .toList(),
     );
+  }
+
+  static int _difficultyTier(int streakDays) {
+    if (streakDays >= 10) return 3;
+    if (streakDays >= 5) return 2;
+    if (streakDays >= 2) return 1;
+    return 0;
+  }
+
+  static List<String> _scrambledLetters(
+    String answer,
+    Random random,
+    int tier,
+  ) {
+    final letters = answer.split('');
+    final decoys = tier >= 2 ? 2 : 1;
+    const decoyLetters = 'AEIOULMNRST';
+    for (var i = 0; i < decoys; i++) {
+      letters.add(decoyLetters[random.nextInt(decoyLetters.length)]);
+    }
+    letters.shuffle(random);
+    return letters;
+  }
+
+  static int _stableHash(String value) {
+    var seed = 2166136261;
+    for (final codeUnit in value.codeUnits) {
+      seed = ((seed ^ codeUnit) * 16777619) & 0x7fffffff;
+    }
+    return seed;
   }
 
   static Future<DailyChallengeState> loadState() async {
@@ -144,24 +398,20 @@ class DailyChallengeService {
     final json = await _persistence.loadJsonData(_saveFileName);
     if (json != null) {
       final state = DailyChallengeState.fromJson(json);
-      if (state.dateStr == todayStr) {
-        return state;
-      } else {
-        // New day: maintain streak if consecutive
-        final isYesterday = _isYesterday(state.dateStr);
-        final streak = isYesterday ? state.streakDays : 0;
-        return DailyChallengeState(
-          dateStr: todayStr,
-          isCompleted: false,
-          scoreAchieved: 0,
-          bestPossibleScore: 0,
-          starRating: 0,
-          streakDays: streak,
-        );
-      }
+      if (state.dateStr == todayStr) return state;
+      final isYesterday = _isYesterday(state.dateStr);
+      return DailyChallengeState(
+        dateStr: todayStr,
+        isCompleted: false,
+        streakDays: isYesterday ? state.streakDays : 0,
+        scoreAchieved: 0,
+        bestPossibleScore: 0,
+        starRating: 0,
+        playedPuzzleIds: state.playedPuzzleIds,
+      );
     }
-    return DailyChallengeState(
-      dateStr: todayStr,
+    return const DailyChallengeState(
+      dateStr: '',
       isCompleted: false,
       scoreAchieved: 0,
       bestPossibleScore: 0,
@@ -177,12 +427,35 @@ class DailyChallengeService {
   static bool _isYesterday(String prevDateStr) {
     try {
       final parts = prevDateStr.split('-');
-      final prev = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      final prev = DateTime.utc(
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+      );
       final now = DateTime.now().toUtc();
-      final diff = DateTime(now.year, now.month, now.day).difference(prev).inDays;
-      return diff == 1;
+      final today = DateTime.utc(now.year, now.month, now.day);
+      return today.difference(prev).inDays == 1;
     } catch (_) {
       return false;
     }
   }
+}
+
+class DailyServerSnapshot {
+  final DailyChallengeData data;
+  final DailyChallengeState state;
+  const DailyServerSnapshot({required this.data, required this.state});
+}
+
+class _PuzzleTemplate {
+  final String id;
+  final int tier;
+  final List<_WordTemplate> words;
+  const _PuzzleTemplate(this.id, this.tier, this.words);
+}
+
+class _WordTemplate {
+  final String clue;
+  final String answer;
+  const _WordTemplate(this.clue, this.answer);
 }

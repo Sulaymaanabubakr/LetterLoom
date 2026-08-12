@@ -2,8 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../core/music_manager.dart';
+import '../../core/supabase_bootstrap.dart';
+import '../../models/player_profile.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
@@ -427,10 +430,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return avatars[avatarId] ?? avatars['avatar_owl']!;
   }
 
+  bool _isAnonymousAccount(PlayerProfile profile) {
+    if (profile.isGuest) return true;
+    if (!SupabaseBootstrap.configured) return false;
+    final user = Supabase.instance.client.auth.currentUser;
+    return user == null || user.isAnonymous;
+  }
+
+  Widget _accountHeaderIcon(PlayerProfile profile, bool isGuest) {
+    return isGuest
+        ? const Icon(Icons.save_rounded, color: AppTheme.shinyGold, size: 24)
+        : Text(
+            _avatarEmoji(profile.avatarId),
+            style: const TextStyle(fontSize: 23),
+          );
+  }
+
   Widget _buildHomeHeader() {
     return Consumer(
       builder: (context, ref, child) {
         final profile = ref.watch(authProvider);
+        final isGuest = _isAnonymousAccount(profile);
         final hints = ref.watch(hintServiceProvider);
         final totalHints =
             hints.totalMoveHints() +
@@ -489,7 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
-                  if (profile.isGuest) {
+                  if (isGuest) {
                     SaveProgressModal.show(context);
                   } else {
                     Navigator.of(context).push(
@@ -512,10 +532,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ],
                   ),
-                  child: Text(
-                    _avatarEmoji(profile.avatarId),
-                    style: const TextStyle(fontSize: 23),
-                  ),
+                  child: _accountHeaderIcon(profile, isGuest),
                 ),
               ),
             ],
@@ -549,6 +566,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Consumer(
                             builder: (context, ref, child) {
                               final profile = ref.watch(authProvider);
+                              final isGuest = _isAnonymousAccount(profile);
                               final hints = ref.watch(hintServiceProvider);
                               final totalHints =
                                   hints.totalMoveHints() +
@@ -621,7 +639,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     const SizedBox(width: 8),
                                     GestureDetector(
                                       onTap: () {
-                                        if (profile.isGuest) {
+                                        if (isGuest) {
                                           SaveProgressModal.show(context);
                                         } else {
                                           Navigator.of(context).push(
@@ -651,9 +669,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             ),
                                           ],
                                         ),
-                                        child: Text(
-                                          _avatarEmoji(profile.avatarId),
-                                          style: const TextStyle(fontSize: 23),
+                                        child: _accountHeaderIcon(
+                                          profile,
+                                          isGuest,
                                         ),
                                       ),
                                     ),
@@ -840,7 +858,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               subtitle: 'Find a rated opponent',
                               iconData: Icons.sports_esports_rounded,
                               isPrimary: false,
-                              onPressed: () => RankedMatchmakingService.startRankedMatchmaking(context, ref),
+                              onPressed: () =>
+                                  RankedMatchmakingService.startRankedMatchmaking(
+                                    context,
+                                    ref,
+                                  ),
                             ),
                             _buildPremiumButton(
                               title: 'Play Online',

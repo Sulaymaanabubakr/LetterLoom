@@ -445,6 +445,11 @@ entrypoint = "./functions/ranked-matchmaking/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/ranked-matchmaking/*.html" ]
 
+[functions.daily-word-mosaic]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/daily-word-mosaic/index.ts"
+
 [functions.settle-ranked-match]
 enabled = true
 verify_jwt = false

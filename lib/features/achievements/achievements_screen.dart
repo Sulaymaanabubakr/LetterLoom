@@ -181,7 +181,7 @@ class AchievementsScreen extends ConsumerWidget {
                         ),
                       ),
                       child: Text(
-                        '+${achievement.xpReward} XP',
+                        '+${achievement.xpReward} level progress',
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,

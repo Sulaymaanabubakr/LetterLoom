@@ -1356,14 +1356,21 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final hint = _activeHint!;
     final showLetter = hint.hintType != 'move';
     return Container(
-      margin: const EdgeInsets.all(2),
+      margin: const EdgeInsets.all(1.5),
       decoration: BoxDecoration(
-        color: AppTheme.shinyGold.withValues(alpha: 0.14),
+        color: AppTheme.scaffoldDark.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: AppTheme.shinyGold.withValues(alpha: 0.68),
-          width: 1.2,
+          color: AppTheme.shinyGold.withValues(alpha: 0.88),
+          width: 1.4,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.shinyGold.withValues(alpha: 0.24),
+            blurRadius: 4,
+            spreadRadius: 0.5,
+          ),
+        ],
       ),
       child: Center(
         child: Text(
@@ -1372,7 +1379,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
             fontFamily: 'Lora',
             fontSize: size * 0.42,
             fontWeight: FontWeight.bold,
-            color: AppTheme.shinyGold.withValues(alpha: 0.52),
+            color: AppTheme.ivoryText.withValues(alpha: 0.94),
+            shadows: [
+              Shadow(
+                color: AppTheme.darkCharcoal.withValues(alpha: 0.9),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
         ),
       ),
