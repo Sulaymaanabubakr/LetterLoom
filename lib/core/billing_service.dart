@@ -119,11 +119,9 @@ class BillingService {
         continue;
       }
       if (purchase.status == PurchaseStatus.restored) {
-        // These products are consumable. Restored consumables must never be
-        // granted from the platform stream; the server ledger is authoritative.
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
-        }
+        // An unfinished consumable can be redelivered after a verification
+        // outage. The server ledger is idempotent, so recovery is safe.
+        await _verifyAndFulfil(purchase);
       }
     }
   }
@@ -254,6 +252,29 @@ class BillingService {
       await _iap.restorePurchases();
     } catch (error) {
       debugPrint('[Billing] Restore failed: $error');
+    }
+  }
+
+  /// Replays unfinished Play purchases after startup/authentication. This is
+  /// intentionally best-effort: the stream remains the source of truth and
+  /// the server ledger prevents duplicate fulfilment.
+  Future<void> recoverPendingPurchases({
+    VoidCallback? onPurchaseFulfilled,
+    void Function(String error)? onError,
+  }) async {
+    await initialize();
+    _pendingFulfilment = onPurchaseFulfilled;
+    _pendingError = onError == null
+        ? null
+        : (error) {
+            onError(error);
+            _clearPending();
+          };
+    try {
+      await _iap.restorePurchases();
+    } catch (error) {
+      debugPrint('[Billing] Pending purchase recovery failed: $error');
+      _clearPending();
     }
   }
 }

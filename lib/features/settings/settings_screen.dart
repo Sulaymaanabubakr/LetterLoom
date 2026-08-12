@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,8 @@ import '../game/game_notifier.dart';
 import '../../core/haptic_utils.dart';
 import '../../core/toast_utils.dart';
 import '../../core/push_notification_service.dart';
+import '../../core/ad_service.dart';
+import '../../models/game_settings.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -254,6 +258,18 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       const _NotificationPreferencesCard(),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: AdService.privacyOptionsRequired,
+                        builder: (context, isRequired, _) {
+                          if (!isRequired) return const SizedBox.shrink();
+                          return Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              _buildPrivacyOptionsCard(context, settings),
+                            ],
+                          );
+                        },
+                      ),
                       const SizedBox(height: 24),
                       // Gameplay Category
                       _buildCategoryHeader('Gameplay'),
@@ -612,6 +628,88 @@ class SettingsScreen extends ConsumerWidget {
           // Custom Green/Gold Toggle Switch
           _buildCustomSwitch(value: value, onChanged: onChanged),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyOptionsCard(BuildContext context, GameSettings settings) {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: 0.55),
+          width: 1.2,
+        ),
+        gradient: const LinearGradient(
+          colors: AppTheme.darkGreenGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticUtils.trigger(HapticType.tap, settings);
+            unawaited(AdService().showPrivacyOptions());
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF010A07),
+                    border: Border.all(
+                      color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.privacy_tip_outlined,
+                    color: AppTheme.shinyGold,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Privacy Options',
+                        style: GoogleFonts.lora(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.ivoryText,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Review your advertising consent choices.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.mutedIvory,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 15,
+                  color: AppTheme.shinyGold,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

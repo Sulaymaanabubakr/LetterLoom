@@ -81,6 +81,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ref.read(hintServiceProvider.notifier).ready,
       Future<void>.delayed(const Duration(milliseconds: 350)),
     ]);
+    unawaited(
+      BillingService().recoverPendingPurchases(
+        onPurchaseFulfilled: () =>
+            ref.read(hintServiceProvider.notifier).refresh(),
+        onError: (error) => debugPrint('[Billing] Recovery: $error'),
+      ),
+    );
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

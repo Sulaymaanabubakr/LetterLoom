@@ -19,9 +19,14 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
+  static final ValueNotifier<bool> privacyOptionsRequired = ValueNotifier<bool>(
+    false,
+  );
+
   bool _isAdLoading = false;
   RewardedAd? _rewardedAd;
   Future<void>? _loadFuture;
+  Future<void>? _initializationFuture;
   bool get isAdLoading => _isAdLoading;
 
   String get _adUnitId {
@@ -43,7 +48,11 @@ class AdService {
 
   bool get _isConfiguredForThisBuild => !kReleaseMode || !_usesGoogleTestUnitId;
 
-  Future<void> initialize() async {
+  Future<void> initialize() {
+    return _initializationFuture ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
     if (kIsWeb || !_isConfiguredForThisBuild) {
       if (!kIsWeb && kReleaseMode) {
         debugPrint(
@@ -53,11 +62,76 @@ class AdService {
       return;
     }
     try {
+      await _updateConsent();
+      if (!await _canRequestAds()) return;
       await MobileAds.instance.initialize();
       // Load while the app is idle so tapping Watch Ads is normally instant.
       unawaited(_loadRewardedAd());
     } catch (error) {
       debugPrint('[Ads] Initialization failed: $error');
+    }
+  }
+
+  Future<void> _updateConsent() async {
+    final information = ConsentInformation.instance;
+    final completer = Completer<void>();
+
+    information.requestConsentInfoUpdate(
+      ConsentRequestParameters(),
+      () async {
+        try {
+          await ConsentForm.loadAndShowConsentFormIfRequired((error) {
+            if (error != null) {
+              debugPrint('[Ads] Consent form failed: $error');
+            }
+          });
+          await _refreshPrivacyOptionsRequirement();
+        } catch (error) {
+          debugPrint('[Ads] Consent handling failed: $error');
+        } finally {
+          if (!completer.isCompleted) completer.complete();
+        }
+      },
+      (error) async {
+        debugPrint('[Ads] Consent info update failed: $error');
+        await _refreshPrivacyOptionsRequirement();
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+
+    await completer.future;
+  }
+
+  Future<void> _refreshPrivacyOptionsRequirement() async {
+    try {
+      final status = await ConsentInformation.instance
+          .getPrivacyOptionsRequirementStatus();
+      privacyOptionsRequired.value =
+          status == PrivacyOptionsRequirementStatus.required;
+    } catch (error) {
+      debugPrint('[Ads] Privacy options status unavailable: $error');
+      privacyOptionsRequired.value = false;
+    }
+  }
+
+  Future<bool> _canRequestAds() async {
+    try {
+      return await ConsentInformation.instance.canRequestAds();
+    } catch (error) {
+      debugPrint('[Ads] Consent readiness unavailable: $error');
+      return false;
+    }
+  }
+
+  Future<void> showPrivacyOptions() async {
+    if (!privacyOptionsRequired.value) return;
+    try {
+      await ConsentForm.showPrivacyOptionsForm((error) {
+        if (error != null) debugPrint('[Ads] Privacy options failed: $error');
+      });
+      await _refreshPrivacyOptionsRequirement();
+    } catch (error) {
+      debugPrint('[Ads] Privacy options failed: $error');
     }
   }
 
@@ -68,6 +142,7 @@ class AdService {
     required OnRewardEarnedCallback onRewardEarned,
     required void Function(String errorMessage) onError,
   }) async {
+    await initialize();
     if (kIsWeb ||
         defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS) {
@@ -76,6 +151,12 @@ class AdService {
     }
     if (!_isConfiguredForThisBuild) {
       onError('Rewarded ads are not configured for this production build.');
+      return false;
+    }
+    if (!await _canRequestAds()) {
+      onError(
+        'Rewarded ads are unavailable until privacy choices are complete.',
+      );
       return false;
     }
     final ad = await _loadRewardedAd();
@@ -116,6 +197,7 @@ class AdService {
   }
 
   Future<RewardedAd?> _loadRewardedAd() async {
+    if (!await _canRequestAds()) return null;
     if (_rewardedAd != null) return _rewardedAd;
     if (_loadFuture != null) {
       await _loadFuture;
