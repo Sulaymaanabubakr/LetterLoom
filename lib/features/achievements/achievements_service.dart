@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import '../../models/achievement.dart';
 import '../../storage/persistence_manager.dart';
 import '../../core/google_play_games_service.dart';
 import '../progression/progression_service.dart';
 import 'achievements_registry.dart';
+import '../account/account_progress_service.dart';
 
 final achievementsProvider =
     StateNotifierProvider<AchievementsNotifier, List<Achievement>>((ref) {
@@ -14,29 +16,36 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
   final Ref _ref;
   final PersistenceManager _persistence = PersistenceManager();
   static const String _saveFileName = 'letterloom_achievements_v1.json';
+  final Completer<void> _initialization = Completer<void>();
 
   AchievementsNotifier(this._ref)
     : super(AchievementsRegistry.allAchievements) {
     _init();
   }
 
-  Future<void> _init() async {
-    final savedData = await _persistence.loadJsonData(_saveFileName);
-    if (savedData != null && savedData['achievements'] is List) {
-      final List rawList = savedData['achievements'] as List;
-      final Map<String, dynamic> map = {
-        for (var item in rawList.whereType<Map>())
-          item['id'] as String: Map<String, dynamic>.from(item),
-      };
+  Future<void> get ready => _initialization.future;
 
-      state = AchievementsRegistry.allAchievements.map((tmpl) {
-        if (map.containsKey(tmpl.id)) {
-          return Achievement.fromJson(map[tmpl.id]!, tmpl);
-        }
-        return tmpl;
-      }).toList();
+  Future<void> _init() async {
+    try {
+      final savedData = await _persistence.loadJsonData(_saveFileName);
+      if (savedData != null && savedData['achievements'] is List) {
+        final List rawList = savedData['achievements'] as List;
+        final Map<String, dynamic> map = {
+          for (var item in rawList.whereType<Map>())
+            item['id'] as String: Map<String, dynamic>.from(item),
+        };
+
+        state = AchievementsRegistry.allAchievements.map((tmpl) {
+          if (map.containsKey(tmpl.id)) {
+            return Achievement.fromJson(map[tmpl.id]!, tmpl);
+          }
+          return tmpl;
+        }).toList();
+      }
+      await _reconcileCompletedGames();
+    } finally {
+      if (!_initialization.isCompleted) _initialization.complete();
     }
-    await _reconcileCompletedGames();
   }
 
   /// Restore achievements that were earned before an older build accidentally
@@ -53,6 +62,30 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
   Future<void> _save() async {
     final data = {'achievements': state.map((a) => a.toJson()).toList()};
     await _persistence.saveJsonData(_saveFileName, data);
+    await AccountProgressService.instance.saveAchievements(state);
+  }
+
+  Future<void> restoreAccountAchievements(
+    List<Map<String, dynamic>> remoteAchievements,
+  ) async {
+    final byId = <String, Map<String, dynamic>>{
+      for (final item in remoteAchievements)
+        if (item['achievement_id'] is String) item['achievement_id'] as String: item,
+    };
+    state = AchievementsRegistry.allAchievements.map((template) {
+      final remote = byId[template.id];
+      if (remote == null) return template;
+      return template.copyWith(
+        currentValue: (remote['current_value'] as num?)?.toInt() ?? 0,
+        isUnlocked: remote['is_unlocked'] == true,
+        unlockedAt: remote['unlocked_at'] is String
+            ? DateTime.tryParse(remote['unlocked_at'] as String)
+            : null,
+      );
+    }).toList();
+    await _persistence.saveJsonData(_saveFileName, {
+      'achievements': state.map((item) => item.toJson()).toList(),
+    });
   }
 
   Future<void> _unlock(Achievement achievement) async {

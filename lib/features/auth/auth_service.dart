@@ -5,12 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/player_profile.dart';
+import '../../models/statistics.dart';
+import '../../models/game_settings.dart';
 import '../../storage/persistence_manager.dart';
 import '../../core/supabase_bootstrap.dart';
 import '../../core/app_config.dart';
 import '../../core/push_notification_service.dart';
 import '../profile/username_generator.dart';
 import '../hints/hint_service.dart';
+import '../account/account_progress_service.dart';
+import '../game/game_notifier.dart';
+import '../achievements/achievements_service.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, PlayerProfile>((ref) {
   return AuthNotifier(ref);
@@ -49,13 +54,16 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
           : null;
       if (sessionUser != null && !sessionUser.isAnonymous) {
         final remoteProfile = await _loadRemoteProfile(sessionUser.id);
+        final cachedAccount = await _persistence.loadAuthenticatedProfile();
         if (remoteProfile != null) {
           state = remoteProfile;
           await _persistence.saveAuthenticatedProfile(remoteProfile);
+          await _hydrateAccountProgress(
+            allowLocalMigration: cachedAccount?.id == sessionUser.id,
+          );
           return;
         }
 
-        final cachedAccount = await _persistence.loadAuthenticatedProfile();
         if (cachedAccount?.id == sessionUser.id) {
           state = cachedAccount!;
           return;
@@ -109,6 +117,50 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       await _persistence.saveAuthenticatedProfile(updated);
     }
     return true;
+  }
+
+  Future<void> adoptServerProfile(PlayerProfile profile) async {
+    state = profile;
+    await _persistence.saveAuthenticatedProfile(profile);
+  }
+
+  Future<void> _hydrateAccountProgress({
+    required bool allowLocalMigration,
+  }) async {
+    if (state.isGuest) return;
+    final game = _ref.read(gameProvider.notifier);
+    final achievements = _ref.read(achievementsProvider.notifier);
+    await Future.wait([game.ready, achievements.ready]);
+    final snapshot = await AccountProgressService.instance.load();
+    if (snapshot == null) {
+      // Only migrate legacy device data into a matching account. Device files
+      // from one account must never seed another account after sign-out.
+      if (allowLocalMigration) {
+        await game.syncAccountProgress();
+        await AccountProgressService.instance.saveAchievements(
+          _ref.read(achievementsProvider),
+        );
+      } else {
+        // This is a different account on this device. Do not expose or carry
+        // over the last account's local records while its server snapshot is
+        // empty or still being created.
+        await game.restoreAccountProgress(
+          statistics: const Statistics(),
+          settings: const GameSettings(),
+          activeGame: null,
+        );
+        await achievements.restoreAccountAchievements(const []);
+      }
+      return;
+    }
+    if (snapshot.statistics != null && snapshot.settings != null) {
+      await game.restoreAccountProgress(
+        statistics: snapshot.statistics!,
+        settings: snapshot.settings!,
+        activeGame: snapshot.activeGame,
+      );
+    }
+    await achievements.restoreAccountAchievements(snapshot.achievements);
   }
 
   /// Checks the backend before a profile rename. A null result means the
@@ -248,10 +300,27 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       // signed-in profile reaches Home, so the header never flashes the guest
       // default of seven helps after sign-in.
       await _ref.read(hintServiceProvider.notifier).refresh();
-      return await updateProfile(mergedProfile);
+      final saved = await updateProfile(mergedProfile);
+      if (saved) {
+        await _hydrateAccountProgress(
+          // A new account can import the guest session exactly once. An
+          // established account always restores only its own remote record.
+          allowLocalMigration: existingRemote == null,
+        );
+      }
+      return saved;
     } catch (e) {
       debugPrint('[Auth] Google Sign in error: $e');
-      onError('Google Sign-In failed. Please try again.');
+      final detail = e.toString().toLowerCase();
+      if (detail.contains('10') ||
+          detail.contains('developer_error') ||
+          detail.contains('api_exception')) {
+        onError(
+          'Google Sign-In is not configured for this installed app yet. Please update the app and try again.',
+        );
+      } else {
+        onError('Google Sign-In failed. Please try again.');
+      }
       return false;
     }
   }

@@ -80,14 +80,16 @@ Deno.serve(async (req) => {
       return response({ deleted: true });
     }
 
-    const { data: stopped, error: stopError } = await admin
-      .from('multiplayer_games')
-      .update({ status: 'abandoned' })
-      .eq('id', gameId)
-      .in('status', ['waiting', 'active'])
-      .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at')
-      .single();
+    const { error: stopError } = await admin.rpc('stop_multiplayer_room_timer', {
+      p_game_id: gameId,
+    });
     if (stopError) throw stopError;
+    const { data: stopped, error: stoppedReadError } = await admin
+      .from('multiplayer_games')
+      .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at')
+      .eq('id', gameId)
+      .single();
+    if (stoppedReadError) throw stoppedReadError;
     return response({ game: stopped });
   } catch (error) {
     console.error('manage-multiplayer-room error', error);

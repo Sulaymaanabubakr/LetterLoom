@@ -33,7 +33,7 @@ class MultiplayerGameNotifier extends GameNotifier {
   }
 
   Future<void> _receiveRoomUpdate(MultiplayerGame? room) async {
-    if (room == null || room.currentTurnUserId == null) return;
+    if (room == null) return;
     // Do not hydrate/reconcile a live server update into the visible board
     // while the app is backgrounded or the pause sheet owns the match.
     if (isGamePaused) return;

@@ -20,6 +20,7 @@ import '../../core/app_config.dart';
 import '../progression/progression_service.dart';
 import '../achievements/achievements_service.dart';
 import '../auth/auth_service.dart';
+import '../account/account_progress_service.dart';
 
 final gameProvider = StateNotifierProvider<GameNotifier, GameState>((ref) {
   return GameNotifier(ref);
@@ -34,11 +35,13 @@ class GameNotifier extends StateNotifier<GameState> {
   Timer? _aiAnimationTimer;
   DateTime? _pausedAt;
   int _pauseDepth = 0;
+  final Completer<void> _initialization = Completer<void>();
 
   bool get isGamePaused => _pausedAt != null;
   DateTime? get pauseStartedAt => _pausedAt;
 
   GameState get currentState => state;
+  Future<void> get ready => _initialization.future;
 
   GameNotifier([this.ref])
     : super(
@@ -70,12 +73,70 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   Future<void> _init() async {
-    final settings = await _persistence.loadSettings();
-    final stats = await _persistence.loadStatistics();
+    try {
+      final settings = await _persistence.loadSettings();
+      final stats = await _persistence.loadStatistics();
 
-    state = state.copyWith(settings: settings, statistics: stats);
+      state = state.copyWith(settings: settings, statistics: stats);
 
-    unawaited(MusicManager.instance.init(settings.musicEnabled));
+      unawaited(MusicManager.instance.init(settings.musicEnabled));
+    } finally {
+      if (!_initialization.isCompleted) _initialization.complete();
+    }
+  }
+
+  /// Replace device cache with the authenticated account snapshot. This is
+  /// called only during account hydration, before a player begins a match.
+  Future<void> restoreAccountProgress({
+    required Statistics statistics,
+    required GameSettings settings,
+    GameState? activeGame,
+  }) async {
+    final restored = activeGame;
+    final remaining = restored?.turnSecondsRemaining;
+    final resumedGame = restored == null || remaining == null
+        ? restored
+        : restored.copyWith(
+            turnStartedAt: DateTime.now().subtract(
+              Duration(seconds: GameState.turnDurationSeconds - remaining),
+            ),
+            clearTurnSecondsRemaining: true,
+          );
+    state = resumedGame == null
+        ? state.copyWith(settings: settings, statistics: statistics)
+        : resumedGame.copyWith(settings: settings, statistics: statistics);
+    await _persistence.saveStatistics(statistics);
+    await _persistence.saveSettings(settings);
+    if (resumedGame == null || resumedGame.status == 'gameCompleted') {
+      await _persistence.deleteGameSave();
+    } else {
+      await _persistence.saveGame(resumedGame);
+    }
+    unawaited(MusicManager.instance.updateMusicState(settings.musicEnabled));
+  }
+
+  Future<void> syncAccountProgress() async {
+    final isBlankGame = state.playerRack.isEmpty &&
+        state.computerRack.isEmpty &&
+        state.moveHistory.isEmpty;
+    final now = _pausedAt ?? DateTime.now();
+    final remaining = state.turnStartedAt == null
+        ? null
+        : (GameState.turnDurationSeconds - now.difference(state.turnStartedAt!).inSeconds)
+            .clamp(0, GameState.turnDurationSeconds);
+    final activeGame = state.status == 'gameCompleted' || isBlankGame
+        ? null
+        : state.copyWith(turnSecondsRemaining: remaining);
+    await AccountProgressService.instance.saveProgress(
+      statistics: state.statistics,
+      settings: state.settings,
+      activeGame: activeGame,
+    );
+  }
+
+  void _persistActiveGame() {
+    _persistence.saveGame(state);
+    unawaited(syncAccountProgress());
   }
 
   // --- External Actions ---
@@ -148,6 +209,7 @@ class GameNotifier extends StateNotifier<GameState> {
   Future<void> saveGameForExit() async {
     final pausedAt = _pausedAt;
     await _persistence.saveGame(state, clockNow: pausedAt ?? DateTime.now());
+    await syncAccountProgress();
     _pausedAt = null;
     _pauseDepth = 0;
   }
@@ -159,6 +221,7 @@ class GameNotifier extends StateNotifier<GameState> {
       return;
     }
     await _persistence.saveGame(state, clockNow: _pausedAt ?? DateTime.now());
+    await syncAccountProgress();
   }
 
   Future<void> _waitWhilePaused() async {
@@ -246,7 +309,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     if (persist) {
-      _persistence.saveGame(state);
+      _persistActiveGame();
     }
   }
 
@@ -270,6 +333,7 @@ class GameNotifier extends StateNotifier<GameState> {
         statistics: updatedStats,
       );
       await _persistence.saveStatistics(updatedStats);
+      await syncAccountProgress();
     }
   }
 
@@ -434,7 +498,7 @@ class GameNotifier extends StateNotifier<GameState> {
           : "You passed your turn.",
     );
 
-    _persistence.saveGame(state);
+    _persistActiveGame();
 
     if (_checkGameOver()) return;
 
@@ -504,7 +568,7 @@ class GameNotifier extends StateNotifier<GameState> {
       lastMoveMessage: "You exchanged ${tilesToExchange.length} tiles.",
     );
 
-    _persistence.saveGame(state);
+    _persistActiveGame();
 
     if (_checkGameOver()) return false;
 
@@ -574,7 +638,7 @@ class GameNotifier extends StateNotifier<GameState> {
           "You played $primaryWord for ${validation.totalScore} pts!",
     );
 
-    _persistence.saveGame(state);
+    _persistActiveGame();
 
     if (_checkGameOver()) return null;
 
@@ -660,7 +724,7 @@ class GameNotifier extends StateNotifier<GameState> {
       turnStartedAt: DateTime.now(),
     );
 
-    _persistence.saveGame(state);
+    _persistActiveGame();
     _checkGameOver();
   }
 
@@ -719,7 +783,7 @@ class GameNotifier extends StateNotifier<GameState> {
       turnStartedAt: DateTime.now(),
     );
 
-    _persistence.saveGame(state);
+    _persistActiveGame();
     _checkGameOver();
   }
 
@@ -819,7 +883,7 @@ class GameNotifier extends StateNotifier<GameState> {
       turnStartedAt: DateTime.now(),
     );
 
-    _persistence.saveGame(state);
+    _persistActiveGame();
 
     if (_checkGameOver()) return;
   }
@@ -923,22 +987,53 @@ class GameNotifier extends StateNotifier<GameState> {
         final xpAmount = isWin
             ? AppConfig.xpMatchWin
             : AppConfig.xpMatchComplete;
-        ref!
-            .read(progressionProvider)
-            .addXP(xpAmount, reason: 'Match Finish ($result)');
-        ref!
+        unawaited(_persistCompletedSoloGame(
+          result: result,
+          playerScore: pScore,
+          computerScore: cScore,
+          xpAmount: xpAmount,
+          updatedStats: updatedStats,
+        ));
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _persistCompletedSoloGame({
+    required String result,
+    required int playerScore,
+    required int computerScore,
+    required int xpAmount,
+    required Statistics updatedStats,
+  }) async {
+    if (ref == null) return;
+    try {
+        final accountProfile = await AccountProgressService.instance.recordSoloResult(
+          eventKey:
+              'solo:${state.turnStartedAt?.millisecondsSinceEpoch ?? 0}:$playerScore:$computerScore',
+          result: result,
+          score: playerScore,
+          xp: xpAmount,
+        );
+        if (accountProfile != null) {
+          await ref!.read(authProvider.notifier).adoptServerProfile(accountProfile);
+        } else {
+          await ref!
+              .read(progressionProvider)
+              .addXP(xpAmount, reason: 'Match Finish ($result)');
+        }
+        await syncAccountProgress();
+        await ref!
             .read(achievementsProvider.notifier)
             .recordGameFinished(
-              isWin: isWin,
-              playerScore: pScore,
-              opponentScore: cScore,
+              isWin: result == 'win',
+              playerScore: playerScore,
+              opponentScore: computerScore,
               difficulty: state.difficulty,
               isRanked: false,
               wasTrailing30: false,
               currentWinStreak: ref!.read(authProvider).currentStreak,
             );
-      } catch (_) {}
-    }
+    } catch (_) {}
   }
 
   // --- Setting updates ---
@@ -947,18 +1042,21 @@ class GameNotifier extends StateNotifier<GameState> {
     final updated = state.settings.copyWith(soundEnabled: enabled);
     state = state.copyWith(settings: updated);
     _persistence.saveSettings(updated);
+    unawaited(syncAccountProgress());
   }
 
   void toggleHaptics(bool enabled) {
     final updated = state.settings.copyWith(hapticEnabled: enabled);
     state = state.copyWith(settings: updated);
     _persistence.saveSettings(updated);
+    unawaited(syncAccountProgress());
   }
 
   void toggleMusic(bool enabled) {
     final updated = state.settings.copyWith(musicEnabled: enabled);
     state = state.copyWith(settings: updated);
     _persistence.saveSettings(updated);
+    unawaited(syncAccountProgress());
     MusicManager.instance.updateMusicState(enabled);
   }
 
@@ -966,12 +1064,14 @@ class GameNotifier extends StateNotifier<GameState> {
     final updated = state.settings.copyWith(animationSpeed: speed);
     state = state.copyWith(settings: updated);
     _persistence.saveSettings(updated);
+    unawaited(syncAccountProgress());
   }
 
   void resetStatistics() {
     const freshStats = Statistics();
     state = state.copyWith(statistics: freshStats);
     _persistence.saveStatistics(freshStats);
+    unawaited(syncAccountProgress());
   }
 
   // --- Helpers ---
