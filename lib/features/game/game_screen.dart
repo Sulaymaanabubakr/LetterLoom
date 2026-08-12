@@ -9,6 +9,7 @@ import '../../models/game_state.dart';
 import '../../ai/ai_engine.dart';
 import 'game_notifier.dart';
 import '../../core/haptic_utils.dart';
+import '../../core/music_manager.dart';
 import '../../core/sound_manager.dart';
 import '../../core/toast_utils.dart';
 import '../hints/hint_modal.dart';
@@ -47,11 +48,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
   DateTime? _countdownTurnStartedAt;
   bool _timeoutRequested = false;
   bool _appLifecyclePauseHeld = false;
+  bool _exchangeSheetOpen = false;
   HintResult? _activeHint;
 
   @override
   void initState() {
     super.initState();
+    MusicManager.instance.setTrack(MusicTrack.game);
     WidgetsBinding.instance.addObserver(this);
     _turnCountdownTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -90,6 +93,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _turnCountdownTimer?.cancel();
+    MusicManager.instance.setTrack(MusicTrack.menu);
     super.dispose();
   }
 
@@ -486,140 +490,195 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
   }
 
-  void _showExchangeDialog() {
+  Future<void> _showExchangeDialog() async {
+    if (_exchangeSheetOpen || !mounted) return;
+
     final state = ref.read(_provider);
     HapticUtils.trigger(HapticType.tap, state.settings);
-    if (state.tileBag.length < 7) {
-      showDialog<void>(
-        context: context,
-        builder: (context) => PremiumDialog(
-          title: 'Exchange Tiles',
-          child: Text(
-            'Tile exchange unlocks when at least 7 tiles remain in the bag. ${state.tileBag.length} ${state.tileBag.length == 1 ? 'tile remains' : 'tiles remain'} right now.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: AppTheme.mutedIvory),
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: _premiumDialogButton(
-                label: 'Got it',
-                isPrimary: true,
-                onTap: () => Navigator.of(context).pop(),
-              ),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    final List<Tile> selectedToExchange = [];
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return PremiumDialog(
-              title: 'Exchange Tiles',
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Select tiles to return to the bag.',
-                    style: GoogleFonts.inter(
-                      color: AppTheme.mutedIvory,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: state.playerRack.map((tile) {
-                      final bool isSel = selectedToExchange.any(
-                        (t) => t.id == tile.id,
-                      );
-                      return GestureDetector(
-                        onTap: () => setDialogState(() {
-                          if (isSel) {
-                            selectedToExchange.removeWhere(
-                              (t) => t.id == tile.id,
-                            );
-                          } else {
-                            selectedToExchange.add(tile);
-                          }
-                        }),
-                        child: Container(
-                          width: 38,
-                          height: 44,
-                          decoration: AppTheme.tileDecoration(
-                            isSelected: isSel,
-                          ),
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: Text(
-                                  tile.letter.trim().isEmpty
-                                      ? ' '
-                                      : tile.letter,
-                                  style: GoogleFonts.lora(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.darkCharcoal,
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                right: 3,
-                                bottom: 2,
-                                child: Text(
-                                  tile.scoreValue.toString(),
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    color: AppTheme.tileSubText,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _premiumDialogButton(
-                        label: 'Cancel',
-                        onTap: () => Navigator.of(context).pop(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _premiumDialogButton(
-                        label: 'Exchange',
-                        isPrimary: true,
-                        onTap: () {
-                          if (selectedToExchange.isNotEmpty) {
-                            Navigator.of(context).pop();
-                            ref
-                                .read(_provider.notifier)
-                                .exchangeTiles(selectedToExchange);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
+    final notifier = ref.read(_provider.notifier);
+    final wasAlreadyPaused = notifier.isGamePaused;
+    _exchangeSheetOpen = true;
+    if (!wasAlreadyPaused) notifier.pauseGame();
+
+    try {
+      if (state.tileBag.length < 7) {
+        await showPremiumConfirmationSheet(
+          context,
+          title: 'Exchange Unavailable',
+          message:
+              'Tile exchange unlocks when at least 7 tiles remain in the bag. ${state.tileBag.length} ${state.tileBag.length == 1 ? 'tile remains' : 'tiles remain'} right now.',
+          confirmLabel: 'Got it',
         );
-      },
-    );
+        return;
+      }
+
+      final List<Tile> selectedToExchange = [];
+      await showModalBottomSheet<void>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) {
+          return StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF021710),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(
+                    top: BorderSide(color: AppTheme.shinyGold, width: 1.5),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppTheme.shinyGold.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.swap_horiz_rounded,
+                            color: AppTheme.shinyGold,
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              'Exchange Tiles',
+                              style: GoogleFonts.lora(
+                                color: AppTheme.shinyGold,
+                                fontSize: 21,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Close',
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppTheme.shinyGold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Choose the tiles you want to return to the bag.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: AppTheme.mutedIvory,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: state.playerRack.map((tile) {
+                          final isSelected = selectedToExchange.any(
+                            (selected) => selected.id == tile.id,
+                          );
+                          return GestureDetector(
+                            onTap: () => setSheetState(() {
+                              if (isSelected) {
+                                selectedToExchange.removeWhere(
+                                  (selected) => selected.id == tile.id,
+                                );
+                              } else {
+                                selectedToExchange.add(tile);
+                              }
+                            }),
+                            child: Container(
+                              width: 44,
+                              height: 50,
+                              decoration: AppTheme.tileDecoration(
+                                isSelected: isSelected,
+                              ),
+                              child: Stack(
+                                children: [
+                                  Center(
+                                    child: Text(
+                                      tile.letter.trim().isEmpty
+                                          ? ' '
+                                          : tile.letter,
+                                      style: GoogleFonts.lora(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.darkCharcoal,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 4,
+                                    bottom: 3,
+                                    child: Text(
+                                      tile.scoreValue.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        color: AppTheme.tileSubText,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _premiumDialogButton(
+                              label: 'Cancel',
+                              onTap: () => Navigator.of(sheetContext).pop(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _premiumDialogButton(
+                              label: selectedToExchange.isEmpty
+                                  ? 'Select tiles'
+                                  : 'Exchange ${selectedToExchange.length}',
+                              isPrimary: true,
+                              onTap: () {
+                                if (selectedToExchange.isEmpty) return;
+                                final tiles = List<Tile>.of(selectedToExchange);
+                                Navigator.of(sheetContext).pop();
+                                ref
+                                    .read(_provider.notifier)
+                                    .exchangeTiles(tiles);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      _exchangeSheetOpen = false;
+      if (mounted && !wasAlreadyPaused) {
+        notifier.resumeGame();
+        setState(() {});
+      }
+    }
   }
 
   void _handleSubmit() {

@@ -56,6 +56,7 @@ export async function sendPushNotification(
   title: string,
   body: string,
   data: PushData = {},
+  preference: 'multiplayer_turns' | 'ranked_matches' | 'daily_reminders' = 'multiplayer_turns',
 ): Promise<void> {
   try {
     const rawServiceAccount = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON');
@@ -65,14 +66,25 @@ export async function sendPushNotification(
     const admin = getAdminClient();
     const { data: devices, error } = await admin
       .from('push_devices')
-      .select('token')
+      .select('user_id, token')
       .in('user_id', userIds);
     if (error) throw error;
     if (!devices || devices.length === 0) return;
 
+    const { data: preferences, error: preferenceError } = await admin
+      .from('notification_preferences')
+      .select(`user_id, ${preference}`)
+      .in('user_id', [...new Set(userIds)]);
+    if (preferenceError) throw preferenceError;
+    const enabledByUser = new Map(
+      (preferences ?? []).map((item) => [item.user_id as string, item[preference] !== false]),
+    );
+    const eligibleDevices = devices.filter((device) => enabledByUser.get(device.user_id as string) !== false);
+    if (eligibleDevices.length === 0) return;
+
     const token = await accessToken(serviceAccount);
     const endpoint = `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`;
-    await Promise.all(devices.map(async (device) => {
+    await Promise.all(eligibleDevices.map(async (device) => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {

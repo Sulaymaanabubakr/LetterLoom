@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
+import { sendPushNotification } from '../_shared/push.ts';
 
 const fields = 'id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at, mode';
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -54,6 +55,13 @@ Deno.serve(async (req) => {
         const { error: initError } = await admin.rpc('initialize_multiplayer_game', { p_game_id: game.id });
         if (initError) throw initError;
         await admin.from('ranked_queue').update({ status: 'matched', game_id: game.id, updated_at: new Date().toISOString() }).in('user_id', [user.id, other.opponent_user_id]);
+        await sendPushNotification(
+          [other.opponent_user_id],
+          'Competitive Duel ready',
+          'Your ranked LetterLoom match is ready to play.',
+          { game_id: game.id as string, event: 'ranked_match_ready' },
+          'ranked_matches',
+        );
         return response({ status: 'matched', game });
       }
     }

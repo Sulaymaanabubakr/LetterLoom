@@ -76,7 +76,8 @@ flutter:
     - assets/dictionary/enable1.txt
     - assets/images/logo.png
     - assets/images/google_g_logo.svg
-    - assets/audio/
+    - assets/audio/menu_music.m4a
+    - assets/audio/game_music.m4a
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

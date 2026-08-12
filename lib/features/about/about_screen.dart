@@ -148,8 +148,8 @@ class AboutScreen extends StatelessWidget {
                         title: "Harmonic Soundscapes",
                         content:
                             "Relaxing, high-quality audio files curated to aid focus and strategy:\n\n"
-                            "• Menu Music: \"Gymnopédie No. 1\" (Erik Satie, performed by Kevin MacLeod)\n\n"
-                            "• Game Music: \"Kalimba Relaxation Music\" (performed by Kevin MacLeod)\n\n"
+                            "• General Screens: \"Midsummer Sky\" (Kevin MacLeod)\n\n"
+                            "• Game & Daily Challenge: \"Sapphire Isle\" (Kevin MacLeod)\n\n"
                             "Both tracks are licensed under the Creative Commons Attribution 4.0 License. Special thanks to Kevin MacLeod (incompetech.com) for making these beautiful works available for commercial use.",
                       ),
                       const SizedBox(height: 36),

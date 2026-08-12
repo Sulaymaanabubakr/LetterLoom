@@ -75,6 +75,18 @@ Deno.serve(async (req) => {
           moveError.message.includes('turn expired') ? 409 : 400;
         return response({ error: moveError.message }, status);
       }
+      const nextTurnUserId = (moveResponse as Record<string, unknown>)
+        .next_turn_user_id as string | null | undefined;
+      const status = (moveResponse as Record<string, unknown>).status as string | undefined;
+      if (status === 'active' && nextTurnUserId && nextTurnUserId !== user.id) {
+        await sendPushNotification(
+          [nextTurnUserId],
+          'Your turn',
+          'Your opponent made a move in LetterLoom.',
+          { game_id: gameId, event: 'your_turn' },
+          'multiplayer_turns',
+        );
+      }
       return response({ move: moveResponse });
     }
 

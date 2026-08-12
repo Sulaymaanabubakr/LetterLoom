@@ -19,8 +19,8 @@ References:
 
 The bundled M4A files in `assets/audio/` are credited in the app's About screen as Kevin MacLeod recordings:
 
-- `menu_music.m4a`: “Gymnopédie No. 1” — Kevin MacLeod, based on Erik Satie's composition.
-- `game_music.m4a`: “Kalimba Relaxation Music” — Kevin MacLeod.
+- `menu_music.m4a`: “Midsummer Sky” — Kevin MacLeod.
+- `game_music.m4a`: “Sapphire Isle” — Kevin MacLeod.
 
 The tracks are identified as licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0). Attribution must remain available in the app and in distributions that include these files.
 

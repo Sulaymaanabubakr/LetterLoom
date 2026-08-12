@@ -5,8 +5,8 @@ import 'package:flutter/widgets.dart';
 enum MusicTrack { menu, game }
 
 /// Singleton that manages background music playback from bundled assets.
-/// - Menu: Satie's Gymnopédie No. 1 — warm, welcoming piano.
-/// - Game: Kalimba Relaxation Music — calm, cozy thumb-piano to aid focus.
+/// - Menu: Midsummer Sky — welcoming, gentle piano.
+/// - Game: Sapphire Isle — calm piano for focused play.
 /// Both tracks are Kevin MacLeod recordings under CC Attribution 4.0 (incompetech.com).
 class MusicManager with WidgetsBindingObserver {
   static final MusicManager instance = MusicManager._internal();
@@ -37,7 +37,10 @@ class MusicManager with WidgetsBindingObserver {
         _isObservingLifecycle = true;
       }
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.setVolume(0.10);
+      // Keep the player at full media gain. Volume is deliberately owned by
+      // Android/iOS media controls, so players use their phone volume buttons
+      // rather than an arbitrary in-app cap.
+      await _audioPlayer.setVolume(1.0);
       _isInitialized = true;
       if (_musicEnabled && _isAppResumed) _playCurrentTrack();
     } catch (e) {

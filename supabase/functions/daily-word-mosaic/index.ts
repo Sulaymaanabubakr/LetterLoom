@@ -75,11 +75,14 @@ const puzzleFor = (template: Template, seed: number) => {
 const publicWords = (
   words: Array<{ clue: string; answer: string; letters: string[] }>,
   solvedIndexes: number[] = [],
+  revealAll = false,
 ) => words.map((word, index) => ({
     clue: word.clue,
     answer_length: word.answer.length,
     letters: word.letters,
-    ...(solvedIndexes.includes(index) ? { solved_answer: word.answer } : {}),
+    ...(revealAll || solvedIndexes.includes(index)
+      ? { solved_answer: word.answer }
+      : {}),
   }));
 
 const timerState = (progress: Record<string, unknown>) => {
@@ -135,8 +138,40 @@ Deno.serve(async (req) => {
     }
     const currentTimer = current ? timerState(current) : { remaining: 180, expired: false };
     if (currentTimer.expired || current?.failed === true) {
-      await admin.from('daily_word_mosaic_progress').update({ remaining_seconds: 0, timer_started_at: null, failed: true, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
-      return response({ error: 'Time is up for today\'s Daily Challenge.' }, 409);
+      const { data: failedProgress, error } = await admin
+        .from('daily_word_mosaic_progress')
+        .update({
+          remaining_seconds: 0,
+          timer_started_at: null,
+          failed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .eq('puzzle_date', today)
+        .select('*')
+        .single();
+      if (error) throw error;
+
+      // An expired challenge is a valid, viewable state—not a transport or
+      // sign-in failure. Returning the normal snapshot lets the app show the
+      // failed challenge instead of incorrectly calling it unavailable.
+      return response({
+        accepted: false,
+        puzzle: {
+          date: today,
+          puzzle_id: template.id,
+          difficulty_tier: tier,
+          words: publicWords(
+            words,
+            Array.isArray(failedProgress.solved_word_indexes)
+              ? failedProgress.solved_word_indexes.map((value: unknown) => Number(value))
+              : [],
+            true,
+          ),
+          target_score: words.reduce((sum, word) => sum + word.answer.length, 0),
+        },
+        progress: { ...failedProgress, remaining_seconds: 0 },
+      });
     }
     if (action === 'expire') {
       const { error } = await admin.from('daily_word_mosaic_progress').update({ remaining_seconds: 0, timer_started_at: null, failed: true, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
@@ -207,6 +242,7 @@ Deno.serve(async (req) => {
           Array.isArray(progress.solved_word_indexes)
             ? progress.solved_word_indexes.map((value: unknown) => Number(value))
             : [],
+          progress.failed === true,
         ),
         target_score: words.reduce((sum, word) => sum + word.answer.length, 0),
       },

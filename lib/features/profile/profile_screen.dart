@@ -425,7 +425,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
-                    vertical: 16,
+                    vertical: 10,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -440,10 +440,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           color: AppTheme.shinyGold,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       // Header Card
                       Container(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFF174B37), Color(0xFF061A13)],
@@ -472,39 +472,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Column(
                           children: [
                             Stack(
+                              clipBehavior: Clip.none,
                               children: [
-                                GestureDetector(
+                                InkWell(
                                   onTap: () => _showAvatarPicker(profile),
+                                  borderRadius: BorderRadius.circular(44),
                                   child: Container(
-                                    width: 76,
-                                    height: 76,
+                                    width: 82,
+                                    height: 82,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: const Color(0xFF021710),
                                       border: Border.all(
                                         color: AppTheme.shinyGold,
-                                        width: 2,
+                                        width: 2.4,
                                       ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppTheme.shinyGold.withValues(
+                                            alpha: 0.18,
+                                          ),
+                                          blurRadius: 18,
+                                        ),
+                                      ],
                                     ),
                                     child: Center(
                                       child: Text(
                                         avatarData['icon']!,
-                                        style: const TextStyle(fontSize: 38),
+                                        style: const TextStyle(fontSize: 40),
                                       ),
                                     ),
                                   ),
                                 ),
                                 Positioned(
-                                  right: 0,
-                                  bottom: 0,
+                                  right: -2,
+                                  bottom: -2,
                                   child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
+                                    width: 27,
+                                    height: 27,
+                                    decoration: BoxDecoration(
                                       color: AppTheme.shinyGold,
                                       shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF123B2C),
+                                        width: 2,
+                                      ),
                                     ),
                                     child: const Icon(
-                                      Icons.edit,
+                                      Icons.edit_rounded,
                                       size: 14,
                                       color: Colors.black,
                                     ),
@@ -512,9 +527,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             Text(
                               profile.displayName,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.lora(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -523,7 +541,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(height: 2),
                             SizedBox(
-                              height: 34,
+                              height: 28,
                               width: double.infinity,
                               child: Stack(
                                 alignment: Alignment.center,
@@ -531,6 +549,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   Text(
                                     '@${profile.username}',
                                     textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       color: AppTheme.shinyGold,
@@ -542,9 +562,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     child: IconButton(
                                       tooltip: 'Change username',
                                       visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 28,
+                                        minHeight: 28,
+                                      ),
                                       icon: const Icon(
                                         Icons.edit_rounded,
-                                        size: 16,
+                                        size: 15,
                                         color: AppTheme.shinyGold,
                                       ),
                                       onPressed: () {
@@ -561,21 +586,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             InkWell(
                               onTap: () => _showCountryPicker(profile),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(14),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
-                                  vertical: 6,
+                                  vertical: 5,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
                                       countryData?.flagEmoji ?? '🌍',
-                                      style: const TextStyle(fontSize: 17),
+                                      style: const TextStyle(fontSize: 16),
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 5),
                                     Flexible(
                                       child: Text(
                                         countryData?.displayNameNoCountryCode ??
@@ -583,57 +607,89 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
                                           color: AppTheme.mutedIvory,
-                                          fontSize: 13,
+                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
                                     const Icon(
                                       Icons.keyboard_arrow_down_rounded,
                                       color: AppTheme.mutedIvory,
-                                      size: 18,
+                                      size: 17,
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            // Level progress bar
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Level ${profile.level}',
-                                  style: GoogleFonts.lora(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.ivoryText,
+                            const SizedBox(height: 9),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF031A12,
+                                ).withValues(alpha: 0.66),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: AppTheme.shinyGold.withValues(
+                                    alpha: 0.2,
                                   ),
                                 ),
-                                Text(
-                                  'Level progress',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppTheme.mutedIvory,
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 9,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.shinyGold,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'LEVEL ${profile.level}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF1E1402),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        '${profile.xp - currentLevelXP} / $range XP',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: AppTheme.mutedIvory,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: LinearProgressIndicator(
-                                value: progressFraction,
-                                minHeight: 10,
-                                backgroundColor: const Color(0xFF021710),
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  AppTheme.shinyGold,
-                                ),
+                                  const SizedBox(height: 7),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: progressFraction,
+                                      minHeight: 8,
+                                      backgroundColor: const Color(0xFF010E0A),
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                            AppTheme.shinyGold,
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
                       // Guest Warning Banner (if guest)
                       if (profile.isGuest)
                         Container(
@@ -681,21 +737,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ],
                           ),
                         ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       // Competitive Statistics Grid
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Container(
-                            width: 4,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: AppTheme.shinyGold,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 9),
                           Text(
                             'Competitive Stats',
+                            textAlign: TextAlign.center,
                             style: GoogleFonts.lora(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -704,13 +753,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       GridView.count(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: 2,
-                        childAspectRatio: 1.8,
-                        mainAxisSpacing: 10,
+                        childAspectRatio: 2.18,
+                        mainAxisSpacing: 8,
                         crossAxisSpacing: 10,
                         children: [
                           _buildStatTile(
@@ -751,14 +800,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                       // Sign Out Button (if authenticated)
                       if (!profile.isGuest)
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.redAccent,
                             side: const BorderSide(color: Colors.redAccent),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
                           ),
                           icon: const Icon(Icons.logout),
                           label: const Text('Sign Out'),
@@ -808,28 +857,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 16, color: AppTheme.shinyGold),
               const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppTheme.mutedIvory,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: AppTheme.mutedIvory,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             value,
+            textAlign: TextAlign.center,
             style: GoogleFonts.lora(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -838,6 +888,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           Text(
             subtitle,
+            textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 10,
               color: AppTheme.mutedIvory.withValues(alpha: 0.7),
