@@ -14,12 +14,16 @@ class HintModal extends ConsumerStatefulWidget {
   final List<List<BoardCell>> boardGrid;
   final List<Tile> playerRack;
   final Function(HintResult result) onHintGenerated;
+  final VoidCallback? onHintGenerationStarted;
+  final VoidCallback? onHintGenerationFinished;
 
   const HintModal({
     super.key,
     required this.boardGrid,
     required this.playerRack,
     required this.onHintGenerated,
+    this.onHintGenerationStarted,
+    this.onHintGenerationFinished,
   });
 
   static Future<void> show({
@@ -27,6 +31,8 @@ class HintModal extends ConsumerStatefulWidget {
     required List<List<BoardCell>> boardGrid,
     required List<Tile> playerRack,
     required Function(HintResult result) onHintGenerated,
+    VoidCallback? onHintGenerationStarted,
+    VoidCallback? onHintGenerationFinished,
   }) async {
     return showModalBottomSheet(
       context: context,
@@ -36,6 +42,8 @@ class HintModal extends ConsumerStatefulWidget {
         boardGrid: boardGrid,
         playerRack: playerRack,
         onHintGenerated: onHintGenerated,
+        onHintGenerationStarted: onHintGenerationStarted,
+        onHintGenerationFinished: onHintGenerationFinished,
       ),
     );
   }
@@ -45,6 +53,8 @@ class HintModal extends ConsumerStatefulWidget {
 }
 
 class _HintModalState extends ConsumerState<HintModal> {
+  bool _generating = false;
+  String? _generatingHintType;
   String _helperName(String type) {
     switch (type) {
       case 'move':
@@ -71,38 +81,54 @@ class _HintModalState extends ConsumerState<HintModal> {
     }
   }
 
-  void _requestHint(String hintType) async {
+  Future<void> _requestHint(String hintType) async {
+    if (_generating) return;
+    setState(() {
+      _generating = true;
+      _generatingHintType = hintType;
+    });
+    widget.onHintGenerationStarted?.call();
     final hintNotifier = ref.read(hintServiceProvider.notifier);
 
     // Compute hint first to ensure legal move exists BEFORE consuming hint
-    final result = HintEngine.generateHint(
-      boardGrid: widget.boardGrid,
-      playerRack: widget.playerRack,
-      hintType: hintType,
-    );
+    try {
+      final result = await HintEngine.generateHint(
+        boardGrid: widget.boardGrid,
+        playerRack: widget.playerRack,
+        hintType: hintType,
+      );
 
-    if (result == null) {
-      if (mounted) {
-        ToastUtils.showToast(
-          context,
-          'No legal moves found on board right now.',
-          isError: true,
-        );
+      if (result == null) {
+        if (mounted) {
+          ToastUtils.showToast(
+            context,
+            'No legal moves found on board right now.',
+            isError: true,
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    final success = await hintNotifier.consumeHint(hintType);
-    if (!success) {
-      if (mounted) {
-        _showGetMoreHintsDialog(hintType);
+      final success = await hintNotifier.consumeHint(hintType);
+      if (!success) {
+        if (mounted) {
+          _showGetMoreHintsDialog(hintType);
+        }
+        return;
       }
-      return;
-    }
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      widget.onHintGenerated(result);
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onHintGenerated(result);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _generating = false;
+          _generatingHintType = null;
+        });
+      }
+      widget.onHintGenerationFinished?.call();
     }
   }
 
@@ -125,43 +151,64 @@ class _HintModalState extends ConsumerState<HintModal> {
           ),
           Expanded(
             child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.emeraldGreen),
-              icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white, size: 18),
-              label: const Text('WATCH VIDEO', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.emeraldGreen,
+              ),
+              icon: const Icon(
+                Icons.ondemand_video_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              label: const Text(
+                'WATCH VIDEO',
+                style: TextStyle(color: Colors.white),
+              ),
               onPressed: () async {
-              Navigator.of(context).pop();
-              await AdService().showRewardedAd(
-                hintType: hintType,
-                onRewardEarned: (type, amount) async {
-                  final granted = await ref
-                      .read(hintServiceProvider.notifier)
-                      .grantAdReward(type);
-                  if (mounted) {
-                    if (granted) {
-                      ToastUtils.showToast(context, '+1 ${_helperName(type)} help earned!');
-                    } else {
-                      ToastUtils.showToast(
-                        context,
-                        'Daily ad limit reached.',
-                        isError: true,
-                      );
+                Navigator.of(context).pop();
+                await AdService().showRewardedAd(
+                  hintType: hintType,
+                  onRewardEarned: (type, amount) async {
+                    final granted = await ref
+                        .read(hintServiceProvider.notifier)
+                        .grantAdReward(type);
+                    if (mounted) {
+                      if (granted) {
+                        ToastUtils.showToast(
+                          context,
+                          '+1 ${_helperName(type)} help earned!',
+                        );
+                      } else {
+                        ToastUtils.showToast(
+                          context,
+                          'Daily ad limit reached.',
+                          isError: true,
+                        );
+                      }
                     }
-                  }
-                },
-                onError: (err) {
-                  if (mounted) {
-                    ToastUtils.showToast(context, err, isError: true);
-                  }
-                },
-              );
+                  },
+                  onError: (err) {
+                    if (mounted) {
+                      ToastUtils.showToast(context, err, isError: true);
+                    }
+                  },
+                );
               },
             ),
           ),
           Expanded(
             child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.shinyGold),
-              icon: const Icon(Icons.shopping_bag_rounded, color: Colors.black, size: 18),
-              label: const Text('GET PACK', style: TextStyle(color: Colors.black)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.shinyGold,
+              ),
+              icon: const Icon(
+                Icons.shopping_bag_rounded,
+                color: Colors.black,
+                size: 18,
+              ),
+              label: const Text(
+                'GET PACK',
+                style: TextStyle(color: Colors.black),
+              ),
               onPressed: () async {
                 Navigator.of(context).pop();
                 final pack = BillingService.availablePacks.firstWhere(
@@ -170,13 +217,23 @@ class _HintModalState extends ConsumerState<HintModal> {
                 await BillingService().purchasePack(
                   pack,
                   onPurchaseFulfilled: (type, amount) async {
-                    await ref.read(hintServiceProvider.notifier).addPurchasedHints(type, amount);
+                    await ref
+                        .read(hintServiceProvider.notifier)
+                        .addPurchasedHints(type, amount);
                     if (mounted) {
-                      ToastUtils.showToast(context, 'Added $amount ${_helperName(type)} helps.');
+                      ToastUtils.showToast(
+                        context,
+                        'Added $amount ${_helperName(type)} helps.',
+                      );
                     }
                   },
                   onError: (error) {
-                    if (mounted) ToastUtils.showToast(context, 'Purchase could not be completed.', isError: true);
+                    if (mounted)
+                      ToastUtils.showToast(
+                        context,
+                        'Purchase could not be completed.',
+                        isError: true,
+                      );
                     debugPrint('[Hints] Purchase failed: $error');
                   },
                 );
@@ -216,8 +273,19 @@ class _HintModalState extends ConsumerState<HintModal> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: AppTheme.shinyGold),
-                  onPressed: () => Navigator.of(context).pop(),
+                  icon: _generating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.shinyGold,
+                          ),
+                        )
+                      : const Icon(Icons.close, color: AppTheme.shinyGold),
+                  onPressed: _generating
+                      ? null
+                      : () => Navigator.of(context).pop(),
                 ),
               ],
             ),
@@ -227,7 +295,8 @@ class _HintModalState extends ConsumerState<HintModal> {
               subtitle: _helperDescription('move'),
               icon: Icons.grid_view_rounded,
               remainingText: '${hintState.totalMoveHints()} left',
-              onTap: () => _requestHint('move'),
+              isGenerating: _generatingHintType == 'move',
+              onTap: _generating ? null : () => _requestHint('move'),
             ),
             const SizedBox(height: 12),
             _buildHintOptionCard(
@@ -235,7 +304,8 @@ class _HintModalState extends ConsumerState<HintModal> {
               subtitle: _helperDescription('letter'),
               icon: Icons.text_fields_rounded,
               remainingText: '${hintState.totalLetterHints()} left',
-              onTap: () => _requestHint('letter'),
+              isGenerating: _generatingHintType == 'letter',
+              onTap: _generating ? null : () => _requestHint('letter'),
             ),
             const SizedBox(height: 12),
             _buildHintOptionCard(
@@ -243,7 +313,8 @@ class _HintModalState extends ConsumerState<HintModal> {
               subtitle: _helperDescription('strong'),
               icon: Icons.auto_awesome_rounded,
               remainingText: '${hintState.totalStrongHints()} left',
-              onTap: () => _requestHint('strong'),
+              isGenerating: _generatingHintType == 'strong',
+              onTap: _generating ? null : () => _requestHint('strong'),
             ),
           ],
         ),
@@ -256,7 +327,8 @@ class _HintModalState extends ConsumerState<HintModal> {
     required String subtitle,
     required IconData icon,
     required String remainingText,
-    required VoidCallback onTap,
+    required bool isGenerating,
+    required VoidCallback? onTap,
   }) {
     return Material(
       color: AppTheme.panelDark,
@@ -273,19 +345,43 @@ class _HintModalState extends ConsumerState<HintModal> {
           ),
           child: Icon(icon, color: AppTheme.shinyGold),
         ),
-        title: Text(title, style: GoogleFonts.lora(color: AppTheme.ivoryText, fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mutedIvory)),
+        title: Text(
+          title,
+          style: GoogleFonts.lora(
+            color: AppTheme.ivoryText,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mutedIvory),
+        ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: AppTheme.shinyGold.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.5)),
+            border: Border.all(
+              color: AppTheme.shinyGold.withValues(alpha: 0.5),
+            ),
           ),
-          child: Text(
-            remainingText,
-            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.shinyGold, fontWeight: FontWeight.bold),
-          ),
+          child: isGenerating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.shinyGold,
+                  ),
+                )
+              : Text(
+                  remainingText,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppTheme.shinyGold,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
         onTap: onTap,
       ),

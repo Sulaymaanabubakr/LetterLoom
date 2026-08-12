@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../storage/persistence_manager.dart';
 import '../../core/supabase_bootstrap.dart';
+import '../../core/toast_utils.dart';
 import '../hints/hint_service.dart';
 import '../progression/progression_service.dart';
 
@@ -90,16 +91,22 @@ class DailyRewardsService {
         isScrollControlled: true,
         builder: (dialogContext) => _DailyRewardDialog(
           streakDays: nextStreak,
-          onClaim: () async {
-            final claimed = await _claimToday(
-              ref,
-              isAccount,
-              state,
-              today,
-              nextStreak,
-            );
-            if (claimed && dialogContext.mounted) {
+          onClaim: () => _claimToday(ref, isAccount, state, today, nextStreak),
+          onClaimed: () {
+            if (dialogContext.mounted) {
               Navigator.of(dialogContext).pop();
+            }
+            if (context.mounted) {
+              ToastUtils.show(context, _rewardConfirmationMessage(nextStreak));
+            }
+          },
+          onClaimFailed: () {
+            if (context.mounted) {
+              ToastUtils.show(
+                context,
+                'Daily reward could not be claimed. Please try again.',
+                isError: true,
+              );
             }
           },
         ),
@@ -126,6 +133,19 @@ class DailyRewardsService {
     return currentDate.difference(lastDate).inDays == 1
         ? state.streakDays + 1
         : 1;
+  }
+
+  static String _rewardConfirmationMessage(int streakDays) {
+    final day = ((streakDays - 1) % 7) + 1;
+    return switch (day) {
+      1 => 'Daily reward claimed: +1 Move Hint.',
+      2 => 'Daily reward claimed: +1 Letter Hint.',
+      3 => 'Daily reward claimed: +1 Strong Hint.',
+      4 => 'Daily reward claimed: +50 level progress.',
+      5 => 'Daily reward claimed: +2 Move Hints.',
+      6 => 'Daily reward claimed: +2 Letter Hints.',
+      _ => 'Daily reward claimed: +100 level progress.',
+    };
   }
 
   static Future<bool> _claimToday(
@@ -177,9 +197,16 @@ class DailyRewardsService {
 
 class _DailyRewardDialog extends StatefulWidget {
   final int streakDays;
-  final Future<void> Function() onClaim;
+  final Future<bool> Function() onClaim;
+  final VoidCallback onClaimed;
+  final VoidCallback onClaimFailed;
 
-  const _DailyRewardDialog({required this.streakDays, required this.onClaim});
+  const _DailyRewardDialog({
+    required this.streakDays,
+    required this.onClaim,
+    required this.onClaimed,
+    required this.onClaimFailed,
+  });
 
   @override
   State<_DailyRewardDialog> createState() => _DailyRewardDialogState();
@@ -229,7 +256,12 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
   Future<void> _claim() async {
     if (_claiming) return;
     setState(() => _claiming = true);
-    await widget.onClaim();
+    final claimed = await widget.onClaim();
+    if (claimed) {
+      widget.onClaimed();
+    } else {
+      widget.onClaimFailed();
+    }
     if (mounted) setState(() => _claiming = false);
   }
 

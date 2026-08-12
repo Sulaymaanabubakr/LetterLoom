@@ -37,8 +37,8 @@ class PersistenceManager {
       final remaining = state.turnStartedAt == null
           ? null
           : (GameState.turnDurationSeconds -
-                  now.difference(state.turnStartedAt!).inSeconds)
-              .clamp(0, GameState.turnDurationSeconds);
+                    now.difference(state.turnStartedAt!).inSeconds)
+                .clamp(0, GameState.turnDurationSeconds);
       final payload = <String, dynamic>{
         ...state.toJson(),
         'turnSecondsRemaining': remaining,
@@ -183,11 +183,33 @@ class PersistenceManager {
 
   // --- Profile Persistence ---
 
-  static const String _profileSaveFileName = 'letterloom_profile_v2.json';
+  // Keep guest and authenticated identities independent. Signing out must not
+  // replace the last signed-in profile with a newly generated guest profile.
+  static const String _legacyProfileSaveFileName = 'letterloom_profile_v2.json';
+  static const String _guestProfileSaveFileName =
+      'letterloom_guest_profile_v1.json';
+  static const String _accountProfileSaveFileName =
+      'letterloom_account_profile_v1.json';
 
   Future<void> saveProfile(PlayerProfile profile) async {
+    if (profile.isGuest) {
+      await saveGuestProfile(profile);
+    } else {
+      await saveAuthenticatedProfile(profile);
+    }
+  }
+
+  Future<void> saveGuestProfile(PlayerProfile profile) async {
+    await _saveProfile(_guestProfileSaveFileName, profile);
+  }
+
+  Future<void> saveAuthenticatedProfile(PlayerProfile profile) async {
+    await _saveProfile(_accountProfileSaveFileName, profile);
+  }
+
+  Future<void> _saveProfile(String fileName, PlayerProfile profile) async {
     try {
-      final file = await _getFile(_profileSaveFileName);
+      final file = await _getFile(fileName);
       final jsonString = jsonEncode(profile.toJson());
       await file.writeAsString(jsonString);
     } catch (e) {
@@ -196,8 +218,27 @@ class PersistenceManager {
   }
 
   Future<PlayerProfile?> loadProfile() async {
+    final guest = await loadGuestProfile();
+    return guest ?? loadAuthenticatedProfile();
+  }
+
+  Future<PlayerProfile?> loadGuestProfile() async {
+    final saved = await _loadProfile(_guestProfileSaveFileName);
+    if (saved != null) return saved.isGuest ? saved : null;
+    final legacy = await _loadProfile(_legacyProfileSaveFileName);
+    return legacy?.isGuest == true ? legacy : null;
+  }
+
+  Future<PlayerProfile?> loadAuthenticatedProfile() async {
+    final saved = await _loadProfile(_accountProfileSaveFileName);
+    if (saved != null) return saved.isGuest ? null : saved;
+    final legacy = await _loadProfile(_legacyProfileSaveFileName);
+    return legacy?.isGuest == false ? legacy : null;
+  }
+
+  Future<PlayerProfile?> _loadProfile(String fileName) async {
     try {
-      final file = await _getFile(_profileSaveFileName);
+      final file = await _getFile(fileName);
       if (!await file.exists()) return null;
       final String jsonString = await file.readAsString();
       if (jsonString.trim().isEmpty) return null;

@@ -41,6 +41,7 @@ app.*.map.json
 letterloom-firebase-service-account.json
 letterloom-ca438-858a65bf82db.json
 dart_defines.json
+dart_defines.local.json
 
 # Firebase client configuration (keep out of the public repository)
 google-services.json

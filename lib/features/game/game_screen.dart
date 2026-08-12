@@ -1668,6 +1668,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     if (!mounted) return;
                     setState(() => _activeHint = hint);
                   },
+                  // Hint search can take a moment on a full board. A solo
+                  // player must never lose their turn while it is calculating.
+                  onHintGenerationStarted: () =>
+                      ref.read(_provider.notifier).pauseGame(),
+                  onHintGenerationFinished: () =>
+                      ref.read(_provider.notifier).resumeGame(),
                 );
               },
               borderRadius: BorderRadius.circular(28),

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Play Games Services project ID; the SDK reads it through getString(). -->
+    <string name="play_games_app_id">374555574691</string>
+</resources>

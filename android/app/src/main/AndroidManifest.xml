@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Required by audioplayers for audio session management -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Keeps audio playing when screen dims during a game -->
@@ -12,11 +13,11 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713" />
-        <!-- Play Games uses this placeholder until the Play Console app id is
-             provisioned. The Flutter wrapper fails closed when unavailable. -->
+        <!-- The Google Play Games Services project ID provisioned in Play
+             Console. Keep this in sync with the Android credentials there. -->
         <meta-data
             android:name="com.google.android.gms.games.APP_ID"
-            android:value="000000000000" />
+            android:value="@string/play_games_app_id" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -44,6 +45,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                tools:node="remove" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

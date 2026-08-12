@@ -24,10 +24,10 @@ class AppConfig {
     return value;
   }
 
-  // ── Google Play Games Integration Placeholders ────────────────────────────
+  // ── Google Play Games Integration ─────────────────────────────────────────
   static const String playGamesAppId = String.fromEnvironment(
     'PLAY_GAMES_APP_ID',
-    defaultValue: '000000000000',
+    defaultValue: '374555574691',
   );
 
   static const Map<String, String> playGamesAchievementsMap = {

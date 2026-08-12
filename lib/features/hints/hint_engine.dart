@@ -1,6 +1,8 @@
 import '../../models/board_cell.dart';
 import '../../models/tile.dart';
 import '../../ai/ai_engine.dart';
+import '../../ai/ai_isolate.dart';
+import '../../dictionary/dictionary_service.dart';
 
 class HintResult {
   final String hintType; // 'move', 'letter', 'strong'
@@ -27,23 +29,27 @@ class HintResult {
 class HintEngine {
   /// Analyzes current board and rack to compute a valid legal move hint.
   /// Returns `null` if no valid move can be generated.
-  static HintResult? generateHint({
+  static Future<HintResult?> generateHint({
     required List<List<BoardCell>> boardGrid,
     required List<Tile> playerRack,
     required String hintType, // 'move', 'letter', 'strong'
-  }) {
+  }) async {
     if (playerRack.isEmpty) return null;
 
-    final args = <String, dynamic>{
-      'board': boardGrid.map((row) => row.map((cell) => cell.toJson()).toList()).toList(),
-      'rack': playerRack.map((t) => t.toJson()).toList(),
-      'difficulty': 'hard', // Find high quality move for hints
-    };
+    // The move search walks the entire word list. Running it on the UI isolate
+    // freezes touch/animation on real devices, so use the same background
+    // isolate used by the computer opponent.
+    final aiMove = await AIService.calculateMove(
+      board: boardGrid,
+      rack: playerRack,
+      difficulty: 'hard',
+      dictionaryWords: DictionaryService().wordList,
+    );
 
-    final rawMove = AIEngine.computeMove(args);
-    final aiMove = AIMove.fromJson(rawMove);
-
-    if (aiMove.isPass || aiMove.isExchange || aiMove.placements.isEmpty || aiMove.word.isEmpty) {
+    if (aiMove.isPass ||
+        aiMove.isExchange ||
+        aiMove.placements.isEmpty ||
+        aiMove.word.isEmpty) {
       return null;
     }
 

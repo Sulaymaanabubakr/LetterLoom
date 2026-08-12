@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math';
+import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -31,25 +30,38 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   // the package/SHA-1 configuration. The server client ID is the separate Web
   // OAuth client whose audience Supabase validates in the ID token.
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: AppConfig.googleIosClientId,
+    clientId: io.Platform.isIOS ? AppConfig.googleIosClientId : null,
     scopes: ['email', 'profile'],
     serverClientId: AppConfig.configuredGoogleClientId,
   );
 
   Future<void> _init() async {
-    final savedProfile = await _persistence.loadProfile();
-    if (savedProfile != null) {
-      state = savedProfile;
-    } else {
-      final guestId = 'guest_${DateTime.now().millisecondsSinceEpoch}';
-      final funnyUsername = UsernameGenerator.generateFunnyUsername();
-      final guestProfile = PlayerProfile.guest(
-        id: guestId,
-        funnyUsername: funnyUsername,
-      );
-      state = guestProfile;
-      await _persistence.saveProfile(guestProfile);
+    final sessionUser = SupabaseBootstrap.configured
+        ? Supabase.instance.client.auth.currentUser
+        : null;
+    if (sessionUser != null && !sessionUser.isAnonymous) {
+      final remoteProfile = await _loadRemoteProfile(sessionUser.id);
+      if (remoteProfile != null) {
+        state = remoteProfile;
+        await _persistence.saveAuthenticatedProfile(remoteProfile);
+        return;
+      }
+
+      final cachedAccount = await _persistence.loadAuthenticatedProfile();
+      if (cachedAccount?.id == sessionUser.id) {
+        state = cachedAccount!;
+        return;
+      }
     }
+
+    final guestProfile =
+        await _persistence.loadGuestProfile() ??
+        PlayerProfile.guest(
+          id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
+          funnyUsername: UsernameGenerator.generateFunnyUsername(),
+        );
+    state = guestProfile;
+    await _persistence.saveGuestProfile(guestProfile);
   }
 
   /// Update the current profile in memory and local storage.
@@ -80,7 +92,11 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       }
     }
     state = updated;
-    await _persistence.saveProfile(updated);
+    if (updated.isGuest) {
+      await _persistence.saveGuestProfile(updated);
+    } else {
+      await _persistence.saveAuthenticatedProfile(updated);
+    }
     return true;
   }
 
@@ -99,11 +115,9 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
           await googleUser.authentication;
       final String idToken = googleAuth.idToken ?? '';
       final String accessToken = googleAuth.accessToken ?? '';
-      final googleNonce = _nonceClaim(idToken);
       debugPrint(
         '[Auth] Google credentials received '
-        '(idToken=${idToken.isNotEmpty}, accessToken=${accessToken.isNotEmpty}, '
-        'nonceClaim=${googleNonce != null})',
+        '(idToken=${idToken.isNotEmpty}, accessToken=${accessToken.isNotEmpty})',
       );
 
       if (idToken.isEmpty || accessToken.isEmpty) {
@@ -131,7 +145,6 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
             provider: OAuthProvider.google,
             idToken: idToken,
             accessToken: accessToken,
-            nonce: googleNonce,
           );
         } catch (signInError) {
           debugPrint('[Auth] Supabase Google sign-in error: $signInError');
@@ -150,25 +163,23 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
         return false;
       }
 
-      // Check if remote profile already exists
-      PlayerProfile? existingRemote;
-      if (SupabaseBootstrap.configured) {
-        try {
-          final response = await Supabase.instance.client
-              .from('player_profiles')
-              .select()
-              .eq('id', userId)
-              .maybeSingle();
-          if (response != null) {
-            existingRemote = PlayerProfile.fromJson(response);
-          }
-        } catch (_) {}
-      }
-
-      final guestProfile = state;
+      // The remote profile is the durable source of truth after the first
+      // successful sign-in. A guest profile may seed a brand-new account once,
+      // but must never overwrite or add to an existing account on later logins.
+      final existingRemote = SupabaseBootstrap.configured
+          ? await _loadRemoteProfile(userId)
+          : null;
+      final guestProfile = state.isGuest
+          ? state
+          : await _persistence.loadGuestProfile();
       final String baseName = googleUser.displayName ?? 'LoomPlayer';
+      // A guest becomes the user's first account identity. Keep the visible
+      // name they already chose instead of generating a second username. Once
+      // an account exists, its Supabase profile remains authoritative.
       String username =
-          existingRemote?.username ?? UsernameGenerator.generateFunnyUsername();
+          existingRemote?.username ??
+          guestProfile?.username ??
+          UsernameGenerator.generateFunnyUsername();
 
       // Ensure unique username
       if (existingRemote == null) {
@@ -179,33 +190,22 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
         id: userId,
         username: username,
         displayName: existingRemote?.displayName ?? baseName,
-        avatarId: existingRemote?.avatarId ?? guestProfile.avatarId,
-        countryCode: existingRemote?.countryCode ?? guestProfile.countryCode,
+        avatarId:
+            existingRemote?.avatarId ?? guestProfile?.avatarId ?? 'avatar_owl',
+        countryCode:
+            existingRemote?.countryCode ?? guestProfile?.countryCode ?? 'US',
         isGuest: false,
-        level: max(existingRemote?.level ?? 1, guestProfile.level),
-        xp: max(existingRemote?.xp ?? 0, guestProfile.xp),
-        rankedTier: existingRemote?.rankedTier ?? guestProfile.rankedTier,
-        rankedRating: max(
-          existingRemote?.rankedRating ?? 1200,
-          guestProfile.rankedRating,
-        ),
-        gamesPlayed:
-            (existingRemote?.gamesPlayed ?? 0) + guestProfile.gamesPlayed,
-        wins: (existingRemote?.wins ?? 0) + guestProfile.wins,
-        losses: (existingRemote?.losses ?? 0) + guestProfile.losses,
-        draws: (existingRemote?.draws ?? 0) + guestProfile.draws,
-        highestScore: max(
-          existingRemote?.highestScore ?? 0,
-          guestProfile.highestScore,
-        ),
-        currentStreak: max(
-          existingRemote?.currentStreak ?? 0,
-          guestProfile.currentStreak,
-        ),
-        bestStreak: max(
-          existingRemote?.bestStreak ?? 0,
-          guestProfile.bestStreak,
-        ),
+        level: existingRemote?.level ?? 1,
+        xp: existingRemote?.xp ?? 0,
+        rankedTier: existingRemote?.rankedTier ?? 'Bronze III',
+        rankedRating: existingRemote?.rankedRating ?? 1200,
+        gamesPlayed: existingRemote?.gamesPlayed ?? 0,
+        wins: existingRemote?.wins ?? 0,
+        losses: existingRemote?.losses ?? 0,
+        draws: existingRemote?.draws ?? 0,
+        highestScore: existingRemote?.highestScore ?? 0,
+        currentStreak: existingRemote?.currentStreak ?? 0,
+        bestStreak: existingRemote?.bestStreak ?? 0,
         createdAt: existingRemote?.createdAt ?? DateTime.now(),
       );
 
@@ -217,16 +217,16 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
     }
   }
 
-  String? _nonceClaim(String idToken) {
+  Future<PlayerProfile?> _loadRemoteProfile(String userId) async {
     try {
-      final parts = idToken.split('.');
-      if (parts.length != 3) return null;
-      final payload = jsonDecode(
-        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-      );
-      final nonce = payload is Map<String, dynamic> ? payload['nonce'] : null;
-      return nonce is String && nonce.isNotEmpty ? nonce : null;
-    } catch (_) {
+      final response = await Supabase.instance.client
+          .from('player_profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+      return response == null ? null : PlayerProfile.fromJson(response);
+    } catch (error) {
+      debugPrint('[Auth] Could not load account profile: $error');
       return null;
     }
   }
@@ -259,6 +259,7 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
 
   /// Sign out authenticated account and revert safely to Guest profile.
   Future<void> signOut() async {
+    final accountProfile = state.isGuest ? null : state;
     try {
       await _googleSignIn.signOut();
       if (SupabaseBootstrap.configured) {
@@ -266,11 +267,26 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       }
     } catch (_) {}
 
-    final guestProfile = PlayerProfile.guest(
-      id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
-      funnyUsername: UsernameGenerator.generateFunnyUsername(),
-    );
+    var guestProfile =
+        await _persistence.loadGuestProfile() ??
+        PlayerProfile.guest(
+          id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
+          funnyUsername: UsernameGenerator.generateFunnyUsername(),
+        );
+
+    // The guest keeps separate local progression, but signing out should not
+    // make the UI look like it switched to a different person. Mirror only
+    // safe display fields from the account; never copy account stats or its
+    // Supabase user id into guest storage.
+    if (accountProfile != null) {
+      guestProfile = guestProfile.copyWith(
+        username: accountProfile.username,
+        displayName: accountProfile.displayName,
+        avatarId: accountProfile.avatarId,
+        countryCode: accountProfile.countryCode,
+      );
+    }
     state = guestProfile;
-    await _persistence.saveProfile(guestProfile);
+    await _persistence.saveGuestProfile(guestProfile);
   }
 }
