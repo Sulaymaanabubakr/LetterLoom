@@ -28,8 +28,8 @@ android {
         // Android 5.0+ (covers 99%+ of active Android devices)
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0.2"
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     signingConfigs {
