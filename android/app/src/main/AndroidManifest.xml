@@ -9,11 +9,10 @@
         android:label="LetterLoom"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
-        <!-- Google test application id. Replace for release in the Play
-             Console/manifest configuration before monetized production. -->
+        <!-- LetterLoom's production AdMob application identifier. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-6010281506645729~4139889668" />
         <!-- The Google Play Games Services project ID provisioned in Play
              Console. Keep this in sync with the Android credentials there. -->
         <meta-data

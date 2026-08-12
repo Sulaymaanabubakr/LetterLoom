@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,10 +8,62 @@ import '../../models/board_cell.dart';
 import '../../models/tile.dart';
 import '../../core/ad_service.dart';
 import '../../core/toast_utils.dart';
-import '../auth/auth_service.dart';
 import 'boost_shop_screen.dart';
 import 'hint_service.dart';
 import 'hint_engine.dart';
+
+enum _MoreHintsAction { watchAd, boostShop }
+
+class _RewardedAdLoadingDialog extends StatelessWidget {
+  const _RewardedAdLoadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+          decoration: BoxDecoration(
+            color: const Color(0xFF021710),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.shinyGold, width: 1.2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.6,
+                  color: AppTheme.shinyGold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Loading your reward',
+                style: GoogleFonts.lora(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.shinyGold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Your game is paused.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: AppTheme.mutedIvory),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class HintModal extends ConsumerStatefulWidget {
   final List<List<BoardCell>> boardGrid;
@@ -117,25 +171,19 @@ class _HintModalState extends ConsumerState<HintModal> {
       final success = await hintNotifier.consumeHint(hintType);
       if (!success) {
         if (mounted) {
-          // Replace the help sheet with one modal. Stacking a second sheet on
-          // top of this one was the source of the cramped, inconsistent UI.
-          final rootContext = Navigator.of(context, rootNavigator: true).context;
-          // Keep a second pause lease while replacing this sheet with the
-          // boost dialog. The sheet's close callback releases only its lease.
-          widget.onModalOpened?.call();
-          await Navigator.of(context).maybePop();
-          if (rootContext.mounted) {
-            final openBoostShop = await _showGetMoreHintsDialog(
-              rootContext,
-              hintType,
-            );
-            if (openBoostShop == true && rootContext.mounted) {
-              await Navigator.of(rootContext).push(
-                MaterialPageRoute(builder: (_) => const BoostShopScreen()),
-              );
-            }
+          // Keep the help sheet alive behind its dialogs. Closing it before
+          // a rewarded-ad callback returns disposed this State and stranded
+          // the game's pause lease. Its one lease now has one owner: the
+          // bottom sheet's `finally` in HintModal.show.
+          final action = await _showGetMoreHintsDialog(context, hintType);
+          if (!mounted) return;
+          if (action == _MoreHintsAction.watchAd) {
+            await _watchRewardedAd(context, hintType);
+          } else if (action == _MoreHintsAction.boostShop) {
+            await Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const BoostShopScreen()));
           }
-          widget.onModalClosed?.call();
         }
         return;
       }
@@ -154,11 +202,11 @@ class _HintModalState extends ConsumerState<HintModal> {
     }
   }
 
-  Future<bool?> _showGetMoreHintsDialog(
+  Future<_MoreHintsAction?> _showGetMoreHintsDialog(
     BuildContext dialogContext,
     String hintType,
   ) {
-    return showDialog<bool>(
+    return showDialog<_MoreHintsAction>(
       context: dialogContext,
       useSafeArea: false,
       builder: (context) => PremiumDialog(
@@ -177,29 +225,7 @@ class _HintModalState extends ConsumerState<HintModal> {
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () async {
-                Navigator.of(context).pop(false);
-                await AdService().showRewardedAd(
-                  hintType: hintType,
-                  onRewardEarned: (type, amount) async {
-                    final granted = await ref
-                        .read(hintServiceProvider.notifier)
-                        .grantAdReward(type);
-                    if (dialogContext.mounted) {
-                      ToastUtils.showToast(
-                        dialogContext,
-                        granted
-                            ? '+1 ${_helperName(type)} help earned!'
-                            : 'Daily ad limit reached.',
-                        isError: !granted,
-                      );
-                    }
-                  },
-                  onError: (error) {
-                    if (dialogContext.mounted) {
-                      ToastUtils.showToast(dialogContext, error, isError: true);
-                    }
-                  },
-                );
+                Navigator.of(context).pop(_MoreHintsAction.watchAd);
               },
               icon: const Icon(Icons.ondemand_video_rounded, size: 17),
               label: const Text('WATCH ADS'),
@@ -213,16 +239,68 @@ class _HintModalState extends ConsumerState<HintModal> {
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () async {
-                Navigator.of(context).pop(true);
+                Navigator.of(context).pop(_MoreHintsAction.boostShop);
               },
               icon: const Icon(Icons.shopping_bag_rounded, size: 17),
               label: const Text('BOOST SHOP'),
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.shinyGold, foregroundColor: AppTheme.darkCharcoal),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.shinyGold,
+                foregroundColor: AppTheme.darkCharcoal,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _watchRewardedAd(
+    BuildContext dialogContext,
+    String hintType,
+  ) async {
+    // This live widget context has an Overlay ancestor. Keep the hint sheet
+    // mounted while the full-screen ad owns the foreground activity.
+    unawaited(
+      showDialog<void>(
+        context: dialogContext,
+        barrierDismissible: false,
+        useRootNavigator: true,
+        builder: (_) => const _RewardedAdLoadingDialog(),
+      ),
+    );
+    var rewardGranted = false;
+    String? errorMessage;
+    try {
+      final earned = await AdService().showRewardedAd(
+        hintType: hintType,
+        onRewardEarned: (type, amount) async {
+          if (!mounted) return;
+          rewardGranted = await ref
+              .read(hintServiceProvider.notifier)
+              .grantAdReward(type);
+        },
+        onError: (error) => errorMessage = error,
+      );
+      if (!earned && errorMessage == null) {
+        errorMessage = 'Watch the full ad to earn a help.';
+      }
+    } finally {
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext, rootNavigator: true).pop();
+      }
+    }
+    if (!dialogContext.mounted) return;
+    if (errorMessage != null) {
+      ToastUtils.showToast(dialogContext, errorMessage!, isError: true);
+    } else {
+      ToastUtils.showToast(
+        dialogContext,
+        rewardGranted
+            ? '+1 ${_helperName(hintType)} help earned!'
+            : 'Daily ad limit reached.',
+        isError: !rewardGranted,
+      );
+    }
   }
 
   @override

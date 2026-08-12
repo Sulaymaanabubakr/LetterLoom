@@ -450,6 +450,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/daily-word-mosaic/index.ts"
 
+[functions.word-of-the-day]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/word-of-the-day/index.ts"
+
 [functions.settle-ranked-match]
 enabled = true
 verify_jwt = true

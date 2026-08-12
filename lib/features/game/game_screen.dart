@@ -490,10 +490,26 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final state = ref.read(_provider);
     HapticUtils.trigger(HapticType.tap, state.settings);
     if (state.tileBag.length < 7) {
-      ToastUtils.show(
-        context,
-        'Cannot exchange tiles when bag has fewer than 7 tiles.',
-        isError: true,
+      showDialog<void>(
+        context: context,
+        builder: (context) => PremiumDialog(
+          title: 'Exchange Tiles',
+          child: Text(
+            'Tile exchange unlocks when at least 7 tiles remain in the bag. ${state.tileBag.length} ${state.tileBag.length == 1 ? 'tile remains' : 'tiles remain'} right now.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(color: AppTheme.mutedIvory),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: _premiumDialogButton(
+                label: 'Got it',
+                isPrimary: true,
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
       );
       return;
     }
@@ -1608,7 +1624,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 child: _buildActionBtn(
                   icon: Icons.swap_horiz_rounded,
                   label: 'Exchange',
-                  enabled: isPlayerTurn && state.tileBag.length >= 7,
+                  enabled: isPlayerTurn,
                   badge: '7+',
                   onTap: _showExchangeDialog,
                   state: state,

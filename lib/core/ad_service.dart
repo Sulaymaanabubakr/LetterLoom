@@ -21,13 +21,24 @@ class AdService {
 
   bool _isAdLoading = false;
   RewardedAd? _rewardedAd;
+  Future<void>? _loadFuture;
   bool get isAdLoading => _isAdLoading;
 
-  bool get _usesGoogleTestUnitId {
-    final adUnitId = defaultTargetPlatform == TargetPlatform.android
+  String get _adUnitId {
+    // Never send live ad traffic from a debug build. It is both slower to
+    // diagnose and contrary to AdMob's test-ad requirement.
+    if (kDebugMode) {
+      return defaultTargetPlatform == TargetPlatform.android
+          ? 'ca-app-pub-3940256099942544/5224354917'
+          : 'ca-app-pub-3940256099942544/1712485313';
+    }
+    return defaultTargetPlatform == TargetPlatform.android
         ? AppConfig.rewardedAdUnitIdAndroid
         : AppConfig.rewardedAdUnitIdIOS;
-    return adUnitId.contains('ca-app-pub-3940256099942544/');
+  }
+
+  bool get _usesGoogleTestUnitId {
+    return _adUnitId.contains('ca-app-pub-3940256099942544/');
   }
 
   bool get _isConfiguredForThisBuild => !kReleaseMode || !_usesGoogleTestUnitId;
@@ -43,6 +54,8 @@ class AdService {
     }
     try {
       await MobileAds.instance.initialize();
+      // Load while the app is idle so tapping Watch Ads is normally instant.
+      unawaited(_loadRewardedAd());
     } catch (error) {
       debugPrint('[Ads] Initialization failed: $error');
     }
@@ -65,61 +78,72 @@ class AdService {
       onError('Rewarded ads are not configured for this production build.');
       return false;
     }
-    if (_isAdLoading || _rewardedAd != null) {
-      onError('A rewarded ad is already loading.');
+    final ad = await _loadRewardedAd();
+    if (ad == null) {
+      onError('Rewarded ads are temporarily unavailable.');
       return false;
     }
 
-    _isAdLoading = true;
     final completer = Completer<bool>();
-    final adUnitId = defaultTargetPlatform == TargetPlatform.android
-        ? AppConfig.rewardedAdUnitIdAndroid
-        : AppConfig.rewardedAdUnitIdIOS;
+    _rewardedAd = null;
+    var earned = false;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        if (!completer.isCompleted) completer.complete(earned);
+        unawaited(_loadRewardedAd());
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('[Ads] Show failed: $error');
+        ad.dispose();
+        if (!completer.isCompleted) {
+          onError('The rewarded ad could not be shown.');
+          completer.complete(false);
+        }
+        unawaited(_loadRewardedAd());
+      },
+    );
+    ad.show(
+      onUserEarnedReward: (ad, reward) {
+        earned = true;
+        // This callback is the only local proof that the SDK reported a
+        // completed reward. Account balances still require server-side
+        // verification and are intentionally not granted by this class.
+        onRewardEarned(hintType, 1);
+      },
+    );
+    return completer.future;
+  }
 
-    await RewardedAd.load(
-      adUnitId: adUnitId,
+  Future<RewardedAd?> _loadRewardedAd() async {
+    if (_rewardedAd != null) return _rewardedAd;
+    if (_loadFuture != null) {
+      await _loadFuture;
+      return _rewardedAd;
+    }
+
+    _isAdLoading = true;
+    final completer = Completer<void>();
+    _loadFuture = completer.future;
+    RewardedAd.load(
+      adUnitId: _adUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          _isAdLoading = false;
           _rewardedAd = ad;
-          var earned = false;
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) {
-              ad.dispose();
-              _rewardedAd = null;
-              if (!completer.isCompleted) completer.complete(earned);
-            },
-            onAdFailedToShowFullScreenContent: (ad, error) {
-              debugPrint('[Ads] Show failed: $error');
-              ad.dispose();
-              _rewardedAd = null;
-              if (!completer.isCompleted) {
-                onError('The rewarded ad could not be shown.');
-                completer.complete(false);
-              }
-            },
-          );
-          ad.show(
-            onUserEarnedReward: (ad, reward) {
-              earned = true;
-              // This callback is the only local proof that the SDK reported a
-              // completed reward. Account balances still require server-side
-              // verification and are intentionally not granted by this class.
-              onRewardEarned(hintType, 1);
-            },
-          );
+          _isAdLoading = false;
+          _loadFuture = null;
+          if (!completer.isCompleted) completer.complete();
         },
         onAdFailedToLoad: (error) {
-          _isAdLoading = false;
           debugPrint('[Ads] Load failed: $error');
-          if (!completer.isCompleted) {
-            onError('Rewarded ads are temporarily unavailable.');
-            completer.complete(false);
-          }
+          _isAdLoading = false;
+          _loadFuture = null;
+          if (!completer.isCompleted) completer.complete();
         },
       ),
     );
-    return completer.future;
+    await completer.future;
+    return _rewardedAd;
   }
 }

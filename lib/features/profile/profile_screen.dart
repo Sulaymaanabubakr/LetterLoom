@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../models/player_profile.dart';
 import '../../core/app_config.dart';
@@ -28,36 +31,153 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     {'id': 'avatar_panther', 'name': 'Shadow Lynx', 'icon': '🐆'},
   ];
 
-  static const List<Map<String, String>> countryList = [
-    {'code': 'US', 'name': 'United States', 'flag': '🇺🇸'},
-    {'code': 'GB', 'name': 'United Kingdom', 'flag': '🇬🇧'},
-    {'code': 'CA', 'name': 'Canada', 'flag': '🇨🇦'},
-    {'code': 'AU', 'name': 'Australia', 'flag': '🇦🇺'},
-    {'code': 'NG', 'name': 'Nigeria', 'flag': '🇳🇬'},
-    {'code': 'DE', 'name': 'Germany', 'flag': '🇩🇪'},
-    {'code': 'FR', 'name': 'France', 'flag': '🇫🇷'},
-    {'code': 'IN', 'name': 'India', 'flag': '🇮🇳'},
-    {'code': 'JP', 'name': 'Japan', 'flag': '🇯🇵'},
-    {'code': 'BR', 'name': 'Brazil', 'flag': '🇧🇷'},
-  ];
-
   void _showEditUsernameDialog(PlayerProfile profile) {
+    final screenContext = context;
     final controller = TextEditingController(text: profile.username);
+    int availabilityRequest = 0;
+    Timer? availabilityDebounce;
     showDialog(
       context: context,
       useSafeArea: false,
-      builder: (context) {
+      builder: (dialogContext) {
         String? errorMessage;
+        bool? isAvailable;
+        bool isChecking = false;
+        bool isSaving = false;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return PremiumDialog(
               title: 'Change Username',
+              actions: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: isSaving
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('CANCEL'),
+                  ),
+                ),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.shinyGold,
+                      foregroundColor: const Color(0xFF1E1402),
+                    ),
+                    onPressed: isSaving || isChecking
+                        ? null
+                        : () async {
+                            final validation = UsernameGenerator.validate(
+                              controller.text,
+                            );
+                            if (!validation.isValid) {
+                              setDialogState(() {
+                                errorMessage = validation.errorMessage;
+                              });
+                              return;
+                            }
+
+                            final newUsername = UsernameGenerator.normalize(
+                              controller.text,
+                            );
+                            setDialogState(() => isSaving = true);
+                            final available = await ref
+                                .read(authProvider.notifier)
+                                .isUsernameAvailable(newUsername);
+                            if (!context.mounted) return;
+                            if (available != true) {
+                              setDialogState(() {
+                                isSaving = false;
+                                isAvailable = available;
+                                errorMessage = available == false
+                                    ? 'That username is already taken.'
+                                    : 'Could not check availability. Try again.';
+                              });
+                              return;
+                            }
+
+                            final updated = profile.copyWith(
+                              username: newUsername,
+                            );
+                            final saved = await ref
+                                .read(authProvider.notifier)
+                                .updateProfile(updated);
+                            if (context.mounted && saved) {
+                              Navigator.of(dialogContext).pop();
+                              if (screenContext.mounted) {
+                                ToastUtils.showToast(
+                                  screenContext,
+                                  'Username updated to @$newUsername',
+                                );
+                              }
+                            } else if (context.mounted) {
+                              setDialogState(() {
+                                isSaving = false;
+                                errorMessage =
+                                    'That username is unavailable. Please choose another.';
+                              });
+                            }
+                          },
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF1E1402),
+                            ),
+                          )
+                        : const Text('SAVE'),
+                  ),
+                ),
+              ],
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: controller,
+                    autofocus: true,
+                    autocorrect: false,
+                    textCapitalization: TextCapitalization.none,
                     style: GoogleFonts.inter(color: AppTheme.ivoryText),
+                    onChanged: (value) async {
+                      final validation = UsernameGenerator.validate(value);
+                      final request = ++availabilityRequest;
+                      if (!validation.isValid) {
+                        setDialogState(() {
+                          errorMessage = validation.errorMessage;
+                          isAvailable = null;
+                          isChecking = false;
+                        });
+                        return;
+                      }
+
+                      setDialogState(() {
+                        errorMessage = null;
+                        isChecking = true;
+                      });
+                      availabilityDebounce?.cancel();
+                      availabilityDebounce = Timer(
+                        const Duration(milliseconds: 350),
+                        () async {
+                          final available = await ref
+                              .read(authProvider.notifier)
+                              .isUsernameAvailable(value);
+                          if (!context.mounted ||
+                              request != availabilityRequest) {
+                            return;
+                          }
+                          setDialogState(() {
+                            isChecking = false;
+                            isAvailable = available;
+                            errorMessage = available == false
+                                ? 'That username is already taken.'
+                                : available == null
+                                ? 'Could not check availability. Try again.'
+                                : null;
+                          });
+                        },
+                      );
+                    },
                     decoration: InputDecoration(
                       prefixText: '@',
                       prefixStyle: const TextStyle(color: AppTheme.shinyGold),
@@ -86,56 +206,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                   ],
+                  if (isChecking) ...[
+                    const SizedBox(height: 10),
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.shinyGold,
+                      ),
+                    ),
+                  ] else if (isAvailable == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Username is available.',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.emeraldGreen,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              actions: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('CANCEL'),
-                  ),
-                ),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.shinyGold,
-                      foregroundColor: const Color(0xFF1E1402),
-                    ),
-                    onPressed: () async {
-                      final validation = UsernameGenerator.validate(
-                        controller.text,
-                      );
-                      if (!validation.isValid) {
-                        setDialogState(() {
-                          errorMessage = validation.errorMessage;
-                        });
-                        return;
-                      }
-
-                      final newUsername = UsernameGenerator.normalize(
-                        controller.text,
-                      );
-                      final updated = profile.copyWith(username: newUsername);
-                      final saved = await ref
-                          .read(authProvider.notifier)
-                          .updateProfile(updated);
-                      if (context.mounted && saved) {
-                        Navigator.of(context).pop();
-                        ToastUtils.showToast(
-                          context,
-                          'Username updated to @$newUsername',
-                        );
-                      } else if (context.mounted) {
-                        setDialogState(() {
-                          errorMessage =
-                              'That username is unavailable. Please choose another.';
-                        });
-                      }
-                    },
-                    child: const Text('SAVE'),
-                  ),
-                ),
-              ],
             );
           },
         );
@@ -144,13 +236,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showAvatarPicker(PlayerProfile profile) {
+    final screenContext = context;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.panelDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return Container(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -179,10 +272,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   return InkWell(
                     onTap: () async {
                       final updated = profile.copyWith(avatarId: avatar['id']);
-                      await ref
+                      final saved = await ref
                           .read(authProvider.notifier)
                           .updateProfile(updated);
-                      if (context.mounted) Navigator.of(context).pop();
+                      if (!sheetContext.mounted) return;
+                      if (!saved) {
+                        ToastUtils.showToast(
+                          sheetContext,
+                          'Could not save your avatar. Please try again.',
+                          isError: true,
+                        );
+                        return;
+                      }
+                      Navigator.of(sheetContext).pop();
+                      if (screenContext.mounted) {
+                        ToastUtils.showToast(
+                          screenContext,
+                          '${avatar['name']} selected.',
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
@@ -214,39 +322,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showCountryPicker(PlayerProfile profile) {
-    showModalBottomSheet(
+    showCountryPicker(
       context: context,
-      backgroundColor: AppTheme.panelDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      showPhoneCode: false,
+      showSearch: true,
+      favorite: const ['NG', 'US', 'GB', 'CA'],
+      countryListTheme: CountryListThemeData(
+        backgroundColor: AppTheme.panelDark,
+        bottomSheetHeight: MediaQuery.of(context).size.height * 0.74,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        textStyle: GoogleFonts.inter(color: AppTheme.ivoryText),
+        searchTextStyle: GoogleFonts.inter(color: AppTheme.ivoryText),
+        inputDecoration: InputDecoration(
+          hintText: 'Search every country',
+          hintStyle: GoogleFonts.inter(color: AppTheme.mutedIvory),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppTheme.shinyGold,
+          ),
+          filled: true,
+          fillColor: const Color(0xFF021710),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: AppTheme.shinyGold.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
       ),
-      builder: (context) {
-        return ListView.builder(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          itemCount: countryList.length,
-          itemBuilder: (context, index) {
-            final country = countryList[index];
-            final isSelected = profile.countryCode == country['code'];
-            return ListTile(
-              leading: Text(
-                country['flag']!,
-                style: const TextStyle(fontSize: 24),
-              ),
-              title: Text(
-                country['name']!,
-                style: GoogleFonts.inter(color: AppTheme.ivoryText),
-              ),
-              trailing: isSelected
-                  ? const Icon(Icons.check, color: AppTheme.shinyGold)
-                  : null,
-              onTap: () async {
-                final updated = profile.copyWith(countryCode: country['code']);
-                await ref.read(authProvider.notifier).updateProfile(updated);
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            );
-          },
+      onSelect: (country) async {
+        final updated = profile.copyWith(countryCode: country.countryCode);
+        final saved = await ref
+            .read(authProvider.notifier)
+            .updateProfile(updated);
+        if (!mounted) return;
+        ToastUtils.showToast(
+          context,
+          saved
+              ? '${country.displayName} selected.'
+              : 'Could not save country. Please try again.',
+          isError: !saved,
         );
       },
     );
@@ -260,10 +375,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       orElse: () => builtInAvatars.first,
     );
 
-    final countryData = countryList.firstWhere(
-      (c) => c['code'] == profile.countryCode,
-      orElse: () => countryList.first,
-    );
+    final countryData = Country.tryParse(profile.countryCode);
 
     final currentLevelXP = AppConfig.xpRequiredForLevel(profile.level);
     final nextLevelXP = AppConfig.xpRequiredForLevel(profile.level + 1);
@@ -318,20 +430,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Text(
+                        'YOUR PLAYER IDENTITY',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.6,
+                          color: AppTheme.shinyGold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       // Header Card
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
                         decoration: BoxDecoration(
-                          color: AppTheme.panelDark,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF174B37), Color(0xFF061A13)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.shinyGold.withValues(alpha: 0.5),
+                            color: AppTheme.shinyGold.withValues(alpha: 0.7),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                              color: AppTheme.emeraldGreen.withValues(
+                                alpha: 0.18,
+                              ),
+                              blurRadius: 28,
+                              offset: const Offset(0, 12),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.42),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -342,8 +476,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 GestureDetector(
                                   onTap: () => _showAvatarPicker(profile),
                                   child: Container(
-                                    width: 80,
-                                    height: 80,
+                                    width: 76,
+                                    height: 76,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: const Color(0xFF021710),
@@ -355,7 +489,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     child: Center(
                                       child: Text(
                                         avatarData['icon']!,
-                                        style: const TextStyle(fontSize: 40),
+                                        style: const TextStyle(fontSize: 38),
                                       ),
                                     ),
                                   ),
@@ -378,7 +512,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             Text(
                               profile.displayName,
                               style: GoogleFonts.lora(
@@ -387,59 +521,82 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 color: AppTheme.ivoryText,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '@${profile.username}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: AppTheme.shinyGold,
-                                    fontWeight: FontWeight.w600,
+                            const SizedBox(height: 2),
+                            SizedBox(
+                              height: 34,
+                              width: double.infinity,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Text(
+                                    '@${profile.username}',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      color: AppTheme.shinyGold,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    size: 16,
-                                    color: AppTheme.shinyGold,
-                                  ),
-                                  onPressed: () =>
-                                      _showEditUsernameDialog(profile),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                GestureDetector(
-                                  onTap: () => _showCountryPicker(profile),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        countryData['flag']!,
-                                        style: const TextStyle(fontSize: 18),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: IconButton(
+                                      tooltip: 'Change username',
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(
+                                        Icons.edit_rounded,
+                                        size: 16,
+                                        color: AppTheme.shinyGold,
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        countryData['name']!,
+                                      onPressed: () {
+                                        if (profile.isGuest) {
+                                          SaveProgressModal.show(context);
+                                          return;
+                                        }
+                                        _showEditUsernameDialog(profile);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => _showCountryPicker(profile),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      countryData?.flagEmoji ?? '🌍',
+                                      style: const TextStyle(fontSize: 17),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        countryData?.displayNameNoCountryCode ??
+                                            'Select country',
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
                                           color: AppTheme.mutedIvory,
                                           fontSize: 13,
                                         ),
                                       ),
-                                      const Icon(
-                                        Icons.arrow_drop_down,
-                                        color: AppTheme.mutedIvory,
-                                        size: 18,
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: AppTheme.mutedIvory,
+                                      size: 18,
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             // Level progress bar
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -476,7 +633,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       // Guest Warning Banner (if guest)
                       if (profile.isGuest)
                         Container(
@@ -526,13 +683,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       const SizedBox(height: 16),
                       // Competitive Statistics Grid
-                      Text(
-                        'Competitive Stats',
-                        style: GoogleFonts.lora(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.ivoryText,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: AppTheme.shinyGold,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(width: 9),
+                          Text(
+                            'Competitive Stats',
+                            style: GoogleFonts.lora(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.ivoryText,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       GridView.count(
@@ -622,9 +792,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.panelDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.3)),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF103325), Color(0xFF071E16)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.34)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

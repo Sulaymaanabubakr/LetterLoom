@@ -108,6 +108,27 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
     return true;
   }
 
+  /// Checks the backend before a profile rename. A null result means the
+  /// service could not be reached; false means the name is unavailable.
+  /// The database unique constraint is still the final race-safe guard when
+  /// the update is committed.
+  Future<bool?> isUsernameAvailable(String username) async {
+    if (!SupabaseBootstrap.configured || state.isGuest) return null;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.isAnonymous) return null;
+
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'is_username_available',
+        params: {'candidate': UsernameGenerator.normalize(username)},
+      );
+      return result == true;
+    } catch (error) {
+      debugPrint('[Auth] Could not check username availability: $error');
+      return null;
+    }
+  }
+
   /// Sign in with Google account and merge eligible guest progress.
   Future<bool> signInWithGoogle({
     required void Function(String error) onError,
@@ -148,10 +169,10 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       String userId = googleUser.id;
       final currentUser = Supabase.instance.client.auth.currentUser;
       AuthResponse res;
-        // Do not link an ID token to the anonymous session. Supabase
-        // anonymous sessions can carry a nonce, while google_sign_in's
-        // token does not; linking then fails with a nonce mismatch. The
-        // guest profile is local and is merged below after normal sign-in.
+      // Do not link an ID token to the anonymous session. Supabase
+      // anonymous sessions can carry a nonce, while google_sign_in's
+      // token does not; linking then fails with a nonce mismatch. The
+      // guest profile is local and is merged below after normal sign-in.
       if (currentUser?.isAnonymous == true) {
         await Supabase.instance.client.auth.signOut();
       }
