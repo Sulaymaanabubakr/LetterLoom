@@ -12,6 +12,7 @@ import '../../core/haptic_utils.dart';
 import '../../core/music_manager.dart';
 import '../../core/sound_manager.dart';
 import '../../core/toast_utils.dart';
+import '../../core/coachmark.dart';
 import '../hints/hint_modal.dart';
 import '../hints/hint_engine.dart';
 import 'post_game_analysis.dart';
@@ -50,6 +51,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _appLifecyclePauseHeld = false;
   bool _exchangeSheetOpen = false;
   HintResult? _activeHint;
+  final GlobalKey _hintButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -60,6 +62,20 @@ class _GameScreenState extends ConsumerState<GameScreen>
       const Duration(seconds: 1),
       (_) => _tickTurnCountdown(),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      await Coachmark.showOnce(
+        context: context,
+        id: widget.isMultiplayer
+            ? 'multiplayer_hint_button'
+            : 'solo_hint_button',
+        targetKey: _hintButtonKey,
+        title: 'Need a hand?',
+        message:
+            'Tap the bulb for a playable move, useful letter, or strongest play.',
+      );
+    });
   }
 
   void _tickTurnCountdown() {
@@ -91,6 +107,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   @override
   void dispose() {
+    unawaited(Coachmark.dismiss('solo_hint_button'));
+    unawaited(Coachmark.dismiss('multiplayer_hint_button'));
     WidgetsBinding.instance.removeObserver(this);
     _turnCountdownTimer?.cancel();
     MusicManager.instance.setTrack(MusicTrack.menu);
@@ -1735,25 +1753,33 @@ class _GameScreenState extends ConsumerState<GameScreen>
             ),
           ),
           const SizedBox(width: 8),
-          // Circular Hint Button (Casual / Solo only)
-          if (!widget.isMultiplayer) ...[
-            InkWell(
-              onTap: () {
-                HintModal.show(
-                  context: context,
-                  boardGrid: state.board,
-                  playerRack: state.playerRack,
-                  onHintGenerated: (hint) {
-                    if (!mounted) return;
-                    setState(() => _activeHint = hint);
-                  },
-                  // The turn clock is frozen for the entire help flow,
-                  // including the boost/ad dialog, not only while calculating.
-                  onModalOpened: () => ref.read(_provider.notifier).pauseGame(),
-                  onModalClosed: () =>
-                      ref.read(_provider.notifier).resumeGame(),
-                );
-              },
+          // Circular Hint Button. In online matches, opening help pauses the
+          // shared match through MultiplayerGameNotifier, so neither player
+          // loses their timed turn while the private suggestion is visible.
+          RepaintBoundary(
+            key: _hintButtonKey,
+            child: InkWell(
+              onTap: widget.isMultiplayer && !isPlayerTurn
+                  ? null
+                  : () {
+                      unawaited(Coachmark.dismiss('solo_hint_button'));
+                      unawaited(Coachmark.dismiss('multiplayer_hint_button'));
+                      HintModal.show(
+                        context: context,
+                        boardGrid: state.board,
+                        playerRack: state.playerRack,
+                        onHintGenerated: (hint) {
+                          if (!mounted) return;
+                          setState(() => _activeHint = hint);
+                        },
+                        // The turn clock is frozen for the entire help flow,
+                        // including the boost/ad dialog, not only while calculating.
+                        onModalOpened: () =>
+                            ref.read(_provider.notifier).pauseGame(),
+                        onModalClosed: () =>
+                            ref.read(_provider.notifier).resumeGame(),
+                      );
+                    },
               borderRadius: BorderRadius.circular(28),
               child: Container(
                 width: 44,
@@ -1772,8 +1798,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-          ],
+          ),
+          const SizedBox(width: 8),
           // Play Word Pill Button
           Expanded(
             child: Opacity(

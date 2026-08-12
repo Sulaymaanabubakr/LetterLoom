@@ -8,6 +8,7 @@ import '../../core/music_manager.dart';
 import '../../core/push_notification_service.dart';
 import '../../core/supabase_bootstrap.dart';
 import '../../core/toast_utils.dart';
+import '../../core/coachmark.dart';
 import '../../models/player_profile.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
@@ -23,6 +24,7 @@ import '../daily/daily_challenge_screen.dart';
 import '../daily/daily_challenge_service.dart';
 import '../daily/daily_rewards_service.dart';
 import '../hints/hint_service.dart';
+import '../hints/boost_shop_screen.dart';
 import '../achievements/achievements_screen.dart';
 import '../leaderboards/leaderboards_screen.dart';
 import '../ranked/ranked_matchmaking_service.dart';
@@ -39,6 +41,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _canContinue = false;
   bool _checkingSave = true;
   late Future<DailyServerSnapshot?> _dailyChallengeFuture;
+  final GlobalKey _dailyChallengeKey = GlobalKey();
   // Kept disabled while older hot-reload sessions are still attached.
   final bool _showLegacyInlineHeader = false;
 
@@ -62,11 +65,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _openPushDestination,
       );
       _openPushDestination();
+      _showHomeCoachmark();
     });
+  }
+
+  Future<void> _showHomeCoachmark() async {
+    if (!mounted) return;
+    await Coachmark.showOnce(
+      context: context,
+      id: 'daily_challenge',
+      targetKey: _dailyChallengeKey,
+      title: 'A fresh puzzle every day',
+      message:
+          'Take on today\'s three-minute Daily Challenge and build your streak.',
+    );
   }
 
   @override
   void dispose() {
+    unawaited(Coachmark.dismiss('daily_challenge'));
     PushNotificationService.pendingNavigation.removeListener(
       _openPushDestination,
     );
@@ -533,9 +550,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildHeaderChip(
-                          icon: Icons.lightbulb_rounded,
-                          label: '$totalHints Helps',
+                        Semantics(
+                          button: true,
+                          label: 'Open Boost Shop. $totalHints helps available',
+                          child: InkWell(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const BoostShopScreen(),
+                              ),
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            child: _buildHeaderChip(
+                              icon: Icons.lightbulb_rounded,
+                              label: '$totalHints Helps',
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 6),
                         _buildHeaderChip(
@@ -890,12 +919,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       }
                                     : null,
                               ),
-                            _buildPremiumButton(
-                              title: 'Daily Challenge',
-                              subtitle: 'Today\'s puzzle',
-                              iconData: Icons.today_rounded,
-                              isPrimary: false,
-                              onPressed: _openDailyChallenge,
+                            RepaintBoundary(
+                              key: _dailyChallengeKey,
+                              child: _buildPremiumButton(
+                                title: 'Daily Challenge',
+                                subtitle: 'Today\'s puzzle',
+                                iconData: Icons.today_rounded,
+                                isPrimary: false,
+                                onPressed: () {
+                                  unawaited(
+                                    Coachmark.dismiss('daily_challenge'),
+                                  );
+                                  _openDailyChallenge();
+                                },
+                              ),
                             ),
                             _buildPremiumButton(
                               title: 'Competitive Duel',

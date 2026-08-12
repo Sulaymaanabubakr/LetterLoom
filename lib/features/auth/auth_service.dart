@@ -10,13 +10,14 @@ import '../../core/supabase_bootstrap.dart';
 import '../../core/app_config.dart';
 import '../../core/push_notification_service.dart';
 import '../profile/username_generator.dart';
+import '../hints/hint_service.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, PlayerProfile>((ref) {
-  return AuthNotifier();
+  return AuthNotifier(ref);
 });
 
 class AuthNotifier extends StateNotifier<PlayerProfile> {
-  AuthNotifier()
+  AuthNotifier(this._ref)
     : super(
         PlayerProfile.guest(
           id: 'guest_init',
@@ -27,6 +28,7 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   }
 
   final PersistenceManager _persistence = PersistenceManager();
+  final Ref _ref;
   final Completer<void> _initialization = Completer<void>();
 
   /// Completes when the restored session has produced its real profile.
@@ -242,6 +244,10 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
         createdAt: existingRemote?.createdAt ?? DateTime.now(),
       );
 
+      // The account's boost wallet is server-owned. Hydrate it before the
+      // signed-in profile reaches Home, so the header never flashes the guest
+      // default of seven helps after sign-in.
+      await _ref.read(hintServiceProvider.notifier).refresh();
       return await updateProfile(mergedProfile);
     } catch (e) {
       debugPrint('[Auth] Google Sign in error: $e');

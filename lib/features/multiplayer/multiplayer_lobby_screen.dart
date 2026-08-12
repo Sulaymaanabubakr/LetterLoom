@@ -11,6 +11,7 @@ import '../../core/toast_utils.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
 import 'multiplayer_game_notifier.dart';
+import 'multiplayer_error_message.dart';
 import 'multiplayer_repository.dart';
 
 class MultiplayerLobbyScreen extends StatefulWidget {
@@ -38,8 +39,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   String _friendlyError(Object error) {
     debugPrint('[Multiplayer] $error');
-    if (error is MultiplayerException) return error.message;
-    return 'Online play is temporarily unavailable. Please try again.';
+    return multiplayerErrorMessage(error);
   }
 
   @override
@@ -57,6 +57,10 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   }
 
   Future<void> _createGame() async {
+    if (_nameController.text.trim().isEmpty) {
+      setState(() => _error = 'Enter a display name before creating a room.');
+      return;
+    }
     await _runAction(() async {
       final game = await _repository.createGame(_nameController.text);
       await _loadRooms(showErrors: false);
@@ -65,6 +69,10 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   }
 
   Future<void> _joinGame() async {
+    if (_nameController.text.trim().isEmpty) {
+      setState(() => _error = 'Enter a display name before joining a room.');
+      return;
+    }
     await _runAction(() async {
       final game = await _repository.joinGame(
         _roomController.text,
@@ -593,7 +601,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
               if (game.mode != 'ranked' && _isRoomOwner && !isActive) ...[
                 _roomActionButton(
                   icon: Icons.delete_outline_rounded,
-                  label: 'Delete room',
+                  label: 'Delete Room',
                   onPressed: _isBusy ? null : () => _manageRoom(game, 'delete'),
                   danger: true,
                 ),

@@ -34,14 +34,36 @@ class BillingService {
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
   bool _initialized = false;
   bool _purchaseInFlight = false;
-  void Function(String, int)? _pendingFulfilment;
+  void Function()? _pendingFulfilment;
   void Function(String)? _pendingError;
+  Map<String, ProductDetails> _storeProducts = const {};
+
+  Map<String, ProductDetails> get storeProducts => _storeProducts;
+
+  /// Loads live, localised Play prices for the shop. Directly shared APKs are
+  /// not Play-entitled, so this safely leaves the fallback labels in place.
+  Future<void> refreshStoreProducts() async {
+    await initialize();
+    if (kIsWeb || !await _iap.isAvailable()) return;
+    try {
+      final response = await _iap.queryProductDetails(
+        availablePacks.map((pack) => pack.productId).toSet(),
+      );
+      if (response.error == null) {
+        _storeProducts = {
+          for (final product in response.productDetails) product.id: product,
+        };
+      }
+    } catch (error) {
+      debugPrint('[Billing] Product details unavailable: $error');
+    }
+  }
 
   static const List<PurchasedHintPack> availablePacks = [
     PurchasedHintPack(
       productId: AppConfig.productMoveHintPack5,
       title: 'Move Hint Pack (5)',
-      description: 'Get 5 Move Hints for any solo match',
+      description: 'Get 5 Word Path helps for any match',
       price: '\$0.99',
       hintType: 'move',
       count: 5,
@@ -49,7 +71,7 @@ class BillingService {
     PurchasedHintPack(
       productId: AppConfig.productLetterHintPack5,
       title: 'Letter Hint Pack (5)',
-      description: 'Get 5 Letter Hints for any solo match',
+      description: 'Get 5 Letter Spark helps for any match',
       price: '\$0.99',
       hintType: 'letter',
       count: 5,
@@ -57,8 +79,8 @@ class BillingService {
     PurchasedHintPack(
       productId: AppConfig.productStrongHintPack3,
       title: 'Strong Hint Pack (3)',
-      description: 'Get 3 Strong Hints for any solo match',
-      price: '\$1.99',
+      description: 'Get 3 Word Weaver helps for any match',
+      price: '\$1.49',
       hintType: 'strong',
       count: 3,
     ),
@@ -85,7 +107,7 @@ class BillingService {
   Future<void> _handlePurchases(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
       if (purchase.status == PurchaseStatus.error) {
-        _pendingError?.call(purchase.error?.message ?? 'Purchase failed.');
+        _pendingError?.call(purchaseErrorMessage(purchase.error?.code));
         if (purchase.pendingCompletePurchase) {
           await _iap.completePurchase(purchase);
         }
@@ -131,12 +153,15 @@ class BillingService {
         await _iap.completePurchase(purchase);
       }
       if (data['fulfilled'] == true) {
-        final move = (data['move'] as num?)?.toInt() ?? 0;
-        final letter = (data['letter'] as num?)?.toInt() ?? 0;
-        final strong = (data['strong'] as num?)?.toInt() ?? 0;
-        if (move > 0) _pendingFulfilment?.call('move', move);
-        if (letter > 0) _pendingFulfilment?.call('letter', letter);
-        if (strong > 0) _pendingFulfilment?.call('strong', strong);
+        // The server is the source of truth for balances. Notify the UI once
+        // only after Play's purchase is verified and fulfilled, then let it
+        // refresh the wallet immediately rather than waiting for a relaunch.
+        _pendingFulfilment?.call();
+      } else {
+        _pendingError?.call(
+          'This purchase was already processed. Your boost balance is up to date.',
+        );
+        return;
       }
       _clearPending();
     } catch (error) {
@@ -151,6 +176,25 @@ class BillingService {
     _pendingError = null;
   }
 
+  /// Platform billing messages can include internal response codes, package
+  /// names, or account diagnostics. Never send those raw details to the UI.
+  @visibleForTesting
+  static String purchaseErrorMessage(String? code) {
+    final normalized = code?.toLowerCase() ?? '';
+    if (normalized.contains('user_canceled') ||
+        normalized.contains('cancel') ||
+        normalized == '1') {
+      return 'Purchase canceled.';
+    }
+    if (normalized.contains('item_unavailable') || normalized == '4') {
+      return 'This boost is not available for this Google Play account yet.';
+    }
+    if (normalized.contains('billing_unavailable') || normalized == '3') {
+      return 'Google Play Billing is unavailable right now. Please try again later.';
+    }
+    return 'We could not complete that purchase. Please try again.';
+  }
+
   Future<void> dispose() async {
     await _purchaseSubscription?.cancel();
     _purchaseSubscription = null;
@@ -160,7 +204,7 @@ class BillingService {
   /// Executes a verified hint-pack purchase when billing is configured.
   Future<bool> purchasePack(
     PurchasedHintPack pack, {
-    required void Function(String hintType, int amount) onPurchaseFulfilled,
+    required VoidCallback onPurchaseFulfilled,
     required void Function(String error) onError,
   }) async {
     await initialize();

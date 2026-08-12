@@ -154,6 +154,10 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// Persist a backgrounded match while keeping its in-memory pause lock.
   Future<void> persistPausedGame() async {
+    if (state.status == 'gameCompleted') {
+      await _persistence.deleteGameSave();
+      return;
+    }
     await _persistence.saveGame(state, clockNow: _pausedAt ?? DateTime.now());
   }
 

@@ -7,11 +7,36 @@ import '../../core/toast_utils.dart';
 import '../../theme/app_theme.dart';
 import 'hint_service.dart';
 
-class BoostShopScreen extends ConsumerWidget {
+class BoostShopScreen extends ConsumerStatefulWidget {
   const BoostShopScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BoostShopScreen> createState() => _BoostShopScreenState();
+}
+
+class _BoostShopScreenState extends ConsumerState<BoostShopScreen> {
+  Map<String, String> _livePrices = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLivePrices();
+  }
+
+  Future<void> _loadLivePrices() async {
+    final billing = BillingService();
+    await billing.refreshStoreProducts();
+    if (!mounted) return;
+    setState(() {
+      _livePrices = {
+        for (final entry in billing.storeProducts.entries)
+          entry.key: entry.value.price,
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final hints = ref.watch(hintServiceProvider);
     return Scaffold(
       backgroundColor: AppTheme.scaffoldDark,
@@ -59,7 +84,12 @@ class BoostShopScreen extends ConsumerWidget {
                     _sectionTitle('BOOST PACKS'),
                     const SizedBox(height: 8),
                     ...BillingService.availablePacks.map(
-                      (pack) => _packCard(context, ref, pack),
+                      (pack) => _packCard(
+                        context,
+                        ref,
+                        pack,
+                        _livePrices[pack.productId] ?? pack.price,
+                      ),
                     ),
                   ],
                 ),
@@ -116,6 +146,7 @@ class BoostShopScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     PurchasedHintPack pack,
+    String price,
   ) => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(16),
@@ -141,7 +172,10 @@ class BoostShopScreen extends ConsumerWidget {
               const SizedBox(height: 3),
               Text(
                 pack.description,
-                style: GoogleFonts.inter(color: AppTheme.mutedIvory, fontSize: 11),
+                style: GoogleFonts.inter(
+                  color: AppTheme.mutedIvory,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
@@ -154,7 +188,10 @@ class BoostShopScreen extends ConsumerWidget {
             foregroundColor: AppTheme.darkCharcoal,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           ),
-          child: Text(pack.price, style: const TextStyle(fontWeight: FontWeight.bold)),
+          child: Text(
+            price,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     ),
@@ -166,10 +203,13 @@ class BoostShopScreen extends ConsumerWidget {
     PurchasedHintPack pack,
   ) => BillingService().purchasePack(
     pack,
-    onPurchaseFulfilled: (_, amount) async {
+    onPurchaseFulfilled: () async {
       await ref.read(hintServiceProvider.notifier).refresh();
       if (context.mounted) {
-        ToastUtils.showToast(context, 'Boost added to your account.');
+        ToastUtils.showToast(
+          context,
+          '${pack.title} added. Your new balance is visible above and in the Helps header.',
+        );
       }
     },
     onError: (error) {

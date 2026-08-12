@@ -33,6 +33,13 @@ class PersistenceManager {
   Future<void> saveGame(GameState state, {DateTime? clockNow}) async {
     try {
       final file = await _getFile(_gameSaveFileName);
+      // A finished match is a result screen, never a resumable match. This
+      // also protects against a lifecycle callback firing just after end-game
+      // cleanup while the victory screen remains visible.
+      if (state.status == 'gameCompleted') {
+        if (await file.exists()) await file.delete();
+        return;
+      }
       final now = clockNow ?? DateTime.now();
       final remaining = state.turnStartedAt == null
           ? null
@@ -62,7 +69,12 @@ class PersistenceManager {
 
       final Map<String, dynamic> jsonMap =
           jsonDecode(jsonString) as Map<String, dynamic>;
-      return GameState.fromJson(jsonMap);
+      final savedGame = GameState.fromJson(jsonMap);
+      if (savedGame.status == 'gameCompleted') {
+        await file.delete();
+        return null;
+      }
+      return savedGame;
     } catch (e) {
       debugPrint("Error loading game state (likely corruption): $e");
       throw CorruptedSaveException(
@@ -90,6 +102,12 @@ class PersistenceManager {
       if (content.trim().isEmpty) return false;
 
       final payload = jsonDecode(content) as Map<String, dynamic>;
+      // Repair stale saves created by the older lifecycle code while a result
+      // screen was visible. Completed matches must not surface as Continue.
+      if (payload['status'] == 'gameCompleted') {
+        await file.delete();
+        return false;
+      }
       if (payload['saveMode'] == 'solo') return true;
 
       // Older builds could accidentally persist a temporary multiplayer seed.
