@@ -18,17 +18,25 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const testUserId = typeof body.test_user_id === 'string'
+      ? body.test_user_id.trim()
+      : '';
     const admin = getAdminClient();
-    const { data: devices, error } = await admin
+    let devicesQuery = admin
       .from('push_devices')
       .select('user_id');
+    if (testUserId) devicesQuery = devicesQuery.eq('user_id', testUserId);
+    const { data: devices, error } = await devicesQuery;
     if (error) throw error;
     const recipients = [...new Set((devices ?? []).map((device) => device.user_id as string))];
     await sendPushNotification(
       recipients,
-      'Daily Challenge is ready',
-      'A new Word Mosaic is waiting for you in LetterLoom.',
-      { event: 'daily_challenge' },
+      testUserId ? 'LetterLoom notification test' : 'Daily Challenge is ready',
+      testUserId
+          ? 'Push notifications are working on this device.'
+          : 'A new Word Mosaic is waiting for you in LetterLoom.',
+      { event: testUserId ? 'notification_test' : 'daily_challenge' },
       'daily_reminders',
     );
     return response({ delivered_to: recipients.length });

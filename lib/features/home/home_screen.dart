@@ -489,98 +489,104 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildHomeHeader() {
-    return Consumer(
-      builder: (context, ref, child) {
-        final profile = ref.watch(authProvider);
-        final isGuest = _isAnonymousAccount(profile);
-        final hints = ref.watch(hintServiceProvider);
-        final totalHints =
-            hints.totalMoveHints() +
-            hints.totalLetterHints() +
-            hints.totalStrongHints();
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0D4933), Color(0xFF021710)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppTheme.shinyGold.withValues(alpha: 0.5),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+    return FutureBuilder<DailyServerSnapshot?>(
+      future: _dailyChallengeFuture,
+      builder: (context, dailySnapshot) => Consumer(
+        builder: (context, ref, child) {
+          final profile = ref.watch(authProvider);
+          final isGuest = _isAnonymousAccount(profile);
+          final dailyStreak = dailySnapshot.data?.state.streakDays ?? 0;
+          final hints = ref.watch(hintServiceProvider);
+          final totalHints =
+              hints.totalMoveHints() +
+              hints.totalLetterHints() +
+              hints.totalStrongHints();
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0D4933), Color(0xFF021710)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              BoxShadow(
-                color: AppTheme.shinyGold.withValues(alpha: 0.1),
-                blurRadius: 12,
-                spreadRadius: 1,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppTheme.shinyGold.withValues(alpha: 0.5),
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildHeaderChip(
-                        icon: Icons.lightbulb_rounded,
-                        label: '$totalHints Helps',
-                      ),
-                      const SizedBox(width: 6),
-                      _buildHeaderChip(
-                        icon: Icons.local_fire_department_rounded,
-                        label: '${profile.currentStreak} Streak',
-                      ),
-                      const SizedBox(width: 6),
-                      _buildHeaderChip(
-                        icon: Icons.star_rounded,
-                        label: 'Lv ${profile.level}',
-                      ),
-                    ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: AppTheme.shinyGold.withValues(alpha: 0.1),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildHeaderChip(
+                          icon: Icons.lightbulb_rounded,
+                          label: '$totalHints Helps',
+                        ),
+                        const SizedBox(width: 6),
+                        _buildHeaderChip(
+                          icon: Icons.local_fire_department_rounded,
+                          label: '$dailyStreak Day Streak',
+                        ),
+                        const SizedBox(width: 6),
+                        _buildHeaderChip(
+                          icon: Icons.star_rounded,
+                          label: 'Lv ${profile.level}',
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  if (isGuest) {
-                    SaveProgressModal.show(context);
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                    );
-                  }
-                },
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.panelDark,
-                    border: Border.all(color: AppTheme.shinyGold, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.shinyGold.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                      ),
-                    ],
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    if (isGuest) {
+                      SaveProgressModal.show(context);
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.panelDark,
+                      border: Border.all(color: AppTheme.shinyGold, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.shinyGold.withValues(alpha: 0.25),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: _accountHeaderIcon(profile, isGuest),
                   ),
-                  child: _accountHeaderIcon(profile, isGuest),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -1069,7 +1075,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         builder: (_) => DailyChallengeScreen(snapshot: snapshot),
       ),
     );
-    _dailyChallengeFuture = DailyChallengeService.syncRemote();
+    if (mounted) {
+      setState(() {
+        _dailyChallengeFuture = DailyChallengeService.syncRemote();
+      });
+    }
   }
 
   Widget _buildPremiumButton({

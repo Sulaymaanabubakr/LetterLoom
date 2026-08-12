@@ -411,6 +411,127 @@ class HowToPlayScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      _buildPremiumCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildCardTitle('5', 'Choose Your Match'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Solo Play: ',
+                              'Play offline against the computer. Choose a difficulty, start a new board, or continue a saved solo match.',
+                            ),
+                            _buildBulletItem(
+                              'Online Rooms: ',
+                              'Sign in, create a room, then share its code with a friend. You can also join a room with a code. Both players take turns on the same authoritative board.',
+                            ),
+                            _buildBulletItem(
+                              'Competitive Duel: ',
+                              'Sign in and enter the ranked queue to be paired with another player. Wins, losses, draws, and rating changes are recorded after the match finishes.',
+                            ),
+                            _buildBulletItem(
+                              'Turn Timer: ',
+                              'Online turns have a two-minute countdown. Pause the game before leaving when you need a break. A paused match freezes the timer for both players until it is resumed.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPremiumCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildCardTitle('6', 'Daily Challenge'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Word Mosaic: ',
+                              'Unscramble six clue words using the letter tray. Tap letters to build the selected answer, use Clear to start that answer again, and Shuffle to rearrange the available letters.',
+                            ),
+                            _buildBulletItem(
+                              'Three Minutes: ',
+                              'Complete all six clues within three minutes. Leaving the Daily Challenge screen or putting the app in the background pauses your timer. It resumes when you return.',
+                            ),
+                            _buildBulletItem(
+                              'When Time Expires: ',
+                              'The challenge is marked failed, the remaining answers are filled in red, and the letter tray is no longer playable for that day.',
+                            ),
+                            _buildBulletItem(
+                              'Daily Progress: ',
+                              'Sign in to save your result, build your Daily Challenge streak, and earn the completion reward.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPremiumCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildCardTitle('7', 'Word of the Day & Rewards'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Word of the Day: ',
+                              'A fresh server-selected word is published globally each day with its definition and tile score. It is a learning feature, not a board move.',
+                            ),
+                            _buildBulletItem(
+                              'Daily Rewards: ',
+                              'Open the game each day to collect the current reward. Keeping your claim streak going unlocks stronger help rewards later in the cycle.',
+                            ),
+                            _buildBulletItem(
+                              'Progress: ',
+                              'Finish matches, complete daily features, and earn achievements to gain XP, levels, profile statistics, and ranked progress.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPremiumCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildCardTitle('8', 'Helps & Boosts'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Word Path: ',
+                              'Shows a legal playable word on the board so you can understand a possible next move.',
+                            ),
+                            _buildBulletItem(
+                              'Letter Spark: ',
+                              'Highlights a useful rack letter to help you spot an opportunity without giving away the full move.',
+                            ),
+                            _buildBulletItem(
+                              'Word Weaver: ',
+                              'Reveals the strongest legal play currently available.',
+                            ),
+                            _buildBulletItem(
+                              'Getting More: ',
+                              'Daily help allowances refresh each day. When one is used up, you can earn more through an available rewarded ad or add boost packs from the Boost Shop. Purchased boosts remain in your balance.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPremiumCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildCardTitle('9', 'Account, Audio & Fair Play'),
+                            const SizedBox(height: 12),
+                            _buildBulletItem(
+                              'Your Account: ',
+                              'You can enjoy solo play as a guest. Sign in with Google to keep online progress, use Daily Challenge, enter ranked matches, choose a unique username, and use multiplayer rooms.',
+                            ),
+                            _buildBulletItem(
+                              'Sound & Haptics: ',
+                              'Use Settings to turn background music, sound effects, and haptic feedback on or off. Your device volume controls the music and sound-effect level.',
+                            ),
+                            _buildBulletItem(
+                              'Notifications: ',
+                              'Signed-in players can choose alerts for multiplayer turns, ranked updates, and the Daily Challenge from Settings.',
+                            ),
+                            _buildBulletItem(
+                              'Play Fair: ',
+                              'Online and ranked moves are checked by the server. Do not use automation, modified clients, or exploits. Fair games protect every player’s score and rank.',
+                            ),
+                          ],
+                        ),
+                      ),
                       // Tip Footer Banner
                       Container(
                         padding: const EdgeInsets.all(16),

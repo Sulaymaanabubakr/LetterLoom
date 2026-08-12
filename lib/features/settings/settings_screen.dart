@@ -805,93 +805,178 @@ class _NotificationPreferencesCardState
     final signedIn = PushNotificationService.isSignedIn;
     return Opacity(
       opacity: _loading ? .65 : 1,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.shinyGold.withValues(alpha: .45),
-            width: 1.2,
-          ),
-          gradient: const LinearGradient(
-            colors: AppTheme.darkGreenGradient,
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.notifications_active_rounded,
-                  color: AppTheme.shinyGold,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Game Notifications',
-                    style: GoogleFonts.lora(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.ivoryText,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              signedIn
-                  ? 'Choose which LetterLoom updates can reach this device.'
-                  : 'Sign in to choose which game updates can reach this device.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 12.5,
-                color: AppTheme.mutedIvory,
-              ),
-            ),
-            if (signedIn) ...[
-              const SizedBox(height: 8),
-              _notificationSwitch(
-                'Your multiplayer turn',
-                _preferences.multiplayerTurns,
-                (value) =>
-                    _save(_preferences.copyWith(multiplayerTurns: value)),
-              ),
-              _notificationSwitch(
-                'Ranked match updates',
-                _preferences.rankedMatches,
-                (value) => _save(_preferences.copyWith(rankedMatches: value)),
-              ),
-              _notificationSwitch(
-                'Daily Challenge reminder',
+      child: Column(
+        children: [
+          _notificationPreferenceCard(
+            icon: Icons.notifications_active_rounded,
+            title: 'Game Notifications',
+            subtitle: signedIn
+                ? 'Get alerts for your multiplayer turn, ranked matches, and daily challenge.'
+                : 'Sign in to choose which game updates can reach this device.',
+            value:
+                _preferences.multiplayerTurns ||
+                _preferences.rankedMatches ||
                 _preferences.dailyReminders,
-                (value) => _save(_preferences.copyWith(dailyReminders: value)),
-              ),
-            ],
+            onChanged: signedIn
+                ? (value) => _save(
+                    NotificationPreferences(
+                      multiplayerTurns: value,
+                      rankedMatches: value,
+                      dailyReminders: value,
+                    ),
+                  )
+                : null,
+          ),
+          if (signedIn) ...[
+            const SizedBox(height: 12),
+            _notificationPreferenceCard(
+              icon: Icons.sports_esports_rounded,
+              title: 'Your Multiplayer Turn',
+              subtitle: 'Know when it is your move in an online match.',
+              value: _preferences.multiplayerTurns,
+              onChanged: (value) =>
+                  _save(_preferences.copyWith(multiplayerTurns: value)),
+            ),
+            const SizedBox(height: 12),
+            _notificationPreferenceCard(
+              icon: Icons.emoji_events_rounded,
+              title: 'Ranked Match Updates',
+              subtitle: 'Receive results and updates from Competitive Duel.',
+              value: _preferences.rankedMatches,
+              onChanged: (value) =>
+                  _save(_preferences.copyWith(rankedMatches: value)),
+            ),
+            const SizedBox(height: 12),
+            _notificationPreferenceCard(
+              icon: Icons.local_fire_department_rounded,
+              title: 'Daily Challenge Reminder',
+              subtitle: 'A daily reminder to keep your challenge streak alive.',
+              value: _preferences.dailyReminders,
+              onChanged: (value) =>
+                  _save(_preferences.copyWith(dailyReminders: value)),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _notificationSwitch(
-    String title,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    return SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      title: Text(
-        title,
-        style: GoogleFonts.inter(fontSize: 13.5, color: AppTheme.ivoryText),
+  Widget _notificationPreferenceCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.shinyGold.withValues(alpha: .45),
+          width: 1.2,
+        ),
+        gradient: const LinearGradient(
+          colors: AppTheme.darkGreenGradient,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
-      value: value,
-      activeTrackColor: AppTheme.emeraldGreen,
-      activeThumbColor: AppTheme.shinyGold,
-      onChanged: _loading || _saving ? null : onChanged,
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF010A07),
+              border: Border.all(
+                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+                width: 1.2,
+              ),
+            ),
+            child: Icon(icon, color: AppTheme.shinyGold, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.lora(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.ivoryText,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppTheme.mutedIvory,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          _buildNotificationSwitch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationSwitch({
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+  }) {
+    final enabled = onChanged != null && !_loading && !_saving;
+    return GestureDetector(
+      onTap: enabled ? () => onChanged(!value) : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 52,
+        height: 30,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          color: value ? const Color(0xFF0C5036) : const Color(0xFF031610),
+          border: Border.all(
+            color: value
+                ? AppTheme.shinyGold
+                : AppTheme.shinyGold.withValues(alpha: 0.35),
+            width: 1.2,
+          ),
+        ),
+        child: Stack(
+          children: [
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              left: value ? 24 : 2,
+              top: 2,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFFFF1CC),
+                      Color(0xFFD4AF37),
+                      Color(0xFF9E7108),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

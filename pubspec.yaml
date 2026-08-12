@@ -76,6 +76,7 @@ flutter:
   assets:
     - assets/dictionary/enable1.txt
     - assets/images/logo.png
+    - assets/images/logo_icon.png
     - assets/images/google_g_logo.svg
     - assets/audio/menu_music.m4a
     - assets/audio/game_music.m4a
@@ -110,6 +111,7 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png"
-  adaptive_icon_background: "#02130E"
-  adaptive_icon_foreground: "assets/images/logo.png"
+  image_path: "assets/images/logo_icon.png"
+  image_path_ios: "assets/images/logo_icon.png"
+  adaptive_icon_background: "#062017"
+  adaptive_icon_foreground: "assets/images/logo_icon.png"

@@ -46,9 +46,11 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _logoPulseController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _logoPulseAnimation;
   String _loadingStatus = "Threading the Loom...";
   bool _hasError = false;
 
@@ -59,7 +61,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
+    _logoPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1050),
+    )..repeat(reverse: true);
     _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _logoPulseAnimation = Tween<double>(begin: 0.96, end: 1.035).animate(
+      CurvedAnimation(parent: _logoPulseController, curve: Curves.easeInOut),
+    );
     _controller.forward();
     _initDictionary();
   }
@@ -96,6 +105,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _logoPulseController.dispose();
     super.dispose();
   }
 
@@ -110,28 +120,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Logo Symbol
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppTheme.shinyGold.withValues(alpha: 0.8),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      offset: const Offset(0, 8),
-                      blurRadius: 14,
+              ScaleTransition(
+                scale: _logoPulseAnimation,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.shinyGold.withValues(alpha: 0.8),
+                      width: 1.5,
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    fit: BoxFit.cover,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        offset: const Offset(0, 8),
+                        blurRadius: 14,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: const EdgeInsets.all(3),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
               ),

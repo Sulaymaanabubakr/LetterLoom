@@ -1,31 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/achievement.dart';
 import '../../storage/persistence_manager.dart';
 import '../../core/google_play_games_service.dart';
 import '../progression/progression_service.dart';
-import '../../core/supabase_bootstrap.dart';
 import 'achievements_registry.dart';
 
 final achievementsProvider =
     StateNotifierProvider<AchievementsNotifier, List<Achievement>>((ref) {
-  return AchievementsNotifier(ref);
-});
+      return AchievementsNotifier(ref);
+    });
 
 class AchievementsNotifier extends StateNotifier<List<Achievement>> {
   final Ref _ref;
   final PersistenceManager _persistence = PersistenceManager();
   static const String _saveFileName = 'letterloom_achievements_v1.json';
 
-  AchievementsNotifier(this._ref) : super(AchievementsRegistry.allAchievements) {
+  AchievementsNotifier(this._ref)
+    : super(AchievementsRegistry.allAchievements) {
     _init();
-  }
-
-  bool get _isAuthenticatedAccount {
-    final user = SupabaseBootstrap.configured
-        ? Supabase.instance.client.auth.currentUser
-        : null;
-    return user != null && !user.isAnonymous;
   }
 
   Future<void> _init() async {
@@ -34,7 +26,7 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
       final List rawList = savedData['achievements'] as List;
       final Map<String, dynamic> map = {
         for (var item in rawList.whereType<Map>())
-          item['id'] as String: Map<String, dynamic>.from(item)
+          item['id'] as String: Map<String, dynamic>.from(item),
       };
 
       state = AchievementsRegistry.allAchievements.map((tmpl) {
@@ -44,12 +36,22 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
         return tmpl;
       }).toList();
     }
+    await _reconcileCompletedGames();
+  }
+
+  /// Restore achievements that were earned before an older build accidentally
+  /// skipped signed-in players. Statistics are stored with the game, so this
+  /// also repairs the first win immediately rather than waiting for another
+  /// completed match.
+  Future<void> _reconcileCompletedGames() async {
+    final statistics = await _persistence.loadStatistics();
+    if (statistics.wins > 0) {
+      await _unlock(state.firstWhere((a) => a.id == 'first_victory'));
+    }
   }
 
   Future<void> _save() async {
-    final data = {
-      'achievements': state.map((a) => a.toJson()).toList(),
-    };
+    final data = {'achievements': state.map((a) => a.toJson()).toList()};
     await _persistence.saveJsonData(_saveFileName, data);
   }
 
@@ -68,7 +70,9 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
     ];
 
     await _save();
-    await _ref.read(progressionProvider).addXP(
+    await _ref
+        .read(progressionProvider)
+        .addXP(
           achievement.xpReward,
           reason: 'Achievement Unlocked: ${achievement.title}',
         );
@@ -99,7 +103,6 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
     required bool isBingo,
     required int validWordsFormed,
   }) async {
-    if (_isAuthenticatedAccount) return;
     if (isBingo) {
       final bingoAch = state.firstWhere((a) => a.id == 'first_bingo');
       await _unlock(bingoAch);
@@ -126,7 +129,6 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
     required bool wasTrailing30,
     required int currentWinStreak,
   }) async {
-    if (_isAuthenticatedAccount) return;
     await _incrementProgress('veteran', 1);
 
     if (playerScore >= 300) {
@@ -169,7 +171,6 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
   }
 
   Future<void> recordStreak(int streakDays) async {
-    if (_isAuthenticatedAccount) return;
     if (streakDays >= 7) {
       final sevenDay = state.firstWhere((a) => a.id == 'seven_day_streak');
       await _unlock(sevenDay);
@@ -177,7 +178,6 @@ class AchievementsNotifier extends StateNotifier<List<Achievement>> {
   }
 
   Future<void> recordRankedPromotion() async {
-    if (_isAuthenticatedAccount) return;
     final promotionAch = state.firstWhere((a) => a.id == 'moving_up');
     await _unlock(promotionAch);
   }
