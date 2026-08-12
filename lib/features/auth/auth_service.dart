@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +31,7 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   // the package/SHA-1 configuration. The server client ID is the separate Web
   // OAuth client whose audience Supabase validates in the ID token.
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: AppConfig.googleIosClientId,
     scopes: ['email', 'profile'],
     serverClientId: AppConfig.configuredGoogleClientId,
   );
@@ -97,49 +99,46 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
           await googleUser.authentication;
       final String idToken = googleAuth.idToken ?? '';
       final String accessToken = googleAuth.accessToken ?? '';
+      final googleNonce = _nonceClaim(idToken);
+      debugPrint(
+        '[Auth] Google credentials received '
+        '(idToken=${idToken.isNotEmpty}, accessToken=${accessToken.isNotEmpty}, '
+        'nonceClaim=${googleNonce != null})',
+      );
+
+      if (idToken.isEmpty || accessToken.isEmpty) {
+        debugPrint(
+          '[Auth] Google SDK returned incomplete credentials '
+          '(idToken=${idToken.isNotEmpty}, accessToken=${accessToken.isNotEmpty})',
+        );
+        onError('Google Sign-In did not return complete credentials.');
+        return false;
+      }
 
       String userId = googleUser.id;
-      if (SupabaseBootstrap.configured && idToken.isNotEmpty) {
+      if (SupabaseBootstrap.configured) {
         final currentUser = Supabase.instance.client.auth.currentUser;
         AuthResponse res;
+        // Do not link an ID token to the anonymous session. Supabase
+        // anonymous sessions can carry a nonce, while google_sign_in's
+        // token does not; linking then fails with a nonce mismatch. The
+        // guest profile is local and is merged below after normal sign-in.
+        if (currentUser?.isAnonymous == true) {
+          await Supabase.instance.client.auth.signOut();
+        }
         try {
-          res = currentUser?.isAnonymous == true
-              ? await Supabase.instance.client.auth.linkIdentityWithIdToken(
-                  provider: OAuthProvider.google,
-                  idToken: idToken,
-                  accessToken: accessToken.isEmpty ? null : accessToken,
-                )
-              : await Supabase.instance.client.auth.signInWithIdToken(
-                  provider: OAuthProvider.google,
-                  idToken: idToken,
-                  accessToken: accessToken.isEmpty ? null : accessToken,
-                );
-        } catch (linkError) {
-          // A Google identity that was previously connected belongs to an
-          // existing account. In that case linking to the anonymous guest
-          // correctly fails, so sign in to the existing account instead.
-          if (currentUser?.isAnonymous == true) {
-            try {
-              await Supabase.instance.client.auth.signOut();
-              res = await Supabase.instance.client.auth.signInWithIdToken(
-                provider: OAuthProvider.google,
-                idToken: idToken,
-                accessToken: accessToken.isEmpty ? null : accessToken,
-              );
-            } catch (signInError) {
-              debugPrint('[Auth] Supabase Google sign-in error: $signInError');
-              onError(
-                'Google Sign-In could not connect to LetterLoom. Please try again.',
-              );
-              return false;
-            }
-          } else {
-            debugPrint('[Auth] Supabase Google sign-in error: $linkError');
-            onError(
-              'Google Sign-In could not connect to LetterLoom. Please try again.',
-            );
-            return false;
-          }
+          res = await Supabase.instance.client.auth.signInWithIdToken(
+            provider: OAuthProvider.google,
+            idToken: idToken,
+            accessToken: accessToken,
+            nonce: googleNonce,
+          );
+        } catch (signInError) {
+          debugPrint('[Auth] Supabase Google sign-in error: $signInError');
+          onError(
+            'Google Sign-In could not connect to LetterLoom. Please try again.',
+          );
+          return false;
         }
         if (res.user == null) {
           onError('Google Sign-In did not create a LetterLoom account.');
@@ -215,6 +214,20 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       debugPrint('[Auth] Google Sign in error: $e');
       onError('Google Sign-In failed. Please try again.');
       return false;
+    }
+  }
+
+  String? _nonceClaim(String idToken) {
+    try {
+      final parts = idToken.split('.');
+      if (parts.length != 3) return null;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final nonce = payload is Map<String, dynamic> ? payload['nonce'] : null;
+      return nonce is String && nonce.isNotEmpty ? nonce : null;
+    } catch (_) {
+      return null;
     }
   }
 

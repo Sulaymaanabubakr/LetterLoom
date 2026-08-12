@@ -12,6 +12,12 @@ class AppConfig {
         '374555574691-egp5n392vi1ulkmbt1i5qcg3t0oh5m1t.apps.googleusercontent.com',
   );
 
+  static const String googleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+    defaultValue:
+        '374555574691-gtnjggpcbnsp4ugnvqa3rps9fiocrgp9.apps.googleusercontent.com',
+  );
+
   static String? get configuredGoogleClientId {
     final value = googleClientId.trim();
     if (value.isEmpty || value.startsWith('PLACEHOLDER_')) return null;

@@ -82,6 +82,8 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
 
   void _selectWord(int index) {
     if (_challengeState.solvedWordIndexes.contains(index)) return;
+    // Do not reset the active word when the player taps its clue card.
+    if (index == _selectedWordIndex && _availableLetters.isNotEmpty) return;
     setState(() {
       _selectedWordIndex = index;
       _selectedLetters.clear();
@@ -95,6 +97,12 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
             _puzzleData.words[_selectedWordIndex].answerLength)
       return;
     setState(() => _selectedLetters.add(_availableLetters.removeAt(index)));
+    if (_selectedLetters.length ==
+        _puzzleData.words[_selectedWordIndex].answerLength) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _submitWord();
+      });
+    }
   }
 
   void _clearWord() {
@@ -104,6 +112,14 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
       _availableLetters = List<String>.from(
         _puzzleData.words[_selectedWordIndex].letters,
       );
+    });
+  }
+
+  void _returnLastLetter() {
+    if (_challengeState.isCompleted || _selectedLetters.isEmpty) return;
+    setState(() {
+      final lastLetter = _selectedLetters.removeLast();
+      _availableLetters.add(lastLetter);
     });
   }
 
@@ -243,6 +259,7 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
             const SizedBox(height: 12),
             Text(
               'Today\'s challenge is complete. Your level progress increased.',
+              textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: AppTheme.emeraldGreen,
@@ -289,48 +306,27 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
               const PremiumPageHeader(title: 'Daily Challenge'),
               Expanded(
                 child: LayoutBuilder(
-                  builder: (context, constraints) => FittedBox(
-                    alignment: Alignment.topCenter,
-                    fit: BoxFit.scaleDown,
-                    child: SizedBox(
-                      width: constraints.maxWidth,
-                      child: Column(
-                        children: [
-                          _buildStatsCard(),
-                          _buildPuzzleHeading(solved.length),
-                          ...List.generate(
-                            _puzzleData.words.length,
-                            (index) =>
-                                _buildWordCard(index, solved.contains(index)),
-                          ),
-                          _buildLetterTray(selectedWord),
-                          const SizedBox(height: 10),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton.icon(
-                                onPressed: _challengeState.isCompleted
-                                    ? null
-                                    : _submitWord,
-                                icon: const Icon(Icons.check_circle_rounded),
-                                label: const Text('SUBMIT WORD'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.shinyGold,
-                                  foregroundColor: AppTheme.darkCharcoal,
-                                  textStyle: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                              ),
+                  builder: (context, constraints) => SizedBox(
+                    width: constraints.maxWidth,
+                    height: constraints.maxHeight,
+                    child: FittedBox(
+                      alignment: Alignment.topCenter,
+                      fit: BoxFit.scaleDown,
+                      child: SizedBox(
+                        width: constraints.maxWidth,
+                        child: Column(
+                          children: [
+                            _buildStatsCard(),
+                            _buildPuzzleHeading(solved.length),
+                            ...List.generate(
+                              _puzzleData.words.length,
+                              (index) =>
+                                  _buildWordCard(index, solved.contains(index)),
                             ),
-                          ),
-                        ],
+                            _buildLetterTray(selectedWord),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -538,9 +534,28 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
             const SizedBox(width: 8),
             Wrap(
               spacing: 3,
-              children: letters
-                  .map((letter) => _letterSlot(letter, isSolved))
-                  .toList(),
+              children: List.generate(letters.length, (letterIndex) {
+                final isLastPlayedLetter =
+                    isSelected &&
+                    letterIndex == _selectedLetters.length - 1 &&
+                    letterIndex >= 0;
+                final slot = _letterSlot(
+                  letters[letterIndex],
+                  isSolved,
+                  isSelected && letterIndex < _selectedLetters.length,
+                );
+                return isLastPlayedLetter
+                    ? GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _returnLastLetter,
+                        child: SizedBox(
+                          width: 30,
+                          height: 32,
+                          child: Center(child: slot),
+                        ),
+                      )
+                    : slot;
+              }),
             ),
           ],
         ),
@@ -548,16 +563,18 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     );
   }
 
-  Widget _letterSlot(String letter, bool solved) {
+  Widget _letterSlot(String letter, bool solved, [bool filled = false]) {
     return Container(
       width: 20,
       height: 23,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: solved ? AppTheme.shinyGold : Colors.transparent,
+        color: solved || filled ? AppTheme.shinyGold : Colors.transparent,
         borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: AppTheme.shinyGold.withValues(alpha: solved ? 0.9 : 0.55),
+          color: AppTheme.shinyGold.withValues(
+            alpha: solved || filled ? 0.95 : 0.55,
+          ),
         ),
       ),
       child: Text(
@@ -565,7 +582,7 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
         style: GoogleFonts.lora(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: solved ? AppTheme.darkCharcoal : AppTheme.ivoryText,
+          color: solved || filled ? AppTheme.darkCharcoal : AppTheme.ivoryText,
         ),
       ),
     );
@@ -582,39 +599,56 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
       ),
       child: Column(
         children: [
+          Text(
+            'Your Letters',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.lora(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.ivoryText,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Clue: ${word.clue}',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.mutedIvory),
+          ),
+          const SizedBox(height: 8),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  'Your Letters',
-                  style: GoogleFonts.lora(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.ivoryText,
-                  ),
-                ),
-              ),
-              TextButton.icon(
+              OutlinedButton.icon(
                 onPressed: _shuffleLetters,
                 icon: const Icon(Icons.shuffle_rounded, size: 16),
                 label: const Text('SHUFFLE'),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.shinyGold,
+                  side: BorderSide(
+                    color: AppTheme.shinyGold.withValues(alpha: 0.7),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 34),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _selectedLetters.isEmpty ? null : _clearWord,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('CLEAR'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.shinyGold,
+                  disabledForegroundColor: AppTheme.mutedIvory.withValues(
+                    alpha: 0.45,
+                  ),
+                  side: BorderSide(
+                    color: AppTheme.shinyGold.withValues(alpha: 0.7),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 34),
                 ),
               ),
             ],
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Clue: ${word.clue}',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: AppTheme.mutedIvory,
-              ),
-            ),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -639,31 +673,6 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Your Word',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppTheme.mutedIvory,
-                  ),
-                ),
-              ),
-              TextButton(onPressed: _clearWord, child: const Text('CLEAR')),
-            ],
-          ),
-          Wrap(
-            spacing: 4,
-            children: List.generate(
-              word.answerLength,
-              (index) => _letterSlot(
-                index < _selectedLetters.length ? _selectedLetters[index] : '',
-                false,
               ),
             ),
           ),

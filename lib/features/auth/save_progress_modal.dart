@@ -6,8 +6,11 @@ import '../../theme/app_theme.dart';
 import '../../core/toast_utils.dart';
 import 'auth_service.dart';
 
-class SaveProgressModal extends ConsumerWidget {
+class SaveProgressModal extends ConsumerStatefulWidget {
   const SaveProgressModal({super.key});
+
+  @override
+  ConsumerState<SaveProgressModal> createState() => _SaveProgressModalState();
 
   static Future<void> show(BuildContext context) async {
     return showModalBottomSheet<void>(
@@ -17,9 +20,34 @@ class SaveProgressModal extends ConsumerWidget {
       builder: (context) => const SaveProgressModal(),
     );
   }
+}
+
+class _SaveProgressModalState extends ConsumerState<SaveProgressModal> {
+  bool _isSigningIn = false;
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isSigningIn) return;
+    setState(() => _isSigningIn = true);
+
+    final success = await ref
+        .read(authProvider.notifier)
+        .signInWithGoogle(
+          onError: (msg) {
+            if (mounted) ToastUtils.showToast(context, msg, isError: true);
+          },
+        );
+
+    if (!mounted) return;
+    if (success) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ToastUtils.showToast(context, 'Account connected! Progress saved.');
+    } else {
+      setState(() => _isSigningIn = false);
+    }
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF021710),
@@ -170,62 +198,47 @@ class SaveProgressModal extends ConsumerWidget {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () async {
-                    final success = await ref
-                        .read(authProvider.notifier)
-                        .signInWithGoogle(
-                          onError: (msg) {
-                            if (context.mounted) {
-                              ToastUtils.showToast(context, msg, isError: true);
-                            }
-                          },
-                        );
-                    if (success && context.mounted) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!context.mounted) return;
-                        final navigator = Navigator.of(
-                          context,
-                          rootNavigator: true,
-                        );
-                        if (navigator.canPop()) navigator.pop();
-                        if (context.mounted) {
-                          ToastUtils.showToast(
-                            context,
-                            'Account connected! Progress saved.',
-                          );
-                        }
-                      });
-                    }
-                  },
+                  onTap: _isSigningIn ? null : _handleGoogleSignIn,
                   borderRadius: BorderRadius.circular(14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Official multicolour Google G mark; never substitute
-                      // a text glyph because its shape varies by font.
-                      ClipOval(
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          color: Colors.white,
-                          padding: const EdgeInsets.all(4),
-                          child: SvgPicture.asset(
-                            'assets/images/google_g_logo.svg',
-                            semanticsLabel: 'Google',
+                  child: _isSigningIn
+                      ? const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Color(0xFF1E1402),
+                            ),
                           ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Official multicolour Google G mark; never substitute
+                            // a text glyph because its shape varies by font.
+                            ClipOval(
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                color: Colors.white,
+                                padding: const EdgeInsets.all(4),
+                                child: SvgPicture.asset(
+                                  'assets/images/google_g_logo.svg',
+                                  semanticsLabel: 'Google',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Continue with Google',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF1E1402),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Continue with Google',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1402),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),

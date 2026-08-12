@@ -189,35 +189,39 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
   bool _claiming = false;
 
   static const _rewards = <({String title, String detail, IconData icon})>[
-    (title: 'Welcome', detail: '+1 Move Hint', icon: Icons.swap_horiz_rounded),
     (
-      title: 'Letter Loom',
-      detail: '+1 Letter Hint',
+      title: 'Move Hint',
+      detail: 'Get 1 Move Hint',
+      icon: Icons.swap_horiz_rounded,
+    ),
+    (
+      title: 'Letter Hint',
+      detail: 'Get 1 Letter Hint',
       icon: Icons.text_fields_rounded,
     ),
     (
-      title: 'Sharp Eye',
-      detail: '+1 Strong Hint',
+      title: 'Strong Hint',
+      detail: 'Get 1 Strong Hint',
       icon: Icons.visibility_rounded,
     ),
     (
-      title: 'Wordsmith',
-      detail: 'Level progress +50',
+      title: 'Level Progress',
+      detail: 'Add 50 to your level progress',
       icon: Icons.auto_awesome_rounded,
     ),
     (
-      title: 'Well Read',
-      detail: '+2 Move Hints',
+      title: 'Move Hint Bonus',
+      detail: 'Get 2 Move Hints',
       icon: Icons.menu_book_rounded,
     ),
     (
-      title: 'Loom Master',
-      detail: '+2 Letter Hints',
+      title: 'Letter Hint Bonus',
+      detail: 'Get 2 Letter Hints',
       icon: Icons.workspace_premium_rounded,
     ),
     (
-      title: 'Full Week',
-      detail: 'Level progress +100',
+      title: 'Weekly Progress',
+      detail: 'Add 100 to your level progress',
       icon: Icons.emoji_events_rounded,
     ),
   ];
@@ -319,7 +323,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Day $currentDay is ready to collect',
+              'Claim one reward each day. Keep your streak to unlock bonuses.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 13,
@@ -330,22 +334,19 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
-                  children: List.generate(_rewards.length, (index) {
-                    final day = index + 1;
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: day == _rewards.length ? 0 : 8,
-                      ),
-                      child: _RewardDayCard(
-                        day: day,
-                        reward: _rewards[index],
-                        claimed: day < currentDay,
-                        today: day == currentDay,
-                        claiming: _claiming && day == currentDay,
-                        onTap: day == currentDay && !_claiming ? _claim : null,
-                      ),
-                    );
-                  }),
+                  children: [
+                    _RewardDayCard(
+                      day: currentDay,
+                      reward: _rewards[currentDay - 1],
+                      claimed: false,
+                      today: true,
+                      featured: true,
+                      claiming: _claiming,
+                      onTap: !_claiming ? _claim : null,
+                    ),
+                    const SizedBox(height: 10),
+                    ..._buildRewardGrid(currentDay),
+                  ],
                 ),
               ),
             ),
@@ -354,6 +355,44 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
       ),
     );
   }
+
+  Widget _buildCompactRewardCard(int day, int currentDay) {
+    return _RewardDayCard(
+      day: day,
+      reward: _rewards[day - 1],
+      claimed: day < currentDay,
+      today: false,
+      featured: false,
+    );
+  }
+
+  List<Widget> _buildRewardGrid(int currentDay) {
+    final otherDays = List<int>.generate(_rewards.length, (index) => index + 1)
+      ..remove(currentDay);
+    final rowCount = (otherDays.length / 2).ceil();
+    return List<Widget>.generate(rowCount, (row) {
+      final days = otherDays.skip(row * 2).take(2).toList();
+      return Padding(
+        padding: EdgeInsets.only(bottom: row == rowCount - 1 ? 0 : 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List<Widget>.generate(2, (slot) {
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: slot == 0 ? 4 : 0,
+                  left: slot == 1 ? 4 : 0,
+                ),
+                child: slot < days.length
+                    ? _buildCompactRewardCard(days[slot], currentDay)
+                    : const SizedBox.shrink(),
+              ),
+            );
+          }),
+        ),
+      );
+    });
+  }
 }
 
 class _RewardDayCard extends StatelessWidget {
@@ -361,6 +400,7 @@ class _RewardDayCard extends StatelessWidget {
   final ({String title, String detail, IconData icon}) reward;
   final bool claimed;
   final bool today;
+  final bool featured;
   final bool claiming;
   final VoidCallback? onTap;
 
@@ -369,6 +409,7 @@ class _RewardDayCard extends StatelessWidget {
     required this.reward,
     required this.claimed,
     required this.today,
+    required this.featured,
     this.claiming = false,
     this.onTap,
   });
@@ -386,98 +427,169 @@ class _RewardDayCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          height: 68,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: today
-                ? AppTheme.shinyGold.withValues(alpha: 0.14)
-                : Colors.black.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: color.withValues(alpha: today ? 1 : 0.45),
-              width: today ? 1.5 : 0.9,
-            ),
+          height: featured ? 86 : 122,
+          padding: EdgeInsets.symmetric(
+            horizontal: featured ? 16 : 12,
+            vertical: featured ? 10 : 12,
           ),
-          child: Row(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: today
+                  ? [
+                      AppTheme.shinyGold.withValues(alpha: 0.22),
+                      AppTheme.shinyGold.withValues(alpha: 0.07),
+                    ]
+                  : claimed
+                  ? [
+                      AppTheme.emeraldGreen.withValues(alpha: 0.16),
+                      AppTheme.panelDark,
+                    ]
+                  : [AppTheme.panelDark, const Color(0xFF031E15)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(featured ? 18 : 16),
+            border: Border.all(
+              color: color.withValues(alpha: today ? 0.95 : 0.5),
+              width: today ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: featured
+              ? _buildFeaturedContent(color)
+              : _buildCompactContent(color),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusIcon(Color color, {required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.14),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Center(
+        child: claiming
+            ? SizedBox(
+                width: size * 0.42,
+                height: size * 0.42,
+                child: CircularProgressIndicator(strokeWidth: 2, color: color),
+              )
+            : Icon(
+                claimed
+                    ? Icons.check_rounded
+                    : today
+                    ? reward.icon
+                    : Icons.lock_rounded,
+                size: size * 0.48,
+                color: color,
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedContent(Color color) {
+    return Row(
+      children: [
+        _buildStatusIcon(color, size: 48),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 48,
-                child: Text(
-                  'DAY $day',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: today ? AppTheme.shinyGold : AppTheme.mutedIvory,
-                  ),
-                ),
-              ),
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withValues(alpha: 0.14),
-                  border: Border.all(color: color.withValues(alpha: 0.5)),
-                ),
-                child: Center(
-                  child: claiming
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: color,
-                          ),
-                        )
-                      : Icon(
-                          claimed
-                              ? Icons.check_rounded
-                              : today
-                              ? reward.icon
-                              : Icons.lock_rounded,
-                          size: 19,
-                          color: color,
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      reward.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.lora(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.ivoryText,
-                      ),
-                    ),
-                    Text(
-                      reward.detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: today ? AppTheme.ivoryText : AppTheme.mutedIvory,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (today && !claiming)
-                const Icon(
-                  Icons.touch_app_rounded,
+              Text(
+                'DAY $day • TODAY\'S REWARD',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
                   color: AppTheme.shinyGold,
-                  size: 18,
                 ),
+              ),
+              Text(
+                reward.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.lora(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.ivoryText,
+                ),
+              ),
+              Text(
+                reward.detail,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppTheme.ivoryText,
+                ),
+              ),
             ],
           ),
         ),
-      ),
+        if (!claiming)
+          const Icon(
+            Icons.touch_app_rounded,
+            color: AppTheme.shinyGold,
+            size: 20,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCompactContent(Color color) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'DAY $day',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.mutedIvory,
+              ),
+            ),
+            _buildStatusIcon(color, size: 34),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          reward.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.lora(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.ivoryText,
+          ),
+        ),
+        Text(
+          reward.detail,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            height: 1.15,
+            color: AppTheme.mutedIvory,
+          ),
+        ),
+      ],
     );
   }
 }
