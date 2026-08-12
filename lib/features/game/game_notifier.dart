@@ -9,6 +9,7 @@ import '../../models/move_history.dart';
 import '../../models/game_settings.dart';
 import '../../models/statistics.dart';
 import '../../game_engine/game_config.dart';
+import '../../game_engine/opening_rack_validator.dart';
 import '../../game_engine/rules_validator.dart';
 import '../../dictionary/dictionary_service.dart';
 import '../../ai/ai_isolate.dart';
@@ -180,16 +181,46 @@ class GameNotifier extends StateNotifier<GameState> {
       }
     });
 
-    // Shuffle the bag
-    bag.shuffle();
-
-    // 2. Draw 7 tiles for player and computer
+    // 2. Draw seven tiles for each player. A new game must never start with
+    // an opening rack that cannot form a word, otherwise the player is forced
+    // to exchange or pass and the help system has nothing valid to show.
     final List<Tile> pRack = [];
     final List<Tile> cRack = [];
+    var dealtPlayableOpeningRack = false;
 
-    for (int i = 0; i < GameConfig.rackSize; i++) {
-      if (bag.isNotEmpty) pRack.add(bag.removeLast());
-      if (bag.isNotEmpty) cRack.add(bag.removeLast());
+    const maxOpeningDeals = 40;
+    for (var attempt = 0; attempt < maxOpeningDeals; attempt++) {
+      bag.shuffle();
+      pRack.clear();
+      cRack.clear();
+
+      for (int i = 0; i < GameConfig.rackSize; i++) {
+        if (bag.isNotEmpty) pRack.add(bag.removeLast());
+        if (bag.isNotEmpty) cRack.add(bag.removeLast());
+      }
+
+      if (OpeningRackValidator.hasPlayableWord(pRack)) {
+        dealtPlayableOpeningRack = true;
+        break;
+      }
+
+      // Return both temporary racks before trying another fair deal.
+      bag.addAll(pRack);
+      bag.addAll(cRack);
+    }
+
+    // This can only happen if the dictionary asset failed to load or the bag
+    // was configured without any playable opening combination. Keep the game
+    // state internally consistent instead of duplicating tiles from the last
+    // unsuccessful deal.
+    if (!dealtPlayableOpeningRack) {
+      bag.shuffle();
+      pRack.clear();
+      cRack.clear();
+      for (int i = 0; i < GameConfig.rackSize; i++) {
+        if (bag.isNotEmpty) pRack.add(bag.removeLast());
+        if (bag.isNotEmpty) cRack.add(bag.removeLast());
+      }
     }
 
     state = GameState(
@@ -246,8 +277,9 @@ class GameNotifier extends StateNotifier<GameState> {
     if (row < 0 ||
         row >= GameConfig.boardSize ||
         col < 0 ||
-        col >= GameConfig.boardSize)
+        col >= GameConfig.boardSize) {
       return false;
+    }
 
     final cell = state.board[row][col];
     if (cell.tile != null) return false; // Cell already occupied
@@ -415,8 +447,9 @@ class GameNotifier extends StateNotifier<GameState> {
   bool exchangeTiles(List<Tile> tilesToExchange) {
     if (state.status != 'playerTurn') return false;
     if (tilesToExchange.isEmpty) return false;
-    if (state.tileBag.length < GameConfig.rackSize)
+    if (state.tileBag.length < GameConfig.rackSize) {
       return false; // Rule: Must have >= 7 tiles in bag to exchange
+    }
 
     recallAllNewPlacements();
 
