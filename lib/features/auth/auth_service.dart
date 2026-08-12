@@ -26,6 +26,10 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   }
 
   final PersistenceManager _persistence = PersistenceManager();
+  final Completer<void> _initialization = Completer<void>();
+
+  /// Completes when the restored session has produced its real profile.
+  Future<void> get ready => _initialization.future;
   // Native Android sign-in uses the Android OAuth client automatically from
   // the package/SHA-1 configuration. The server client ID is the separate Web
   // OAuth client whose audience Supabase validates in the ID token.
@@ -36,32 +40,36 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   );
 
   Future<void> _init() async {
-    final sessionUser = SupabaseBootstrap.configured
-        ? Supabase.instance.client.auth.currentUser
-        : null;
-    if (sessionUser != null && !sessionUser.isAnonymous) {
-      final remoteProfile = await _loadRemoteProfile(sessionUser.id);
-      if (remoteProfile != null) {
-        state = remoteProfile;
-        await _persistence.saveAuthenticatedProfile(remoteProfile);
-        return;
+    try {
+      final sessionUser = SupabaseBootstrap.configured
+          ? Supabase.instance.client.auth.currentUser
+          : null;
+      if (sessionUser != null && !sessionUser.isAnonymous) {
+        final remoteProfile = await _loadRemoteProfile(sessionUser.id);
+        if (remoteProfile != null) {
+          state = remoteProfile;
+          await _persistence.saveAuthenticatedProfile(remoteProfile);
+          return;
+        }
+
+        final cachedAccount = await _persistence.loadAuthenticatedProfile();
+        if (cachedAccount?.id == sessionUser.id) {
+          state = cachedAccount!;
+          return;
+        }
       }
 
-      final cachedAccount = await _persistence.loadAuthenticatedProfile();
-      if (cachedAccount?.id == sessionUser.id) {
-        state = cachedAccount!;
-        return;
-      }
+      final guestProfile =
+          await _persistence.loadGuestProfile() ??
+          PlayerProfile.guest(
+            id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
+            funnyUsername: UsernameGenerator.generateFunnyUsername(),
+          );
+      state = guestProfile;
+      await _persistence.saveGuestProfile(guestProfile);
+    } finally {
+      if (!_initialization.isCompleted) _initialization.complete();
     }
-
-    final guestProfile =
-        await _persistence.loadGuestProfile() ??
-        PlayerProfile.guest(
-          id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
-          funnyUsername: UsernameGenerator.generateFunnyUsername(),
-        );
-    state = guestProfile;
-    await _persistence.saveGuestProfile(guestProfile);
   }
 
   /// Update the current profile in memory and local storage.
@@ -104,6 +112,14 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
   Future<bool> signInWithGoogle({
     required void Function(String error) onError,
   }) async {
+    // A Google identity alone is not a LetterLoom account. Without Supabase,
+    // it cannot be persisted, restored, or used by Daily Challenge.
+    if (!SupabaseBootstrap.configured) {
+      onError(
+        'Online services are unavailable in this app build. Please install a configured build.',
+      );
+      return false;
+    }
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
@@ -130,38 +146,33 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
       }
 
       String userId = googleUser.id;
-      if (SupabaseBootstrap.configured) {
-        final currentUser = Supabase.instance.client.auth.currentUser;
-        AuthResponse res;
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      AuthResponse res;
         // Do not link an ID token to the anonymous session. Supabase
         // anonymous sessions can carry a nonce, while google_sign_in's
         // token does not; linking then fails with a nonce mismatch. The
         // guest profile is local and is merged below after normal sign-in.
-        if (currentUser?.isAnonymous == true) {
-          await Supabase.instance.client.auth.signOut();
-        }
-        try {
-          res = await Supabase.instance.client.auth.signInWithIdToken(
-            provider: OAuthProvider.google,
-            idToken: idToken,
-            accessToken: accessToken,
-          );
-        } catch (signInError) {
-          debugPrint('[Auth] Supabase Google sign-in error: $signInError');
-          onError(
-            'Google Sign-In could not connect to LetterLoom. Please try again.',
-          );
-          return false;
-        }
-        if (res.user == null) {
-          onError('Google Sign-In did not create a LetterLoom account.');
-          return false;
-        }
-        userId = res.user!.id;
-      } else if (SupabaseBootstrap.configured) {
-        onError('Google Sign-In did not return a valid identity token.');
+      if (currentUser?.isAnonymous == true) {
+        await Supabase.instance.client.auth.signOut();
+      }
+      try {
+        res = await Supabase.instance.client.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        );
+      } catch (signInError) {
+        debugPrint('[Auth] Supabase Google sign-in error: $signInError');
+        onError(
+          'Google Sign-In could not connect to LetterLoom. Please try again.',
+        );
         return false;
       }
+      if (res.user == null) {
+        onError('Google Sign-In did not create a LetterLoom account.');
+        return false;
+      }
+      userId = res.user!.id;
 
       // The remote profile is the durable source of truth after the first
       // successful sign-in. A guest profile may seed a brand-new account once,

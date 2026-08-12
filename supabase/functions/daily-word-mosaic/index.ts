@@ -60,7 +60,15 @@ const puzzleFor = (template: Template, seed: number) => {
   const random = (max: number) => { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; return seed % max; };
   return template.words.map((word) => {
     const letters = [...word.answer, 'AEIOULMNRST'[random(11)]];
-    letters.sort(() => random(3) - 1);
+    for (let index = letters.length - 1; index > 0; index--) {
+      const swapIndex = random(index + 1);
+      [letters[index], letters[swapIndex]] = [letters[swapIndex], letters[index]];
+    }
+    // A decoy makes the complete array differ from the answer, so checking
+    // the full string is insufficient: R I V E R O still looks solved.
+    if (letters.slice(0, word.answer.length).join('') === word.answer) {
+      [letters[0], letters[1]] = [letters[1], letters[0]];
+    }
     return { clue: word.clue, answer: word.answer, letters };
   });
 };
@@ -73,6 +81,15 @@ const publicWords = (
     letters: word.letters,
     ...(solvedIndexes.includes(index) ? { solved_answer: word.answer } : {}),
   }));
+
+const timerState = (progress: Record<string, unknown>) => {
+  const started = typeof progress.timer_started_at === 'string'
+    ? Date.parse(progress.timer_started_at) : NaN;
+  const stored = Number(progress.remaining_seconds ?? 180);
+  const remaining = Number.isNaN(started)
+    ? stored : Math.max(0, stored - Math.floor((Date.now() - started) / 1000));
+  return { remaining, expired: remaining === 0 && progress.completed !== true };
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -98,32 +115,58 @@ Deno.serve(async (req) => {
       const eligible = catalog.filter((item) => item.tier <= tier && !used.has(item.id));
       const pool = eligible.length ? eligible : catalog.filter((item) => item.tier <= tier);
       template = pool[stableHash(`${today}:${user.id}`) % pool.length];
-      const { error } = await admin.from('daily_word_mosaic_progress').upsert({ user_id: user.id, puzzle_date: today, puzzle_id: template.id, difficulty_tier: tier, streak_days: streak, solved_word_indexes: [], score: 0, completed: false }, { onConflict: 'user_id,puzzle_date' });
+      const { error } = await admin.from('daily_word_mosaic_progress').upsert({ user_id: user.id, puzzle_date: today, puzzle_id: template.id, difficulty_tier: tier, streak_days: streak, solved_word_indexes: [], score: 0, completed: false, remaining_seconds: 180, failed: false }, { onConflict: 'user_id,puzzle_date' });
       if (error) throw error;
     }
     const generatedWords = puzzleFor(template, stableHash(`${today}:${user.id}:${template.id}`));
-    const words = Array.isArray(current?.words) && current.words.length > 0
+    let words = Array.isArray(current?.words) && current.words.length > 0
       ? current.words as Array<{ clue: string; answer: string; letters: string[] }>
       : generatedWords;
-    if (!current || !Array.isArray(current.words) || current.words.length === 0) {
+    const storedWordsAreUnshuffled = words.some((word) =>
+      word.letters.slice(0, word.answer.length).join('') === word.answer
+    );
+    if (!current || !Array.isArray(current.words) || current.words.length === 0 || storedWordsAreUnshuffled) {
+      words = generatedWords;
       const { error } = await admin.from('daily_word_mosaic_progress')
         .update({ words, updated_at: new Date().toISOString() })
         .eq('user_id', user.id)
         .eq('puzzle_date', today);
       if (error) throw error;
     }
-    if (action === 'submit') {
+    const currentTimer = current ? timerState(current) : { remaining: 180, expired: false };
+    if (currentTimer.expired || current?.failed === true) {
+      await admin.from('daily_word_mosaic_progress').update({ remaining_seconds: 0, timer_started_at: null, failed: true, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
+      return response({ error: 'Time is up for today\'s Daily Challenge.' }, 409);
+    }
+    if (action === 'expire') {
+      const { error } = await admin.from('daily_word_mosaic_progress').update({ remaining_seconds: 0, timer_started_at: null, failed: true, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
+      if (error) throw error;
+    } else if (action === 'pause') {
+      const { error } = await admin.from('daily_word_mosaic_progress').update({ remaining_seconds: currentTimer.remaining, timer_started_at: null, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
+      if (error) throw error;
+    } else if (action === 'resume') {
+      const { error } = await admin.from('daily_word_mosaic_progress').update({ timer_started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
+      if (error) throw error;
+    } else if (action === 'submit') {
       const wordIndex = Number(body.word_index);
       const submittedLetters = Array.isArray(body.letters)
         ? body.letters.map((value: unknown) => String(value).toUpperCase())
         : [];
-      const selected = Number.isInteger(wordIndex) && wordIndex >= 0 && wordIndex < words.length
-        ? words[wordIndex]
+      // Persisted letters keep a player's scramble stable. Answers, however,
+      // must always come from the immutable catalog rather than mutable JSON
+      // stored on a progress row.
+      const selected = Number.isInteger(wordIndex) && wordIndex >= 0 && wordIndex < template.words.length
+        ? template.words[wordIndex]
         : null;
       const accepted = selected !== null
         && submittedLetters.length === selected.answer.length
         && submittedLetters.join('') === selected.answer;
-      if (!accepted) return response({ accepted: false });
+      if (!accepted) {
+        return response({
+          accepted: false,
+          error: 'The submitted letters do not solve this clue.',
+        });
+      }
 
       const currentSolved = Array.isArray(current?.solved_word_indexes)
         ? current.solved_word_indexes.map((value: unknown) => Number(value))
@@ -142,10 +185,17 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq('user_id', user.id).eq('puzzle_date', today);
       if (error) throw error;
-    } else if (action === 'save') {
+    } else if (action !== 'get') {
       return response({ error: 'Word submissions must be validated individually.' }, 400);
     }
     const { data: progress } = await admin.from('daily_word_mosaic_progress').select('*').eq('user_id', user.id).eq('puzzle_date', today).single();
+    const finalTimer = timerState(progress);
+    if (finalTimer.expired && progress.completed !== true) {
+      await admin.from('daily_word_mosaic_progress').update({ remaining_seconds: 0, timer_started_at: null, failed: true, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('puzzle_date', today);
+      progress.remaining_seconds = 0;
+      progress.timer_started_at = null;
+      progress.failed = true;
+    }
     return response({
       accepted: action === 'submit',
       puzzle: {
@@ -160,7 +210,7 @@ Deno.serve(async (req) => {
         ),
         target_score: words.reduce((sum, word) => sum + word.answer.length, 0),
       },
-      progress,
+      progress: { ...progress, remaining_seconds: finalTimer.remaining },
     });
   } catch (error) {
     console.error('daily-word-mosaic error', error);

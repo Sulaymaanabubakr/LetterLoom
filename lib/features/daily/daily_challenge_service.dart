@@ -37,6 +37,14 @@ class DailyChallengeData {
       words.fold<int>(0, (total, word) => total + word.answerLength);
 }
 
+class DailyChallengeRemoteException implements Exception {
+  final String message;
+  const DailyChallengeRemoteException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 @immutable
 class DailyChallengeState {
   final String dateStr;
@@ -48,6 +56,8 @@ class DailyChallengeState {
   final int streakDays;
   final List<int> solvedWordIndexes;
   final List<String> playedPuzzleIds;
+  final int remainingSeconds;
+  final bool failed;
 
   const DailyChallengeState({
     required this.dateStr,
@@ -59,6 +69,8 @@ class DailyChallengeState {
     required this.streakDays,
     this.solvedWordIndexes = const [],
     this.playedPuzzleIds = const [],
+    this.remainingSeconds = 180,
+    this.failed = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -71,6 +83,8 @@ class DailyChallengeState {
     'streakDays': streakDays,
     'solvedWordIndexes': solvedWordIndexes,
     'playedPuzzleIds': playedPuzzleIds,
+    'remainingSeconds': remainingSeconds,
+    'failed': failed,
   };
 
   factory DailyChallengeState.fromJson(Map<String, dynamic> json) {
@@ -84,8 +98,25 @@ class DailyChallengeState {
       streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
       solvedWordIndexes: _intList(json['solvedWordIndexes']),
       playedPuzzleIds: _stringList(json['playedPuzzleIds']),
+      remainingSeconds: (json['remainingSeconds'] as num?)?.toInt() ?? 180,
+      failed: json['failed'] as bool? ?? false,
     );
   }
+
+  DailyChallengeState copyWith({int? remainingSeconds, bool? failed}) =>
+      DailyChallengeState(
+        dateStr: dateStr,
+        puzzleId: puzzleId,
+        isCompleted: isCompleted,
+        scoreAchieved: scoreAchieved,
+        bestPossibleScore: bestPossibleScore,
+        starRating: starRating,
+        streakDays: streakDays,
+        solvedWordIndexes: solvedWordIndexes,
+        playedPuzzleIds: playedPuzzleIds,
+        remainingSeconds: remainingSeconds ?? this.remainingSeconds,
+        failed: failed ?? this.failed,
+      );
 
   static List<int> _intList(Object? value) => value is List
       ? value.whereType<num>().map((item) => item.toInt()).toList()
@@ -196,7 +227,7 @@ class DailyChallengeService {
   }
 
   static Future<DailyServerSnapshot?> syncRemote({
-    List<int>? solvedWordIndexes,
+    String action = 'get',
   }) async {
     if (!SupabaseBootstrap.configured) return null;
     final user = Supabase.instance.client.auth.currentUser;
@@ -204,11 +235,7 @@ class DailyChallengeService {
     try {
       final response = await Supabase.instance.client.functions.invoke(
         'daily-word-mosaic',
-        body: {
-          'action': solvedWordIndexes == null ? 'get' : 'save',
-          if (solvedWordIndexes != null)
-            'solved_word_indexes': solvedWordIndexes,
-        },
+        body: {'action': action},
       );
       final payload = response.data;
       if (payload is! Map ||
@@ -243,6 +270,9 @@ class DailyChallengeService {
               : 0,
           streakDays: (progress['streak_days'] as num?)?.toInt() ?? 0,
           solvedWordIndexes: solved,
+          remainingSeconds:
+              (progress['remaining_seconds'] as num?)?.toInt() ?? 180,
+          failed: progress['failed'] as bool? ?? false,
         ),
       );
     } catch (error) {
@@ -257,22 +287,45 @@ class DailyChallengeService {
     return user != null && !user.isAnonymous;
   }
 
-  static Future<DailyServerSnapshot?> submitRemoteWord({
+  static Future<DailyServerSnapshot> submitRemoteWord({
     required int wordIndex,
     required List<String> letters,
   }) async {
-    if (!hasRemoteAccount) return null;
+    if (!hasRemoteAccount) {
+      throw const DailyChallengeRemoteException(
+        'Sign in to sync and submit the Daily Challenge.',
+      );
+    }
     try {
       final response = await Supabase.instance.client.functions.invoke(
         'daily-word-mosaic',
         body: {'action': 'submit', 'word_index': wordIndex, 'letters': letters},
       );
       final payload = response.data;
-      if (payload is! Map || payload['accepted'] != true) return null;
-      return _snapshotFromPayload(Map<String, dynamic>.from(payload));
+      if (payload is! Map) {
+        throw const DailyChallengeRemoteException(
+          'The Daily Challenge server returned an incomplete response.',
+        );
+      }
+      if (payload['accepted'] != true) {
+        throw DailyChallengeRemoteException(
+          payload['error'] as String? ??
+              'The Daily Challenge could not verify that word. Refresh and try again.',
+        );
+      }
+      final snapshot = _snapshotFromPayload(Map<String, dynamic>.from(payload));
+      if (snapshot == null) {
+        throw const DailyChallengeRemoteException(
+          'The Daily Challenge progress response was incomplete.',
+        );
+      }
+      return snapshot;
     } catch (error) {
+      if (error is DailyChallengeRemoteException) rethrow;
       debugPrint('[DailyChallenge] Remote word submission failed: $error');
-      return null;
+      throw const DailyChallengeRemoteException(
+        'Unable to verify the word right now. Check your connection and try again.',
+      );
     }
   }
 
@@ -309,6 +362,9 @@ class DailyChallengeService {
             : 0,
         streakDays: (progress['streak_days'] as num?)?.toInt() ?? 0,
         solvedWordIndexes: solved,
+        remainingSeconds:
+            (progress['remaining_seconds'] as num?)?.toInt() ?? 180,
+        failed: progress['failed'] as bool? ?? false,
       ),
     );
   }

@@ -5,8 +5,9 @@ import '../../theme/app_theme.dart';
 import '../../models/board_cell.dart';
 import '../../models/tile.dart';
 import '../../core/ad_service.dart';
-import '../../core/billing_service.dart';
 import '../../core/toast_utils.dart';
+import '../auth/auth_service.dart';
+import 'boost_shop_screen.dart';
 import 'hint_service.dart';
 import 'hint_engine.dart';
 
@@ -14,16 +15,16 @@ class HintModal extends ConsumerStatefulWidget {
   final List<List<BoardCell>> boardGrid;
   final List<Tile> playerRack;
   final Function(HintResult result) onHintGenerated;
-  final VoidCallback? onHintGenerationStarted;
-  final VoidCallback? onHintGenerationFinished;
+  final VoidCallback? onModalOpened;
+  final VoidCallback? onModalClosed;
 
   const HintModal({
     super.key,
     required this.boardGrid,
     required this.playerRack,
     required this.onHintGenerated,
-    this.onHintGenerationStarted,
-    this.onHintGenerationFinished,
+    this.onModalOpened,
+    this.onModalClosed,
   });
 
   static Future<void> show({
@@ -31,21 +32,26 @@ class HintModal extends ConsumerStatefulWidget {
     required List<List<BoardCell>> boardGrid,
     required List<Tile> playerRack,
     required Function(HintResult result) onHintGenerated,
-    VoidCallback? onHintGenerationStarted,
-    VoidCallback? onHintGenerationFinished,
+    VoidCallback? onModalOpened,
+    VoidCallback? onModalClosed,
   }) async {
-    return showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => HintModal(
-        boardGrid: boardGrid,
-        playerRack: playerRack,
-        onHintGenerated: onHintGenerated,
-        onHintGenerationStarted: onHintGenerationStarted,
-        onHintGenerationFinished: onHintGenerationFinished,
-      ),
-    );
+    onModalOpened?.call();
+    try {
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (context) => HintModal(
+          boardGrid: boardGrid,
+          playerRack: playerRack,
+          onHintGenerated: onHintGenerated,
+          onModalOpened: onModalOpened,
+          onModalClosed: onModalClosed,
+        ),
+      );
+    } finally {
+      onModalClosed?.call();
+    }
   }
 
   @override
@@ -87,7 +93,6 @@ class _HintModalState extends ConsumerState<HintModal> {
       _generating = true;
       _generatingHintType = hintType;
     });
-    widget.onHintGenerationStarted?.call();
     final hintNotifier = ref.read(hintServiceProvider.notifier);
 
     // Compute hint first to ensure legal move exists BEFORE consuming hint
@@ -112,7 +117,25 @@ class _HintModalState extends ConsumerState<HintModal> {
       final success = await hintNotifier.consumeHint(hintType);
       if (!success) {
         if (mounted) {
-          _showGetMoreHintsDialog(hintType);
+          // Replace the help sheet with one modal. Stacking a second sheet on
+          // top of this one was the source of the cramped, inconsistent UI.
+          final rootContext = Navigator.of(context, rootNavigator: true).context;
+          // Keep a second pause lease while replacing this sheet with the
+          // boost dialog. The sheet's close callback releases only its lease.
+          widget.onModalOpened?.call();
+          await Navigator.of(context).maybePop();
+          if (rootContext.mounted) {
+            final openBoostShop = await _showGetMoreHintsDialog(
+              rootContext,
+              hintType,
+            );
+            if (openBoostShop == true && rootContext.mounted) {
+              await Navigator.of(rootContext).push(
+                MaterialPageRoute(builder: (_) => const BoostShopScreen()),
+              );
+            }
+          }
+          widget.onModalClosed?.call();
         }
         return;
       }
@@ -128,116 +151,73 @@ class _HintModalState extends ConsumerState<HintModal> {
           _generatingHintType = null;
         });
       }
-      widget.onHintGenerationFinished?.call();
     }
   }
 
-  void _showGetMoreHintsDialog(String hintType) {
-    showDialog(
-      context: context,
+  Future<bool?> _showGetMoreHintsDialog(
+    BuildContext dialogContext,
+    String hintType,
+  ) {
+    return showDialog<bool>(
+      context: dialogContext,
       useSafeArea: false,
       builder: (context) => PremiumDialog(
-        title: 'Daily Helps Used',
-        child: Text(
-          'You have used today\'s ${_helperName(hintType)} helps. Watch a short video or get a help pack for more.',
-          style: GoogleFonts.inter(color: AppTheme.mutedIvory),
+        title: 'Get more help',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'You have used today\'s ${_helperName(hintType)} helps. Watch ads or choose a boost pack to keep playing.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: AppTheme.mutedIvory),
+            ),
+          ],
         ),
         actions: [
           Expanded(
-            child: TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('CLOSE'),
-            ),
-          ),
-          Expanded(
             child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.emeraldGreen,
-              ),
-              icon: const Icon(
-                Icons.ondemand_video_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-              label: const Text(
-                'WATCH VIDEO',
-                style: TextStyle(color: Colors.white),
-              ),
               onPressed: () async {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(false);
                 await AdService().showRewardedAd(
                   hintType: hintType,
                   onRewardEarned: (type, amount) async {
                     final granted = await ref
                         .read(hintServiceProvider.notifier)
                         .grantAdReward(type);
-                    if (mounted) {
-                      if (granted) {
-                        ToastUtils.showToast(
-                          context,
-                          '+1 ${_helperName(type)} help earned!',
-                        );
-                      } else {
-                        ToastUtils.showToast(
-                          context,
-                          'Daily ad limit reached.',
-                          isError: true,
-                        );
-                      }
-                    }
-                  },
-                  onError: (err) {
-                    if (mounted) {
-                      ToastUtils.showToast(context, err, isError: true);
-                    }
-                  },
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.shinyGold,
-              ),
-              icon: const Icon(
-                Icons.shopping_bag_rounded,
-                color: Colors.black,
-                size: 18,
-              ),
-              label: const Text(
-                'GET PACK',
-                style: TextStyle(color: Colors.black),
-              ),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                final pack = BillingService.availablePacks.firstWhere(
-                  (p) => p.hintType == hintType || p.hintType == 'mixed',
-                );
-                await BillingService().purchasePack(
-                  pack,
-                  onPurchaseFulfilled: (type, amount) async {
-                    await ref
-                        .read(hintServiceProvider.notifier)
-                        .addPurchasedHints(type, amount);
-                    if (mounted) {
+                    if (dialogContext.mounted) {
                       ToastUtils.showToast(
-                        context,
-                        'Added $amount ${_helperName(type)} helps.',
+                        dialogContext,
+                        granted
+                            ? '+1 ${_helperName(type)} help earned!'
+                            : 'Daily ad limit reached.',
+                        isError: !granted,
                       );
                     }
                   },
                   onError: (error) {
-                    if (mounted)
-                      ToastUtils.showToast(
-                        context,
-                        'Purchase could not be completed.',
-                        isError: true,
-                      );
-                    debugPrint('[Hints] Purchase failed: $error');
+                    if (dialogContext.mounted) {
+                      ToastUtils.showToast(dialogContext, error, isError: true);
+                    }
                   },
                 );
               },
+              icon: const Icon(Icons.ondemand_video_rounded, size: 17),
+              label: const Text('WATCH ADS'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.emeraldGreen,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.of(context).pop(true);
+              },
+              icon: const Icon(Icons.shopping_bag_rounded, size: 17),
+              label: const Text('BOOST SHOP'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.shinyGold, foregroundColor: AppTheme.darkCharcoal),
             ),
           ),
         ],

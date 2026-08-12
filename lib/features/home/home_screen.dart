@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../core/music_manager.dart';
 import '../../core/supabase_bootstrap.dart';
+import '../../core/toast_utils.dart';
 import '../../models/player_profile.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
@@ -18,6 +19,7 @@ import '../auth/auth_service.dart';
 import '../auth/save_progress_modal.dart';
 import '../profile/profile_screen.dart';
 import '../daily/daily_challenge_screen.dart';
+import '../daily/daily_challenge_service.dart';
 import '../daily/daily_rewards_service.dart';
 import '../hints/hint_service.dart';
 import '../achievements/achievements_screen.dart';
@@ -35,6 +37,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _canContinue = false;
   bool _checkingSave = true;
+  late Future<DailyServerSnapshot?> _dailyChallengeFuture;
   // Kept disabled while older hot-reload sessions are still attached.
   final bool _showLegacyInlineHeader = false;
 
@@ -42,6 +45,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _checkSavedGame();
+    _dailyChallengeFuture = DailyChallengeService.syncRemote();
+    if (SupabaseBootstrap.configured) {
+      Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+        if (event.session?.user.isAnonymous == false) {
+          _dailyChallengeFuture = DailyChallengeService.syncRemote();
+        }
+      });
+    }
     // Ensure menu music plays whenever we return to HomeScreen
     MusicManager.instance.setTrack(MusicTrack.menu);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -847,11 +858,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               subtitle: 'Today\'s puzzle',
                               iconData: Icons.today_rounded,
                               isPrimary: false,
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const DailyChallengeScreen(),
-                                ),
-                              ),
+                              onPressed: _openDailyChallenge,
                             ),
                             _buildPremiumButton(
                               title: 'Competitive Duel',
@@ -1012,6 +1019,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openDailyChallenge() async {
+    final snapshot = await _dailyChallengeFuture;
+    if (!mounted) return;
+    if (snapshot == null) {
+      ToastUtils.show(
+        context,
+        'Daily Challenge is unavailable. Sign in and try again.',
+        isError: true,
+      );
+      _dailyChallengeFuture = DailyChallengeService.syncRemote();
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DailyChallengeScreen(snapshot: snapshot),
+      ),
+    );
+    _dailyChallengeFuture = DailyChallengeService.syncRemote();
   }
 
   Widget _buildPremiumButton({

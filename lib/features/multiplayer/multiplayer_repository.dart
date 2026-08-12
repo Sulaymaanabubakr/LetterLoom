@@ -14,23 +14,9 @@ class MultiplayerRepository {
         'Online play is not configured for this build.',
       );
     }
-    if (_client.auth.currentSession == null) {
-      AuthResponse response;
-      try {
-        response = await _client.auth.signInAnonymously();
-      } on AuthException catch (error) {
-        if (error.code == 'anonymous_provider_disabled') {
-          throw const MultiplayerException(
-            'Online play needs Anonymous Sign-Ins enabled in the LetterLoom Supabase project.',
-          );
-        }
-        throw MultiplayerException(error.message);
-      }
-      if (response.user == null) {
-        throw const MultiplayerException(
-          'Could not start your online session.',
-        );
-      }
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      throw const MultiplayerException('Sign in with Google to play online.');
     }
   }
 
@@ -117,7 +103,9 @@ class MultiplayerRepository {
       },
     );
     if (response.data is! Map || response.data['move'] is! Map) {
-      throw const MultiplayerException('The authoritative move response was incomplete.');
+      throw const MultiplayerException(
+        'The authoritative move response was incomplete.',
+      );
     }
     return loadGameState(gameId);
   }
@@ -167,7 +155,9 @@ class MultiplayerRepository {
     );
     final data = response.data;
     if (data is! Map) {
-      throw const MultiplayerException('The ranked queue response was incomplete.');
+      throw const MultiplayerException(
+        'The ranked queue response was incomplete.',
+      );
     }
     return RankedMatchmakingResult.fromJson(Map<String, dynamic>.from(data));
   }
@@ -261,14 +251,14 @@ class MultiplayerStateSnapshot {
   final MultiplayerGame game;
   final GameState? state;
   final List<dynamic> rack;
-  final List<dynamic> tileBag;
+  final int tileCount;
   final List<dynamic> players;
 
   const MultiplayerStateSnapshot({
     required this.game,
     this.state,
     this.rack = const [],
-    this.tileBag = const [],
+    this.tileCount = 0,
     this.players = const [],
   });
 
@@ -285,9 +275,7 @@ class MultiplayerStateSnapshot {
       rack: raw['rack'] is List
           ? List<dynamic>.from(raw['rack'] as List)
           : const [],
-      tileBag: raw['tile_bag'] is List
-          ? List<dynamic>.from(raw['tile_bag'] as List)
-          : const [],
+      tileCount: (raw['tile_count'] as num?)?.toInt() ?? 0,
       players: raw['players'] is List
           ? List<dynamic>.from(raw['players'] as List)
           : const [],
@@ -310,10 +298,14 @@ class MultiplayerStateSnapshot {
         .whereType<Map>()
         .map((tile) => Tile.fromJson(Map<String, dynamic>.from(tile)))
         .toList();
-    final bagTiles = tileBag
-        .whereType<Map>()
-        .map((tile) => Tile.fromJson(Map<String, dynamic>.from(tile)))
-        .toList();
+    // GameState retains a bag collection for count-based UI and exchange
+    // eligibility. These opaque placeholders deliberately carry no server
+    // tile identity, order, letter, or score information.
+    final bagTiles = List<Tile>.generate(
+      tileCount,
+      (index) => Tile(id: 'server-hidden-$index', letter: '?', scoreValue: 0),
+      growable: false,
+    );
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final isPlayerOne = currentUserId == game.createdByUserId;
     final isMyTurn = game.currentTurnUserId == currentUserId;

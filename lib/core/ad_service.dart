@@ -23,8 +23,24 @@ class AdService {
   RewardedAd? _rewardedAd;
   bool get isAdLoading => _isAdLoading;
 
+  bool get _usesGoogleTestUnitId {
+    final adUnitId = defaultTargetPlatform == TargetPlatform.android
+        ? AppConfig.rewardedAdUnitIdAndroid
+        : AppConfig.rewardedAdUnitIdIOS;
+    return adUnitId.contains('ca-app-pub-3940256099942544/');
+  }
+
+  bool get _isConfiguredForThisBuild => !kReleaseMode || !_usesGoogleTestUnitId;
+
   Future<void> initialize() async {
-    if (kIsWeb) return;
+    if (kIsWeb || !_isConfiguredForThisBuild) {
+      if (!kIsWeb && kReleaseMode) {
+        debugPrint(
+          '[Ads] Disabled: a production rewarded-ad unit ID is required.',
+        );
+      }
+      return;
+    }
     try {
       await MobileAds.instance.initialize();
     } catch (error) {
@@ -43,6 +59,10 @@ class AdService {
         defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS) {
       onError('Rewarded ads are unavailable on this platform.');
+      return false;
+    }
+    if (!_isConfiguredForThisBuild) {
+      onError('Rewarded ads are not configured for this production build.');
       return false;
     }
     if (_isAdLoading || _rewardedAd != null) {

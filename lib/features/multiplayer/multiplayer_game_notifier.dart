@@ -73,14 +73,15 @@ class MultiplayerGameNotifier extends GameNotifier {
 
   @override
   void pauseGame() {
+    final wasPaused = isGamePaused;
     super.pauseGame();
-    unawaited(_repository.pauseGame(gameId));
+    if (!wasPaused) unawaited(_repository.pauseGame(gameId));
   }
 
   @override
   void resumeGame() {
     super.resumeGame();
-    unawaited(_resumeServerGame());
+    if (!isGamePaused) unawaited(_resumeServerGame());
   }
 
   Future<void> _resumeServerGame() async {

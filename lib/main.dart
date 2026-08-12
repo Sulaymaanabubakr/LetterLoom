@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'dictionary/dictionary_service.dart';
 import 'features/home/home_screen.dart';
+import 'features/auth/auth_service.dart';
+import 'features/hints/hint_service.dart';
 import 'core/supabase_bootstrap.dart';
 import 'core/push_notification_service.dart';
 import 'core/ad_service.dart';
@@ -32,14 +34,14 @@ class LetterLoomApp extends StatelessWidget {
   }
 }
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -59,8 +61,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initDictionary() async {
-    unawaited(_warmDictionary());
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    // Home never mounts with guest/default header data for a restored account.
+    await Future.wait([
+      _warmDictionary(),
+      ref.read(authProvider.notifier).ready,
+      ref.read(hintServiceProvider.notifier).ready,
+      Future<void>.delayed(const Duration(milliseconds: 350)),
+    ]);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

@@ -436,7 +436,7 @@ entrypoint = "./functions/join-multiplayer-game/index.ts"
 
 [functions.ranked-matchmaking]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/ranked-matchmaking/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -452,7 +452,7 @@ entrypoint = "./functions/daily-word-mosaic/index.ts"
 
 [functions.settle-ranked-match]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/settle-ranked-match/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

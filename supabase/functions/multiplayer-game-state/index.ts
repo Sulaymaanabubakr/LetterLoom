@@ -146,7 +146,12 @@ Deno.serve(async (req) => {
     return response({
       game: currentGame,
       rack: privateRack?.rack ?? [],
-      tile_bag: privateGame?.tile_bag ?? [],
+      // The bag belongs to the server. Clients need the remaining count for
+      // UI affordances, never the identities or ordering of undistributed
+      // tiles.
+      tile_count: Array.isArray(privateGame?.tile_bag)
+        ? privateGame.tile_bag.length
+        : 0,
       players: roomPlayers ?? [],
     });
   } catch (error) {

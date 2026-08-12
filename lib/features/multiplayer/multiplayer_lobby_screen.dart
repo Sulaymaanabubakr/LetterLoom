@@ -567,7 +567,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (_isRoomOwner && !isStopped) ...[
+              if (game.mode != 'ranked' && _isRoomOwner && !isStopped) ...[
                 _roomActionButton(
                   icon: Icons.stop_circle_outlined,
                   label: 'Stop room',
@@ -575,7 +575,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 ),
                 const SizedBox(width: 10),
               ],
-              if (_isRoomOwner && !isActive) ...[
+              if (game.mode != 'ranked' && _isRoomOwner && !isActive) ...[
                 _roomActionButton(
                   icon: Icons.delete_outline_rounded,
                   label: 'Delete room',
@@ -584,7 +584,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 ),
                 const SizedBox(width: 10),
               ],
-              if (!_isRoomOwner && !isStopped) ...[
+              if (game.mode != 'ranked' && !_isRoomOwner && !isStopped) ...[
                 _roomActionButton(
                   icon: Icons.logout_rounded,
                   label: 'Leave room',
@@ -731,8 +731,12 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
               isMultiplayer: true,
               opponentName: opponentName,
               onMultiplayerRestart: null,
-              onMultiplayerEnd: _isRoomOwner ? endMatch : null,
-              onMultiplayerLeave: _isRoomOwner ? null : leaveMatch,
+              onMultiplayerEnd: room.mode == 'ranked' || !_isRoomOwner
+                  ? null
+                  : endMatch,
+              onMultiplayerLeave: room.mode == 'ranked' || _isRoomOwner
+                  ? null
+                  : leaveMatch,
             ),
           ),
         ),

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +10,9 @@ import '../../core/toast_utils.dart';
 import 'daily_challenge_service.dart';
 
 class DailyChallengeScreen extends ConsumerStatefulWidget {
-  const DailyChallengeScreen({super.key});
+  final DailyServerSnapshot snapshot;
+
+  const DailyChallengeScreen({super.key, required this.snapshot});
 
   @override
   ConsumerState<DailyChallengeScreen> createState() =>
@@ -21,56 +25,51 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
   List<String> _availableLetters = [];
   final List<String> _selectedLetters = [];
   int _selectedWordIndex = 0;
-  bool _isLoading = true;
   bool _isSubmitting = false;
+  Timer? _challengeTimer;
+  bool _timerExpiredNoticeShown = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPuzzle();
+    _puzzleData = widget.snapshot.data;
+    _challengeState = widget.snapshot.state;
+    _selectWord(_firstOpenWord(_challengeState.solvedWordIndexes));
+    if (!_challengeState.isCompleted && !_challengeState.failed) {
+      unawaited(DailyChallengeService.syncRemote(action: 'resume'));
+      _challengeTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || _challengeState.isCompleted || _challengeState.failed) {
+          return;
+        }
+        final remaining = max(0, _challengeState.remainingSeconds - 1);
+        setState(() {
+          _challengeState = _challengeState.copyWith(
+            remainingSeconds: remaining,
+          );
+        });
+        if (remaining == 0 && !_timerExpiredNoticeShown) {
+          _timerExpiredNoticeShown = true;
+          setState(
+            () => _challengeState = _challengeState.copyWith(failed: true),
+          );
+          unawaited(DailyChallengeService.syncRemote(action: 'expire'));
+          ToastUtils.showToast(
+            context,
+            'Time is up. Today\'s Daily Challenge is marked as failed.',
+            isError: true,
+          );
+        }
+      });
+    }
   }
 
-  Future<void> _loadPuzzle() async {
-    final remote = await DailyChallengeService.syncRemote();
-    if (remote != null) {
-      if (!mounted) return;
-      setState(() {
-        _puzzleData = remote.data;
-        _challengeState = remote.state;
-        _isLoading = false;
-      });
-      _selectWord(_firstOpenWord(remote.state.solvedWordIndexes));
-      return;
+  @override
+  void dispose() {
+    _challengeTimer?.cancel();
+    if (!_challengeState.isCompleted && !_challengeState.failed) {
+      unawaited(DailyChallengeService.syncRemote(action: 'pause'));
     }
-    final loaded = await DailyChallengeService.loadState();
-    final today = DailyChallengeService.getTodayString();
-    final data = DailyChallengeService.generatePuzzle(
-      today,
-      streakDays: loaded.streakDays,
-      puzzleId: loaded.puzzleId.isEmpty ? null : loaded.puzzleId,
-      excludedPuzzleIds: loaded.playedPuzzleIds,
-    );
-    var state = loaded;
-    if (loaded.dateStr != today || loaded.puzzleId.isEmpty) {
-      state = DailyChallengeState(
-        dateStr: today,
-        puzzleId: data.puzzleId,
-        isCompleted: false,
-        scoreAchieved: 0,
-        bestPossibleScore: data.targetScore,
-        starRating: 0,
-        streakDays: loaded.streakDays,
-        playedPuzzleIds: loaded.playedPuzzleIds,
-      );
-      await DailyChallengeService.saveState(state);
-    }
-    if (!mounted) return;
-    setState(() {
-      _puzzleData = data;
-      _challengeState = state;
-      _isLoading = false;
-    });
-    _selectWord(_firstOpenWord(state.solvedWordIndexes));
+    super.dispose();
   }
 
   int _firstOpenWord(List<int> solved) {
@@ -81,18 +80,21 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
   }
 
   void _selectWord(int index) {
-    if (_challengeState.solvedWordIndexes.contains(index)) return;
+    if (_challengeState.solvedWordIndexes.contains(index)) {
+      return;
+    }
     // Do not reset the active word when the player taps its clue card.
     if (index == _selectedWordIndex && _availableLetters.isNotEmpty) return;
     setState(() {
       _selectedWordIndex = index;
       _selectedLetters.clear();
-      _availableLetters = List<String>.from(_puzzleData.words[index].letters);
+      _availableLetters = _scrambledTrayLetters(_puzzleData.words[index]);
     });
   }
 
   void _tapLetter(int index) {
     if (_challengeState.isCompleted ||
+        _challengeState.failed ||
         _selectedLetters.length >=
             _puzzleData.words[_selectedWordIndex].answerLength)
       return;
@@ -109,8 +111,8 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     if (_challengeState.isCompleted) return;
     setState(() {
       _selectedLetters.clear();
-      _availableLetters = List<String>.from(
-        _puzzleData.words[_selectedWordIndex].letters,
+      _availableLetters = _scrambledTrayLetters(
+        _puzzleData.words[_selectedWordIndex],
       );
     });
   }
@@ -128,8 +130,31 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     setState(() => _availableLetters.shuffle(Random()));
   }
 
+  List<String> _scrambledTrayLetters(DailyWord word) {
+    final letters = List<String>.from(word.letters);
+    if (letters.length < 2) return letters;
+
+    // Older persisted challenges could contain an answer followed by its
+    // decoy (for example R I V E R O). Shuffle until the answer is no longer
+    // visibly pre-arranged; a final swap guarantees that invariant.
+    final random = Random();
+    for (var attempt = 0; attempt < 8; attempt++) {
+      letters.shuffle(random);
+      if (letters.take(word.answerLength).join() != word.answer) return letters;
+    }
+    final swapIndex = letters.length - 1;
+    final firstLetter = letters[0];
+    letters[0] = letters[swapIndex];
+    letters[swapIndex] = firstLetter;
+    return letters;
+  }
+
   Future<void> _submitWord() async {
-    if (_isSubmitting || _challengeState.isCompleted) return;
+    if (_isSubmitting ||
+        _challengeState.isCompleted ||
+        _challengeState.failed) {
+      return;
+    }
     final word = _puzzleData.words[_selectedWordIndex];
     if (_selectedLetters.length != word.answerLength) {
       ToastUtils.showToast(
@@ -151,23 +176,20 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     _isSubmitting = true;
     late DailyChallengeState updated;
     if (DailyChallengeService.hasRemoteAccount) {
-      final remote = await DailyChallengeService.submitRemoteWord(
-        wordIndex: _selectedWordIndex,
-        letters: _selectedLetters,
-      );
-      if (remote == null) {
+      try {
+        final remote = await DailyChallengeService.submitRemoteWord(
+          wordIndex: _selectedWordIndex,
+          letters: _selectedLetters,
+        );
+        _puzzleData = remote.data;
+        updated = remote.state;
+      } on DailyChallengeRemoteException catch (error) {
         _isSubmitting = false;
         if (mounted) {
-          ToastUtils.showToast(
-            context,
-            'That word does not match the clue. Try again.',
-            isError: true,
-          );
+          ToastUtils.showToast(context, error.message, isError: true);
         }
         return;
       }
-      _puzzleData = remote.data;
-      updated = remote.state;
     } else {
       final solved = [..._challengeState.solvedWordIndexes, _selectedWordIndex]
         ..sort();
@@ -286,14 +308,6 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppTheme.scaffoldDark,
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.shinyGold),
-        ),
-      );
-    }
     final solved = _challengeState.solvedWordIndexes;
     final selectedWord = _puzzleData.words[_selectedWordIndex];
     return Scaffold(
@@ -306,30 +320,56 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
               const PremiumPageHeader(title: 'Daily Challenge'),
               Expanded(
                 child: LayoutBuilder(
-                  builder: (context, constraints) => SizedBox(
-                    width: constraints.maxWidth,
-                    height: constraints.maxHeight,
-                    child: FittedBox(
-                      alignment: Alignment.topCenter,
-                      fit: BoxFit.scaleDown,
-                      child: SizedBox(
+                  builder: (context, constraints) {
+                    final expandTray =
+                        !kIsWeb &&
+                        defaultTargetPlatform == TargetPlatform.android;
+                    final puzzleContent = [
+                      _buildStatsCard(),
+                      _buildPuzzleHeading(solved.length),
+                      ...List.generate(
+                        _puzzleData.words.length,
+                        (index) =>
+                            _buildWordCard(index, solved.contains(index)),
+                      ),
+                    ];
+                    if (expandTray) {
+                      return SizedBox(
                         width: constraints.maxWidth,
+                        height: constraints.maxHeight,
                         child: Column(
                           children: [
-                            _buildStatsCard(),
-                            _buildPuzzleHeading(solved.length),
-                            ...List.generate(
-                              _puzzleData.words.length,
-                              (index) =>
-                                  _buildWordCard(index, solved.contains(index)),
+                            ...puzzleContent,
+                            Expanded(
+                              child: _buildLetterTray(
+                                selectedWord,
+                                expandToFill: true,
+                              ),
                             ),
-                            _buildLetterTray(selectedWord),
                             const SizedBox(height: 12),
                           ],
                         ),
+                      );
+                    }
+                    return SizedBox(
+                      width: constraints.maxWidth,
+                      height: constraints.maxHeight,
+                      child: FittedBox(
+                        alignment: Alignment.topCenter,
+                        fit: BoxFit.scaleDown,
+                        child: SizedBox(
+                          width: constraints.maxWidth,
+                          child: Column(
+                            children: [
+                              ...puzzleContent,
+                              _buildLetterTray(selectedWord),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -423,38 +463,64 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppTheme.shinyGold.withValues(alpha: 0.65),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _challengeState.failed
+                    ? 'FAILED'
+                    : _formatRemainingTime(_challengeState.remainingSeconds),
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: _challengeState.failed
+                      ? const Color(0xFFE0524B)
+                      : AppTheme.shinyGold,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  '$solved / 6',
-                  style: GoogleFonts.lora(
-                    fontSize: 18,
-                    color: AppTheme.shinyGold,
-                    fontWeight: FontWeight.bold,
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppTheme.shinyGold.withValues(alpha: 0.65),
                   ),
                 ),
-                Text(
-                  'SOLVED',
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    color: AppTheme.mutedIvory,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      '$solved / 6',
+                      style: GoogleFonts.lora(
+                        fontSize: 18,
+                        color: AppTheme.shinyGold,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'SOLVED',
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        color: AppTheme.mutedIvory,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _formatRemainingTime(int seconds) {
+    final safe = max(0, seconds);
+    return '${safe ~/ 60}:${(safe % 60).toString().padLeft(2, '0')}';
   }
 
   Widget _buildWordCard(int index, bool isSolved) {
@@ -588,7 +654,7 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
     );
   }
 
-  Widget _buildLetterTray(DailyWord word) {
+  Widget _buildLetterTray(DailyWord word, {bool expandToFill = false}) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
@@ -598,6 +664,9 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen> {
         border: Border.all(color: AppTheme.shinyGold.withValues(alpha: 0.45)),
       ),
       child: Column(
+        mainAxisAlignment: expandToFill
+            ? MainAxisAlignment.spaceEvenly
+            : MainAxisAlignment.start,
         children: [
           Text(
             'Your Letters',

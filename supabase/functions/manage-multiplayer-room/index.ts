@@ -37,11 +37,17 @@ Deno.serve(async (req) => {
 
     const { data: game, error: gameError } = await admin
       .from('multiplayer_games')
-      .select('status')
+      .select('status, mode')
       .eq('id', gameId)
       .maybeSingle();
     if (gameError) throw gameError;
     if (!game) return response({ error: 'Room not found.' }, 404);
+    if (game.mode === 'ranked') {
+      return response(
+        { error: 'Ranked matches cannot be left, stopped, or deleted as casual rooms.' },
+        409,
+      );
+    }
 
     if (action === 'leave') {
       await admin.from('multiplayer_player_private').delete()

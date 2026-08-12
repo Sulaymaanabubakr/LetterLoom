@@ -33,6 +33,9 @@ export async function getAuthenticatedUser(req: Request): Promise<User> {
   if (error || !data.user) {
     throw new Error('Your session is no longer valid.');
   }
+  if (data.user.is_anonymous) {
+    throw new Error('Sign in with Google to use online features.');
+  }
   return data.user;
 }
 

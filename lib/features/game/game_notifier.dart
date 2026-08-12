@@ -32,6 +32,7 @@ class GameNotifier extends StateNotifier<GameState> {
   final DictionaryService _dictionary = DictionaryService();
   Timer? _aiAnimationTimer;
   DateTime? _pausedAt;
+  int _pauseDepth = 0;
 
   bool get isGamePaused => _pausedAt != null;
   DateTime? get pauseStartedAt => _pausedAt;
@@ -120,11 +121,15 @@ class GameNotifier extends StateNotifier<GameState> {
   /// Freeze the local match while the pause sheet is visible. This also
   /// prevents an in-flight computer turn from committing its move.
   void pauseGame() {
+    _pauseDepth++;
     _pausedAt ??= DateTime.now();
   }
 
   /// Resume the match without charging the player for time spent paused.
   void resumeGame() {
+    if (_pauseDepth == 0) return;
+    _pauseDepth--;
+    if (_pauseDepth > 0) return;
     final pausedAt = _pausedAt;
     if (pausedAt == null) return;
     _pausedAt = null;
@@ -143,6 +148,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final pausedAt = _pausedAt;
     await _persistence.saveGame(state, clockNow: pausedAt ?? DateTime.now());
     _pausedAt = null;
+    _pauseDepth = 0;
   }
 
   /// Persist a backgrounded match while keeping its in-memory pause lock.

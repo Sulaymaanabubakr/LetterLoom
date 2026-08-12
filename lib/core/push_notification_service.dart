@@ -49,7 +49,7 @@ class PushNotificationService {
 
   static Future<void> _registerToken(String token) async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null || user.isAnonymous) return;
 
     final platform = defaultTargetPlatform == TargetPlatform.iOS
         ? 'ios'

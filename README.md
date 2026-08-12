@@ -100,6 +100,15 @@ Then run:
 flutter run --dart-define-from-file=dart_defines.json
 ```
 
+For the maintained local development configuration, use the guarded command
+instead. It refuses to start an unconfigured build, which prevents a Google
+identity from being presented as an online LetterLoom account without a
+Supabase session:
+
+```bash
+./tool/run_android.sh
+```
+
 Do not put a Supabase secret/service-role key in this file or in the Flutter client. The file is ignored by Git. Anonymous Sign-Ins must be enabled in the Supabase project for multiplayer sessions.
 
 The Firebase files used by mobile push notifications are intentionally ignored (`google-services.json`, `GoogleService-Info.plist`, and the server service-account JSON). They are not required for solo or online board play, but must be provisioned separately for push notifications.

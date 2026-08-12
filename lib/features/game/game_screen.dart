@@ -46,6 +46,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   Timer? _turnCountdownTimer;
   DateTime? _countdownTurnStartedAt;
   bool _timeoutRequested = false;
+  bool _appLifecyclePauseHeld = false;
   HintResult? _activeHint;
 
   @override
@@ -68,9 +69,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (_countdownTurnStartedAt != state.turnStartedAt) {
       _countdownTurnStartedAt = state.turnStartedAt;
       _timeoutRequested = false;
-      if (_activeHint != null) {
-        setState(() => _activeHint = null);
-      }
     }
     final start = state.turnStartedAt;
     final isTimedTurn =
@@ -99,11 +97,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     final notifier = ref.read(_provider.notifier);
     if (lifecycleState == AppLifecycleState.resumed) {
-      notifier.resumeGame();
+      if (_appLifecyclePauseHeld) {
+        _appLifecyclePauseHeld = false;
+        notifier.resumeGame();
+      }
       if (mounted) setState(() {});
     } else if (lifecycleState == AppLifecycleState.inactive ||
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden) {
+      if (_appLifecyclePauseHeld) return;
+      _appLifecyclePauseHeld = true;
       notifier.pauseGame();
       // Persist immediately using the frozen pause instant. This prevents an
       // app background/termination from charging the player turn time.
@@ -1304,6 +1307,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
         return GestureDetector(
           onTap: () {
             if (state.status != 'playerTurn') return;
+            if (_activeHint != null) setState(() => _activeHint = null);
             if (tile != null) {
               if (cell.isNewPlacement) {
                 HapticUtils.trigger(HapticType.tap, state.settings);
@@ -1668,11 +1672,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     if (!mounted) return;
                     setState(() => _activeHint = hint);
                   },
-                  // Hint search can take a moment on a full board. A solo
-                  // player must never lose their turn while it is calculating.
-                  onHintGenerationStarted: () =>
-                      ref.read(_provider.notifier).pauseGame(),
-                  onHintGenerationFinished: () =>
+                  // The turn clock is frozen for the entire help flow,
+                  // including the boost/ad dialog, not only while calculating.
+                  onModalOpened: () => ref.read(_provider.notifier).pauseGame(),
+                  onModalClosed: () =>
                       ref.read(_provider.notifier).resumeGame(),
                 );
               },

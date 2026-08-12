@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -89,13 +90,16 @@ class HintState {
 
     return HintState(
       dailyMoveRemaining: isSameDay
-          ? (json['dailyMoveRemaining'] as int? ?? AppConfig.defaultDailyMoveHints)
+          ? (json['dailyMoveRemaining'] as int? ??
+                AppConfig.defaultDailyMoveHints)
           : AppConfig.defaultDailyMoveHints,
       dailyLetterRemaining: isSameDay
-          ? (json['dailyLetterRemaining'] as int? ?? AppConfig.defaultDailyLetterHints)
+          ? (json['dailyLetterRemaining'] as int? ??
+                AppConfig.defaultDailyLetterHints)
           : AppConfig.defaultDailyLetterHints,
       dailyStrongRemaining: isSameDay
-          ? (json['dailyStrongRemaining'] as int? ?? AppConfig.defaultDailyStrongHints)
+          ? (json['dailyStrongRemaining'] as int? ??
+                AppConfig.defaultDailyStrongHints)
           : AppConfig.defaultDailyStrongHints,
       purchasedMove: json['purchasedMove'] as int? ?? 0,
       purchasedLetter: json['purchasedLetter'] as int? ?? 0,
@@ -106,7 +110,9 @@ class HintState {
   }
 }
 
-final hintServiceProvider = StateNotifierProvider<HintNotifier, HintState>((ref) {
+final hintServiceProvider = StateNotifierProvider<HintNotifier, HintState>((
+  ref,
+) {
   return HintNotifier();
 });
 
@@ -114,21 +120,29 @@ class HintNotifier extends StateNotifier<HintState> {
   static const String _saveFileName = 'letterloom_hints_v1.json';
   final PersistenceManager _persistence = PersistenceManager();
   bool _mutationInFlight = false;
+  final Completer<void> _initialization = Completer<void>();
 
   HintNotifier() : super(HintState.initial()) {
     _init();
   }
 
+  /// Allows the splash screen to hydrate the wallet before HomeScreen builds.
+  Future<void> get ready => _initialization.future;
+
   Future<void> _init() async {
-    if (_isAuthenticatedAccount) {
-      await _loadRemoteWallet();
-      return;
-    }
-    final savedData = await _persistence.loadJsonData(_saveFileName);
-    if (savedData != null) {
-      state = HintState.fromJson(savedData);
-    } else {
-      await _save();
+    try {
+      if (_isAuthenticatedAccount) {
+        await _loadRemoteWallet();
+        return;
+      }
+      final savedData = await _persistence.loadJsonData(_saveFileName);
+      if (savedData != null) {
+        state = HintState.fromJson(savedData);
+      } else {
+        await _save();
+      }
+    } finally {
+      if (!_initialization.isCompleted) _initialization.complete();
     }
   }
 
@@ -163,6 +177,9 @@ class HintNotifier extends StateNotifier<HintState> {
     }
   }
 
+  Future<void> refresh() =>
+      _isAuthenticatedAccount ? _loadRemoteWallet() : _init();
+
   Future<void> _save() async {
     await _persistence.saveJsonData(_saveFileName, state.toJson());
   }
@@ -185,11 +202,15 @@ class HintNotifier extends StateNotifier<HintState> {
               : state.copyWith(purchasedMove: state.purchasedMove - 1);
         } else if (hintType == 'letter') {
           state = source == 'daily'
-              ? state.copyWith(dailyLetterRemaining: state.dailyLetterRemaining - 1)
+              ? state.copyWith(
+                  dailyLetterRemaining: state.dailyLetterRemaining - 1,
+                )
               : state.copyWith(purchasedLetter: state.purchasedLetter - 1);
         } else if (hintType == 'strong') {
           state = source == 'daily'
-              ? state.copyWith(dailyStrongRemaining: state.dailyStrongRemaining - 1)
+              ? state.copyWith(
+                  dailyStrongRemaining: state.dailyStrongRemaining - 1,
+                )
               : state.copyWith(purchasedStrong: state.purchasedStrong - 1);
         }
         return true;
@@ -210,7 +231,9 @@ class HintNotifier extends StateNotifier<HintState> {
   Future<bool> _consumeHint(String hintType) async {
     if (hintType == 'move') {
       if (state.dailyMoveRemaining > 0) {
-        state = state.copyWith(dailyMoveRemaining: state.dailyMoveRemaining - 1);
+        state = state.copyWith(
+          dailyMoveRemaining: state.dailyMoveRemaining - 1,
+        );
         await _save();
         return true;
       } else if (state.purchasedMove > 0) {
@@ -220,7 +243,9 @@ class HintNotifier extends StateNotifier<HintState> {
       }
     } else if (hintType == 'letter') {
       if (state.dailyLetterRemaining > 0) {
-        state = state.copyWith(dailyLetterRemaining: state.dailyLetterRemaining - 1);
+        state = state.copyWith(
+          dailyLetterRemaining: state.dailyLetterRemaining - 1,
+        );
         await _save();
         return true;
       } else if (state.purchasedLetter > 0) {
@@ -230,7 +255,9 @@ class HintNotifier extends StateNotifier<HintState> {
       }
     } else if (hintType == 'strong') {
       if (state.dailyStrongRemaining > 0) {
-        state = state.copyWith(dailyStrongRemaining: state.dailyStrongRemaining - 1);
+        state = state.copyWith(
+          dailyStrongRemaining: state.dailyStrongRemaining - 1,
+        );
         await _save();
         return true;
       } else if (state.purchasedStrong > 0) {
@@ -273,7 +300,9 @@ class HintNotifier extends StateNotifier<HintState> {
   /// Add purchased hints to separate persistent balance.
   Future<void> addPurchasedHints(String hintType, int count) async {
     if (_isAuthenticatedAccount) return;
-    if (count <= 0 || count > 100 || !{'move', 'letter', 'strong'}.contains(hintType)) {
+    if (count <= 0 ||
+        count > 100 ||
+        !{'move', 'letter', 'strong'}.contains(hintType)) {
       return;
     }
     if (hintType == 'move') {
