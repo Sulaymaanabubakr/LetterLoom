@@ -1,34 +1,47 @@
-import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../models/game_settings.dart';
 
+/// Short, bundled feedback sounds. They are independent from music and always
+/// respect the player's Sound Effects setting.
 class SoundManager {
-  static void play(SoundType type, GameSettings settings) {
+  SoundManager._();
+
+  static final AudioPlayer _tapPlayer = AudioPlayer()
+    ..setReleaseMode(ReleaseMode.stop);
+  static DateTime? _lastPlayback;
+  static bool _configured = false;
+
+  static Future<void> play(SoundType type, GameSettings settings) async {
     if (!settings.soundEnabled) return;
-    
+    final now = DateTime.now();
+    if (_lastPlayback != null &&
+        now.difference(_lastPlayback!) < const Duration(milliseconds: 65)) {
+      return;
+    }
+    _lastPlayback = now;
     try {
+      if (!_configured) {
+        await _tapPlayer.setAudioContext(
+          AudioContextConfig(
+            focus: AudioContextConfigFocus.mixWithOthers,
+          ).build(),
+        );
+        _configured = true;
+      }
       switch (type) {
         case SoundType.click:
-        case SoundType.place:
         case SoundType.pickup:
-          SystemSound.play(SystemSoundType.click);
-          break;
-        case SoundType.invalid:
-          // Try playing system sounds or fallback
-          SystemSound.play(SystemSoundType.click);
-          break;
+        case SoundType.place:
         case SoundType.submit:
         case SoundType.success:
-          SystemSound.play(SystemSoundType.click);
-          break;
         case SoundType.victory:
         case SoundType.defeat:
         case SoundType.tie:
-          // System click fallback
-          SystemSound.play(SystemSoundType.click);
-          break;
+        case SoundType.invalid:
+          await _tapPlayer.play(AssetSource('audio/tap.wav'), volume: 0.45);
       }
-    } catch (e) {
-      print("Error playing system sound: $e");
+    } catch (_) {
+      // Sound effects are optional and must never interrupt a game action.
     }
   }
 }

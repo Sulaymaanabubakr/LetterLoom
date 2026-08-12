@@ -1,7 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
 import '../../core/toast_utils.dart';
 import 'auth_service.dart';
@@ -24,6 +26,38 @@ class SaveProgressModal extends ConsumerStatefulWidget {
 
 class _SaveProgressModalState extends ConsumerState<SaveProgressModal> {
   bool _isSigningIn = false;
+  late final TapGestureRecognizer _privacyRecognizer;
+  late final TapGestureRecognizer _termsRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = () => _openLegalPage('https://letterlooms.vercel.app/privacy');
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = () => _openLegalPage('https://letterlooms.vercel.app/terms');
+  }
+
+  @override
+  void dispose() {
+    _privacyRecognizer.dispose();
+    _termsRecognizer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openLegalPage(String value) async {
+    final opened = await launchUrl(
+      Uri.parse(value),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ToastUtils.showToast(
+        context,
+        'Unable to open that page right now.',
+        isError: true,
+      );
+    }
+  }
 
   Future<void> _handleGoogleSignIn() async {
     if (_isSigningIn) return;
@@ -243,6 +277,46 @@ class _SaveProgressModalState extends ConsumerState<SaveProgressModal> {
               ),
             ),
             const SizedBox(height: 12),
+            Text.rich(
+              TextSpan(
+                text: 'By signing up, you agree to our ',
+                children: [
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    recognizer: _privacyRecognizer,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      height: 1.4,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.shinyGold,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppTheme.shinyGold,
+                    ),
+                  ),
+                  const TextSpan(text: ' and '),
+                  TextSpan(
+                    text: 'Terms of Use',
+                    recognizer: _termsRecognizer,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      height: 1.4,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.shinyGold,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppTheme.shinyGold,
+                    ),
+                  ),
+                  const TextSpan(text: '.'),
+                ],
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppTheme.mutedIvory,
+                ),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
             // Secondary Action: Maybe Later
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

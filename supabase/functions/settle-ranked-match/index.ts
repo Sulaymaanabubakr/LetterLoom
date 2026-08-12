@@ -16,6 +16,9 @@ Deno.serve(async (req) => {
     if (!member) return response({ error: 'You are not a player in this match.' }, 403);
     const { data, error } = await admin.rpc('settle_ranked_match', { p_game_id: gameId });
     if (error) throw error;
+    if ((data as { settled?: boolean } | null)?.settled !== true) {
+      return response(data);
+    }
     const { data: game, error: gameError } = await admin
       .from('multiplayer_games')
       .select('winner_id, player_one_score, player_two_score')

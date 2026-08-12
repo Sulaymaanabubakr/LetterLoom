@@ -3,7 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 class ToastUtils {
-  static void show(BuildContext context, String message, {bool isError = false}) {
+  static void show(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+    VoidCallback? onTap,
+  }) {
     final overlayState = Overlay.of(context);
     late OverlayEntry overlayEntry;
 
@@ -11,6 +16,7 @@ class ToastUtils {
       builder: (context) => _ToastWidget(
         message: message,
         isError: isError,
+        onTap: onTap,
         onDismiss: () => overlayEntry.remove(),
       ),
     );
@@ -18,19 +24,33 @@ class ToastUtils {
     overlayState.insert(overlayEntry);
   }
 
-  static void showToast(BuildContext context, String message, {bool isError = false}) {
+  static void showToast(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
     show(context, message, isError: isError);
+  }
+
+  static void showNotification(
+    BuildContext context,
+    String message, {
+    required VoidCallback onOpen,
+  }) {
+    show(context, message, onTap: onOpen);
   }
 }
 
 class _ToastWidget extends StatefulWidget {
   final String message;
   final bool isError;
+  final VoidCallback? onTap;
   final VoidCallback onDismiss;
 
   const _ToastWidget({
     required this.message,
     required this.isError,
+    this.onTap,
     required this.onDismiss,
   });
 
@@ -38,7 +58,8 @@ class _ToastWidget extends StatefulWidget {
   State<_ToastWidget> createState() => _ToastWidgetState();
 }
 
-class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderStateMixin {
+class _ToastWidgetState extends State<_ToastWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<double> _slide;
@@ -51,13 +72,15 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
       duration: const Duration(milliseconds: 300),
     );
 
-    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _opacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _slide = Tween<double>(begin: -40.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _slide = Tween<double>(
+      begin: -40.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
 
@@ -79,9 +102,15 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
   Widget build(BuildContext context) {
     final double topPadding = MediaQuery.of(context).padding.top + 16.0;
 
-    final Color bgColor = widget.isError ? const Color(0xFF4C100C) : const Color(0xFF021710);
-    final Color borderColor = widget.isError ? const Color(0xFFE0524B) : AppTheme.shinyGold;
-    final Color iconColor = widget.isError ? const Color(0xFFE0524B) : AppTheme.shinyGold;
+    final Color bgColor = widget.isError
+        ? const Color(0xFF4C100C)
+        : const Color(0xFF021710);
+    final Color borderColor = widget.isError
+        ? const Color(0xFFE0524B)
+        : AppTheme.shinyGold;
+    final Color iconColor = widget.isError
+        ? const Color(0xFFE0524B)
+        : AppTheme.shinyGold;
 
     return Positioned(
       top: topPadding,
@@ -100,39 +129,59 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
         },
         child: Material(
           color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: borderColor, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  widget.isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-                  color: iconColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.message,
-                    style: GoogleFonts.inter(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.ivoryText,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    widget.isError
+                        ? Icons.error_outline_rounded
+                        : Icons.check_circle_outline_rounded,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.message,
+                      style: GoogleFonts.inter(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.ivoryText,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  if (widget.onTap != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      'OPEN',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.shinyGold,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),

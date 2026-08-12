@@ -88,7 +88,7 @@ export default function HomePage() {
               { icon: "🤖", title: "Smart AI Opponent", desc: "Three difficulty levels: Easy, Medium, and Hard. Strategic lookahead without requiring an internet connection." },
               { icon: "🌐", title: "Live Online Play", desc: "Create a room and invite anyone. Real-time turn-based play over a live connection." },
               { icon: "📖", title: "173,000+ Words", desc: "Powered by the ENABLE1 dictionary with over 173,000 verified English words bundled in-app." },
-              { icon: "🎵", title: "Harmonic Soundscapes", desc: "Relax to Satie Gymnopédie on the menu and a soothing Kalimba track during gameplay." },
+              { icon: "🎵", title: "Harmonic Soundscapes", desc: "Unwind with Midsummer Sky across the app, then settle into Sapphire Isle during games and Daily Challenge." },
               { icon: "⭐", title: "Premium Board", desc: "Classic 15x15 grid with Double/Triple multipliers, golden centre star, and mahogany wood aesthetics." },
               { icon: "📊", title: "Statistics & Progress", desc: "Track your wins, word scores, highest-scoring words, and streaks across all matches." },
             ].map((f, i) => (

@@ -42,17 +42,17 @@ export default function PrivacyPage() {
               content: (
                 <>
                   <p><strong>A. Account information:</strong> If you choose to sign in with Google, we receive and store the account identifier needed to authenticate you and the profile information you provide or authorize for your LetterLoom profile, such as display name and avatar. We do not request your contacts, address, or phone number.</p>
-                  <p style={{ marginTop: 8 }}><strong>B. Game and purchase data:</strong> Offline solo-game progress and settings are stored on your device. When you use online features, we store the profile, room code, match state, scores, turn history, ranked results, daily-challenge progress, and hint or purchase records necessary to operate those features and prevent duplicate fulfilment.</p>
-                  <p style={{ marginTop: 8 }}><strong>C. Device and notification data:</strong> If you allow notifications, we store a Firebase Cloud Messaging token, platform, and last-seen time so we can send game-related notifications. Apple, Google, and Firebase may process device and delivery information under their own policies.</p>
+                  <p style={{ marginTop: 8 }}><strong>B. Game and purchase data:</strong> Offline solo-game progress and settings are stored on your device. When you use online features, we store the profile, room code, authoritative match state, scores, turn history, ranked results, Word of the Day and Daily Challenge progress, and hint or boost-purchase records necessary to operate those features, preserve progress, and prevent duplicate fulfilment.</p>
+                  <p style={{ marginTop: 8 }}><strong>C. Device and notification data:</strong> If you allow notifications, we store a Firebase Cloud Messaging token, platform, and last-seen time so we can send game-related notifications. You can choose notifications for multiplayer turns, ranked-match updates, and Daily Challenge reminders in the app&apos;s Settings. Apple, Google, and Firebase may process device and delivery information under their own policies.</p>
                   <p style={{ marginTop: 8 }}><strong>D. Advertising and billing:</strong> The app includes Google Mobile Ads for optional rewarded ads and uses Apple App Store / Google Play billing for purchases. Those providers may process advertising identifiers, device information, transaction information, and fraud-prevention signals under their own privacy policies. LetterLoom does not sell personal information.</p>
                 </>
               ),
             },
             {
-              title: "3. Network Communications & Offline Functionality",
+              title: "3. Network Communications, Audio & Offline Functionality",
               content: (
                 <p>
-                  LetterLoom bundles the ENABLE1 English dictionary in the app. Offline solo matches do not require a network connection; however, your device may still contact Apple, Google, Firebase, or ad services when you enable features that use them.
+                  LetterLoom bundles the ENABLE1 English dictionary in the app and includes licensed ambient audio for menus and gameplay. Offline solo matches do not require a network connection; however, your device may still contact Apple, Google, Firebase, Supabase, or ad services when you enable features that use them.
                 </p>
               ),
             },
@@ -73,10 +73,10 @@ export default function PrivacyPage() {
               ),
             },
             {
-              title: "6. Third-Party Services",
+              title: "6. Your Choices, Retention & Third-Party Services",
               content: (
                 <p>
-                  LetterLoom relies on Google Sign-In, Supabase (authentication and game data), Firebase Cloud Messaging, Google Mobile Ads, and Apple App Store / Google Play services where applicable. Each provider processes information under its own privacy policy. We retain online account and game records for as long as needed to provide the feature, resolve disputes, prevent fraud, or meet legal obligations. You can request access to or deletion of your LetterLoom account data by contacting us below.
+                  You may turn off music, sound, and notifications in the app or device settings, and may turn off specific LetterLoom notification categories in the app&apos;s Settings. LetterLoom relies on Google Sign-In, Supabase (authentication and game data), Firebase Cloud Messaging, Google Mobile Ads, and Apple App Store / Google Play services where applicable. Each provider processes information under its own privacy policy. We retain online account and game records for as long as needed to provide the feature, resolve disputes, prevent fraud, or meet legal obligations. You can request access to or deletion of your LetterLoom account data by contacting us below.
                 </p>
               ),
             },

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../game/game_notifier.dart';
 import '../../core/haptic_utils.dart';
 import '../../core/toast_utils.dart';
+import '../../core/push_notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -250,6 +252,8 @@ class SettingsScreen extends ConsumerWidget {
                           );
                         },
                       ),
+                      const SizedBox(height: 12),
+                      const _NotificationPreferencesCard(),
                       const SizedBox(height: 24),
                       // Gameplay Category
                       _buildCategoryHeader('Gameplay'),
@@ -723,6 +727,171 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _NotificationPreferencesCard extends StatefulWidget {
+  const _NotificationPreferencesCard();
+
+  @override
+  State<_NotificationPreferencesCard> createState() =>
+      _NotificationPreferencesCardState();
+}
+
+class _NotificationPreferencesCardState
+    extends State<_NotificationPreferencesCard> {
+  NotificationPreferences _preferences = const NotificationPreferences();
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final preferences = await PushNotificationService.loadPreferences();
+      if (mounted) setState(() => _preferences = preferences);
+    } catch (_) {
+      // The controls remain usable once the player is signed in or online.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save(NotificationPreferences preferences) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _preferences = preferences;
+    });
+    try {
+      final permission = await PushNotificationService.permissionStatus();
+      final isAllowed =
+          permission.authorizationStatus == AuthorizationStatus.authorized ||
+          permission.authorizationStatus == AuthorizationStatus.provisional;
+      if (!isAllowed &&
+          (preferences.multiplayerTurns ||
+              preferences.rankedMatches ||
+              preferences.dailyReminders)) {
+        final granted =
+            await PushNotificationService.requestPermissionAndRegister();
+        if (!granted && mounted) {
+          ToastUtils.show(
+            context,
+            'Allow notifications in your device settings to receive alerts.',
+          );
+        }
+      }
+      await PushNotificationService.savePreferences(preferences);
+    } catch (_) {
+      if (mounted)
+        ToastUtils.show(
+          context,
+          'Notification settings could not be saved.',
+          isError: true,
+        );
+      await _load();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final signedIn = PushNotificationService.isSignedIn;
+    return Opacity(
+      opacity: _loading ? .65 : 1,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.shinyGold.withValues(alpha: .45),
+            width: 1.2,
+          ),
+          gradient: const LinearGradient(
+            colors: AppTheme.darkGreenGradient,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.notifications_active_rounded,
+                  color: AppTheme.shinyGold,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Game Notifications',
+                    style: GoogleFonts.lora(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.ivoryText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              signedIn
+                  ? 'Choose which LetterLoom updates can reach this device.'
+                  : 'Sign in to choose which game updates can reach this device.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                color: AppTheme.mutedIvory,
+              ),
+            ),
+            if (signedIn) ...[
+              const SizedBox(height: 8),
+              _notificationSwitch(
+                'Your multiplayer turn',
+                _preferences.multiplayerTurns,
+                (value) =>
+                    _save(_preferences.copyWith(multiplayerTurns: value)),
+              ),
+              _notificationSwitch(
+                'Ranked match updates',
+                _preferences.rankedMatches,
+                (value) => _save(_preferences.copyWith(rankedMatches: value)),
+              ),
+              _notificationSwitch(
+                'Daily Challenge reminder',
+                _preferences.dailyReminders,
+                (value) => _save(_preferences.copyWith(dailyReminders: value)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _notificationSwitch(
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        title,
+        style: GoogleFonts.inter(fontSize: 13.5, color: AppTheme.ivoryText),
+      ),
+      value: value,
+      activeTrackColor: AppTheme.emeraldGreen,
+      activeThumbColor: AppTheme.shinyGold,
+      onChanged: _loading || _saving ? null : onChanged,
     );
   }
 }

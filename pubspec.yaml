@@ -48,6 +48,7 @@ dependencies:
   in_app_purchase: ^3.2.3
   games_services: ^5.1.0
   country_picker: ^2.0.28
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +79,7 @@ flutter:
     - assets/images/google_g_logo.svg
     - assets/audio/menu_music.m4a
     - assets/audio/game_music.m4a
+    - assets/audio/tap.wav
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

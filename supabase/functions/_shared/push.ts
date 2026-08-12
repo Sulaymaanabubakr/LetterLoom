@@ -99,7 +99,17 @@ export async function sendPushNotification(
           },
         }),
       });
-      if (!response.ok) console.error('FCM delivery failed:', response.status);
+      if (!response.ok) {
+        const failure = await response.json().catch(() => ({}));
+        const status = String(failure?.error?.status ?? '');
+        // FCM reports these for an uninstalled app or a rotated token. Prune
+        // only the exact stale token; delivery failures must not disable a
+        // player's preferences or affect another device.
+        if (status === 'UNREGISTERED' || status === 'INVALID_ARGUMENT') {
+          await admin.from('push_devices').delete().eq('token', device.token);
+        }
+        console.error('FCM delivery failed:', response.status, status);
+      }
     }));
   } catch (error) {
     console.error('Push notification failed:', error);

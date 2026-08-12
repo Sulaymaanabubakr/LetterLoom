@@ -14,7 +14,9 @@ import 'multiplayer_game_notifier.dart';
 import 'multiplayer_repository.dart';
 
 class MultiplayerLobbyScreen extends StatefulWidget {
-  const MultiplayerLobbyScreen({super.key});
+  const MultiplayerLobbyScreen({super.key, this.initialGameId});
+
+  final String? initialGameId;
 
   @override
   State<MultiplayerLobbyScreen> createState() => _MultiplayerLobbyScreenState();
@@ -32,6 +34,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   String? _error;
   List<MultiplayerGame> _myGames = const [];
   bool _isRoomOwner = false;
+  bool _openedInitialGame = false;
 
   String _friendlyError(Object error) {
     debugPrint('[Multiplayer] $error');
@@ -81,6 +84,18 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           _myGames = rooms.myGames;
           _isLoadingRooms = false;
         });
+        final requestedId = widget.initialGameId;
+        if (!_openedInitialGame && requestedId != null) {
+          _openedInitialGame = true;
+          final game = rooms.myGames
+              .where((item) => item.id == requestedId)
+              .firstOrNull;
+          if (game != null) {
+            await _openBoard(game);
+          } else {
+            ToastUtils.show(context, 'That match is no longer available.');
+          }
+        }
       }
     } catch (error) {
       if (mounted) {

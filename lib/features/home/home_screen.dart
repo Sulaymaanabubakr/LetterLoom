@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../core/music_manager.dart';
+import '../../core/push_notification_service.dart';
 import '../../core/supabase_bootstrap.dart';
 import '../../core/toast_utils.dart';
 import '../../models/player_profile.dart';
@@ -57,7 +58,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     MusicManager.instance.setTrack(MusicTrack.menu);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DailyRewardsService.checkAndShowDailyReward(context, ref);
+      PushNotificationService.pendingNavigation.addListener(
+        _openPushDestination,
+      );
+      _openPushDestination();
     });
+  }
+
+  @override
+  void dispose() {
+    PushNotificationService.pendingNavigation.removeListener(
+      _openPushDestination,
+    );
+    super.dispose();
+  }
+
+  Future<void> _openPushDestination() async {
+    final destination = PushNotificationService.pendingNavigation.value;
+    if (destination == null || !mounted) return;
+    PushNotificationService.pendingNavigation.value = null;
+    if (destination.event == 'daily_challenge') {
+      await _openDailyChallenge();
+      return;
+    }
+    if (destination.gameId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              MultiplayerLobbyScreen(initialGameId: destination.gameId),
+        ),
+      );
+    }
   }
 
   Future<void> _checkSavedGame() async {

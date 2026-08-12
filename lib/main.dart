@@ -10,6 +10,7 @@ import 'core/supabase_bootstrap.dart';
 import 'core/push_notification_service.dart';
 import 'core/ad_service.dart';
 import 'core/billing_service.dart';
+import 'core/tap_feedback.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,11 +26,14 @@ class LetterLoomApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'LetterLoom',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const SplashScreen(),
+    return TapFeedback(
+      child: MaterialApp(
+        navigatorKey: PushNotificationService.navigatorKey,
+        title: 'LetterLoom',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const SplashScreen(),
+      ),
     );
   }
 }

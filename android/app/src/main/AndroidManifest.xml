@@ -2,6 +2,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Required by audioplayers for audio session management -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ requires this runtime permission for FCM notifications. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="com.android.vending.BILLING"/>
     <!-- Keeps audio playing when screen dims during a game -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>

@@ -8,6 +8,7 @@ import '../../models/player_profile.dart';
 import '../../storage/persistence_manager.dart';
 import '../../core/supabase_bootstrap.dart';
 import '../../core/app_config.dart';
+import '../../core/push_notification_service.dart';
 import '../profile/username_generator.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, PlayerProfile>((ref) {
@@ -295,6 +296,7 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
     try {
       await _googleSignIn.signOut();
       if (SupabaseBootstrap.configured) {
+        await PushNotificationService.unregisterCurrentDevice();
         await Supabase.instance.client.auth.signOut();
       }
     } catch (_) {}

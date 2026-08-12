@@ -19,7 +19,7 @@ export default function TermsPage() {
             <span>✦</span> Legal &amp; Compliance <span>✦</span>
           </div>
           <h1 className="legal-title gold-text">Terms of Service</h1>
-          <p className="legal-updated">Last Updated: August 9, 2026</p>
+          <p className="legal-updated">Last Updated: August 12, 2026</p>
         </FadeIn>
 
         <div className="legal-body">
@@ -67,7 +67,31 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "5. Disclaimer of Warranties",
+              title: "5. Daily Features, Ranked Play & Fair Play",
+              content: (
+                <>
+                  <p>Daily Challenge and Word of the Day content changes over time. A Daily Challenge has a time limit and may be marked failed when that time expires; leaving the challenge pauses its timer until you return. Scores, ranks, rewards, match outcomes, and availability are determined by the game&apos;s authoritative online services where applicable.</p>
+                  <p style={{ marginTop: 8 }}>We may investigate, reverse, withhold, or reset progress, boosts, rankings, or access where we reasonably believe there has been cheating, exploitation, automation, fraud, or a technical error. This does not limit any rights you may have under applicable law.</p>
+                </>
+              ),
+            },
+            {
+              title: "6. Boosts, Rewarded Ads & Purchases",
+              content: (
+                <>
+                  <p>LetterLoom may offer optional rewarded ads and optional boost purchases. A rewarded ad only grants its stated in-game reward after the advertising provider confirms completion. Purchases are processed by the Apple App Store or Google Play, not directly by LetterLoom, and are subject to the applicable store&apos;s billing terms and refund policies.</p>
+                  <p style={{ marginTop: 8 }}>Boosts are digital, non-transferable, have no cash value, and may not be sold, exchanged, or redeemed outside the app. We do not guarantee that rewarded ads will always be available.</p>
+                </>
+              ),
+            },
+            {
+              title: "7. Notifications and Service Changes",
+              content: (
+                <p>With your permission, LetterLoom may send notifications about multiplayer turns, ranked matches, and Daily Challenges. You can manage categories in the app&apos;s Settings and can disable notifications in your device settings. Online features, content, and notifications may change, be unavailable, or be discontinued as we maintain and improve the service.</p>
+              ),
+            },
+            {
+              title: "8. Disclaimer of Warranties",
               content: (
                 <p>
                   LetterLoom is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis without warranties of any kind, whether express or implied. We do not warrant that the application will operate uninterrupted or error-free at all times.
@@ -75,7 +99,7 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "6. Limitation of Liability",
+              title: "9. Limitation of Liability",
               content: (
                 <p>
                   To the fullest extent permitted by applicable law, LetterLoom and its creator shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or related to your use of the application.
@@ -83,10 +107,10 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "7. Governing Law",
+              title: "10. Governing Law & Contact",
               content: (
                 <p>
-                  These Terms shall be governed by and construed in accordance with applicable laws, without regard to its conflict of law principles.
+                  These Terms shall be governed by and construed in accordance with applicable laws, without regard to its conflict of law principles. For account, data, billing, or Terms questions, contact us using the address below.
                 </p>
               ),
             },
