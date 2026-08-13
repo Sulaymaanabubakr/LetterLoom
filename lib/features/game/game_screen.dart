@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../models/board_cell.dart';
 import '../../models/tile.dart';
@@ -17,6 +18,8 @@ import '../hints/hint_modal.dart';
 import '../hints/hint_engine.dart';
 import 'post_game_analysis.dart';
 import 'post_game_analysis_dialog.dart';
+import '../multiplayer/agora_voice_service.dart';
+import '../multiplayer/multiplayer_repository.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   final StateNotifierProvider<GameNotifier, GameState>? controllerProvider;
@@ -25,6 +28,7 @@ class GameScreen extends ConsumerStatefulWidget {
   final Future<void> Function()? onMultiplayerRestart;
   final Future<void> Function()? onMultiplayerEnd;
   final Future<void> Function()? onMultiplayerLeave;
+  final String? multiplayerGameId;
 
   const GameScreen({
     super.key,
@@ -34,6 +38,7 @@ class GameScreen extends ConsumerStatefulWidget {
     this.onMultiplayerRestart,
     this.onMultiplayerEnd,
     this.onMultiplayerLeave,
+    this.multiplayerGameId,
   });
 
   @override
@@ -50,6 +55,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _timeoutRequested = false;
   bool _appLifecyclePauseHeld = false;
   bool _exchangeSheetOpen = false;
+  final AgoraVoiceService _voice = AgoraVoiceService();
+  StreamSubscription<Set<int>>? _speakerSubscription;
+  Set<int> _activeSpeakers = const {};
   HintResult? _activeHint;
   final GlobalKey _hintButtonKey = GlobalKey();
 
@@ -58,6 +66,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
     super.initState();
     MusicManager.instance.setTrack(MusicTrack.game);
     WidgetsBinding.instance.addObserver(this);
+    if (widget.isMultiplayer && widget.multiplayerGameId != null) {
+      _speakerSubscription = _voice.activeSpeakers.listen((speakers) {
+        if (mounted) setState(() => _activeSpeakers = speakers);
+      });
+      unawaited(_connectVoice());
+    }
     _turnCountdownTimer = Timer.periodic(
       const Duration(seconds: 1),
       (_) => _tickTurnCountdown(),
@@ -111,14 +125,71 @@ class _GameScreenState extends ConsumerState<GameScreen>
     unawaited(Coachmark.dismiss('multiplayer_hint_button'));
     WidgetsBinding.instance.removeObserver(this);
     _turnCountdownTimer?.cancel();
+    _speakerSubscription?.cancel();
+    if (widget.multiplayerGameId != null) {
+      unawaited(
+        MultiplayerRepository().updateVoicePresence(
+          widget.multiplayerGameId!,
+          connected: false,
+          micEnabled: false,
+        ),
+      );
+    }
+    unawaited(_voice.dispose());
     MusicManager.instance.setTrack(MusicTrack.menu);
     super.dispose();
+  }
+
+  Future<void> _connectVoice() async {
+    final gameId = widget.multiplayerGameId;
+    if (gameId == null) return;
+    try {
+      final credentials = await MultiplayerRepository().requestVoiceToken(
+        gameId,
+      );
+      final joined = await _voice.join(
+        gameId: gameId,
+        credentials: credentials,
+      );
+      if (joined) {
+        await MultiplayerRepository().updateVoicePresence(
+          gameId,
+          connected: true,
+          micEnabled: false,
+        );
+      }
+    } catch (_) {
+      // Voice is optional; leave the board fully operational if unavailable.
+    }
+  }
+
+  Future<void> _toggleVoice() async {
+    if (!_voice.isJoined) {
+      await _connectVoice();
+      if (mounted) setState(() {});
+      return;
+    }
+    await _voice.setMuted(!_voice.isMuted);
+    final gameId = widget.multiplayerGameId;
+    if (gameId != null) {
+      await MultiplayerRepository().updateVoicePresence(
+        gameId,
+        connected: true,
+        micEnabled: !_voice.isMuted,
+      );
+    }
+    if (mounted) setState(() {});
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     final notifier = ref.read(_provider.notifier);
     if (lifecycleState == AppLifecycleState.resumed) {
+      if (widget.isMultiplayer &&
+          widget.multiplayerGameId != null &&
+          !_voice.isJoined) {
+        unawaited(_connectVoice());
+      }
       if (_appLifecyclePauseHeld) {
         _appLifecyclePauseHeld = false;
         notifier.resumeGame();
@@ -129,6 +200,18 @@ class _GameScreenState extends ConsumerState<GameScreen>
         lifecycleState == AppLifecycleState.hidden) {
       if (_appLifecyclePauseHeld) return;
       _appLifecyclePauseHeld = true;
+      if (widget.isMultiplayer) {
+        unawaited(_voice.leave());
+        if (widget.multiplayerGameId != null) {
+          unawaited(
+            MultiplayerRepository().updateVoicePresence(
+              widget.multiplayerGameId!,
+              connected: false,
+              micEnabled: false,
+            ),
+          );
+        }
+      }
       notifier.pauseGame();
       // Persist immediately using the frozen pause instant. This prevents an
       // app background/termination from charging the player turn time.
@@ -964,6 +1047,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   // ── Scoreboard ─────────────────────────────────────────────────────────────
   Widget _buildScoreboard(GameState state) {
+    if (widget.isMultiplayer && state.multiplayerPlayers.length > 2) {
+      return _buildMultiplayerScoreboard(state);
+    }
     final isPlayerTurn =
         state.currentTurn == 'player' && state.status == 'playerTurn';
     return Padding(
@@ -989,6 +1075,60 @@ class _GameScreenState extends ConsumerState<GameScreen>
               isActive: !isPlayerTurn,
               iconData: Icons.smart_toy_rounded,
               avatarColor: AppTheme.shinyGold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiplayerScoreboard(GameState state) {
+    final localId = Supabase.instance.client.auth.currentUser?.id;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Column(
+        children: [
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            alignment: WrapAlignment.center,
+            children: state.multiplayerPlayers.map((player) {
+              final score = state.multiplayerScores[player.userId] ?? 0;
+              final active =
+                  player.userId ==
+                          state.multiplayerPlayers
+                              .firstWhere(
+                                (p) => p.userId == localId,
+                                orElse: () => player,
+                              )
+                              .userId &&
+                      state.currentTurn == 'player' ||
+                  player.userId != localId && state.currentTurn != 'player';
+              return SizedBox(
+                width: (MediaQuery.sizeOf(context).width - 38) / 2,
+                child: _buildScoreCard(
+                  label: player.userId == localId ? 'YOU' : player.displayName,
+                  score: score,
+                  isActive: active,
+                  iconData: player.micEnabled
+                      ? Icons.mic_rounded
+                      : Icons.mic_off_rounded,
+                  avatarColor: _activeSpeakers.isNotEmpty && player.micEnabled
+                      ? Colors.greenAccent
+                      : AppTheme.shinyGold,
+                ),
+              );
+            }).toList(),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              onPressed: _toggleVoice,
+              tooltip: _voice.isMuted ? 'Enable microphone' : 'Mute microphone',
+              icon: Icon(
+                _voice.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+              ),
+              color: _voice.isJoined ? AppTheme.shinyGold : AppTheme.mutedIvory,
             ),
           ),
         ],
@@ -1993,8 +2133,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 
   Widget _buildGameOverOverlay(GameState state) {
-    final bool isWin = state.playerScore > state.computerScore;
-    final bool isTie = state.playerScore == state.computerScore;
+    final scores = state.multiplayerScores.isNotEmpty
+        ? state.multiplayerScores.values.toList()
+        : [state.playerScore, state.computerScore];
+    final bestScore = scores.reduce((a, b) => a > b ? a : b);
+    final localId = Supabase.instance.client.auth.currentUser?.id;
+    final localScore = state.multiplayerScores[localId] ?? state.playerScore;
+    final bool isWin =
+        localScore == bestScore &&
+        scores.where((score) => score == bestScore).length == 1;
+    final bool isTie = scores.where((score) => score == bestScore).length > 1;
     final String headline = isTie
         ? "IT'S A TIE!"
         : (isWin ? 'VICTORY' : 'DEFEAT');
@@ -2061,18 +2209,37 @@ class _GameScreenState extends ConsumerState<GameScreen>
               ),
               const SizedBox(height: 24),
               // Scores Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _overScore('YOU', state.playerScore, isWin && !isTie),
-                  Container(
-                    width: 1.2,
-                    height: 52,
-                    color: AppTheme.shinyGold.withValues(alpha: 0.25),
-                  ),
-                  _overScore('COMPUTER', state.computerScore, !isWin && !isTie),
-                ],
-              ),
+              if (state.multiplayerPlayers.length > 2)
+                Wrap(
+                  spacing: 18,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: state.multiplayerPlayers.map((player) {
+                    final score = state.multiplayerScores[player.userId] ?? 0;
+                    return _overScore(
+                      player.userId == localId ? 'YOU' : player.displayName,
+                      score,
+                      score == bestScore,
+                    );
+                  }).toList(),
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _overScore('YOU', state.playerScore, isWin && !isTie),
+                    Container(
+                      width: 1.2,
+                      height: 52,
+                      color: AppTheme.shinyGold.withValues(alpha: 0.25),
+                    ),
+                    _overScore(
+                      'COMPUTER',
+                      state.computerScore,
+                      !isWin && !isTie,
+                    ),
+                  ],
+                ),
               const SizedBox(height: 24),
               if (state.lastMoveMessage != null) ...[
                 Text(

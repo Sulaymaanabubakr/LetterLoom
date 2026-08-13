@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     if (stopError) throw stopError;
     const { data: stopped, error: stoppedReadError } = await admin
       .from('multiplayer_games')
-      .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at')
+      .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at')
       .eq('id', gameId)
       .single();
     if (stoppedReadError) throw stoppedReadError;

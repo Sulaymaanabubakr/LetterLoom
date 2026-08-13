@@ -1,0 +1,128 @@
+group 'io.agora.agora_rtc_ng'
+version '1.0-SNAPSHOT'
+
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+import java.nio.file.StandardCopyOption
+import java.nio.file.Files
+
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+configurations {
+    agoraSpecialFull
+}
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    // Conditional for compatibility with AGP <4.2.
+    if (project.android.hasProperty("namespace")) {
+        namespace 'io.agora.agora_rtc_ng'
+    }
+    // Agora's AndroidX dependency graph requires API 34+. The host app uses
+    // Flutter's current compile SDK (36); keep the plugin aligned with that
+    // rather than retaining the stale upstream default of 31.
+    compileSdkVersion safeExtGet('compileSdkVersion', 36)
+
+    defaultConfig {
+        minSdkVersion safeExtGet('minSdkVersion', 21)
+
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        if (isDev(project)) {
+           main.jniLibs.srcDirs += 'libs'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+        }
+    }
+}
+
+dependencies {
+  if (isDev(project)) {
+    api fileTree(dir: "libs", include: ["*.jar"])
+  } else {
+    // iris dependencies start
+    api 'io.agora.rtc:iris-rtc:4.5.3-build.1'
+    // iris dependencies end
+
+    // native dependencies start
+    api 'io.agora.rtc:full-screen-sharing-special:4.5.3.70'
+    // Agora's native AAR is valid at runtime but declares the same legacy
+    // manifest package as iris-rtc. Newer Android Gradle Plugin versions
+    // reject that duplicate namespace before manifest merging. The preparation
+    // task below patches only that metadata in Gradle's dependency cache while
+    // retaining the original native SDK artifact and dependency coordinates.
+    agoraSpecialFull 'io.agora.rtc:agora-special-full:4.5.3.70'
+    api 'io.agora.rtc:agora-special-full:4.5.3.70'
+    // native dependencies end
+  }
+}
+
+tasks.register('preparePatchedAgoraAar') {
+  inputs.files(configurations.agoraSpecialFull)
+  doLast {
+    def source = configurations.agoraSpecialFull.singleFile
+    def temp = new File(source.parentFile, source.name + '.letterloom-patched')
+    def input = new ZipFile(source)
+    def output = new ZipOutputStream(new FileOutputStream(temp))
+    try {
+      input.entries().each { entry ->
+        def replacement = new ZipEntry(entry.name)
+        replacement.time = entry.time
+        output.putNextEntry(replacement)
+        if (entry.name == 'AndroidManifest.xml') {
+          def manifest = input.getInputStream(entry).getText('UTF-8')
+          manifest = manifest.replaceFirst(/package="io\.agora\.rtc"/, 'package="io.agora.agora_rtc_ng.special"')
+          output.write(manifest.getBytes('UTF-8'))
+        } else {
+          output << input.getInputStream(entry)
+        }
+        output.closeEntry()
+      }
+    } finally {
+      output.close()
+      input.close()
+    }
+    Files.move(temp.toPath(), source.toPath(), StandardCopyOption.REPLACE_EXISTING)
+  }
+}
+
+tasks.configureEach { task ->
+  if (task.name == 'preBuild' || task.name.startsWith('pre') && task.name.endsWith('Build')) {
+    task.dependsOn('preparePatchedAgoraAar')
+  }
+}
+
+static boolean isDev(Project project) {
+  def devFile = project.file('.plugin_dev')
+  return devFile.exists()
+}

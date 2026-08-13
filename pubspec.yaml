@@ -40,6 +40,10 @@ dependencies:
   flutter_svg: ^2.2.1
   audioplayers: ^6.8.1
   supabase_flutter: ^2.17.1
+  # Source-controlled fork: preserves Agora's native SDK while fixing the
+  # duplicate legacy Android manifest namespace during dependency preparation.
+  agora_rtc_engine:
+    path: third_party/agora_rtc_engine
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
   google_sign_in: ^6.2.2

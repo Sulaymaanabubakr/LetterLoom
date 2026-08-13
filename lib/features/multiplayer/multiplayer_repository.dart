@@ -20,11 +20,17 @@ class MultiplayerRepository {
     }
   }
 
-  Future<MultiplayerGame> createGame(String displayName) async {
+  Future<MultiplayerGame> createGame(
+    String displayName, {
+    int maxPlayers = 2,
+  }) async {
     await ensureSignedIn();
     final response = await _client.functions.invoke(
       'create-multiplayer-game',
-      body: {'display_name': displayName.trim()},
+      body: {
+        'display_name': displayName.trim(),
+        'max_players': maxPlayers.clamp(2, 4),
+      },
     );
     return _readGame(response.data);
   }
@@ -170,6 +176,43 @@ class MultiplayerRepository {
     );
   }
 
+  Future<AgoraVoiceCredentials> requestVoiceToken(String gameId) async {
+    await ensureSignedIn();
+    final response = await _client.functions.invoke(
+      'agora-voice-token',
+      body: {'game_id': gameId},
+    );
+    if (response.data is! Map)
+      throw const MultiplayerException('Voice chat is unavailable.');
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return AgoraVoiceCredentials(
+      appId: data['app_id'] as String,
+      channel: data['channel'] as String,
+      token: data['token'] as String,
+      uid: (data['uid'] as num).toInt(),
+      expiresAt: DateTime.parse(data['expires_at'] as String),
+    );
+  }
+
+  Future<void> updateVoicePresence(
+    String gameId, {
+    required bool connected,
+    required bool micEnabled,
+  }) async {
+    try {
+      await _client.functions.invoke(
+        'multiplayer-presence',
+        body: {
+          'game_id': gameId,
+          'connected': connected,
+          'mic_enabled': micEnabled,
+        },
+      );
+    } catch (_) {
+      // Presence is cosmetic and must never interrupt the board.
+    }
+  }
+
   Future<MultiplayerGame> joinGame(String roomCode, String displayName) async {
     await ensureSignedIn();
     final response = await _client.functions.invoke(
@@ -268,10 +311,13 @@ class MultiplayerStateSnapshot {
         'The multiplayer board response was incomplete.',
       );
     }
+    final gameJson = Map<String, dynamic>.from(raw['game'] as Map);
+    final rawPlayers = raw['players'] is List
+        ? List<dynamic>.from(raw['players'] as List)
+        : const <dynamic>[];
+    gameJson['players'] = rawPlayers;
     return MultiplayerStateSnapshot(
-      game: MultiplayerGame.fromJson(
-        Map<String, dynamic>.from(raw['game'] as Map),
-      ),
+      game: MultiplayerGame.fromJson(gameJson),
       rack: raw['rack'] is List
           ? List<dynamic>.from(raw['rack'] as List)
           : const [],
@@ -308,17 +354,28 @@ class MultiplayerStateSnapshot {
     );
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final isPlayerOne = currentUserId == game.createdByUserId;
+    final myScore = currentUserId == null
+        ? 0
+        : (game.playerScores[currentUserId] ??
+              (isPlayerOne ? game.playerOneScore : game.playerTwoScore));
+    final opponentScore = isPlayerOne
+        ? game.playerTwoScore
+        : game.playerOneScore;
     final isMyTurn = game.currentTurnUserId == currentUserId;
     return template.copyWith(
       board: board.length == 15 ? board : template.board,
       playerRack: rackTiles,
       tileBag: bagTiles,
-      playerScore: isPlayerOne ? game.playerOneScore : game.playerTwoScore,
-      computerScore: isPlayerOne ? game.playerTwoScore : game.playerOneScore,
+      playerScore: myScore,
+      computerScore: opponentScore,
+      multiplayerScores: game.playerScores,
+      multiplayerPlayers: game.players,
       consecutivePasses: game.consecutivePasses,
       currentTurn: isMyTurn ? 'player' : 'computer',
       status: game.pausedAt != null
           ? 'gamePaused'
+          : game.status == 'completed'
+          ? 'gameCompleted'
           : game.status == 'active'
           ? (isMyTurn ? 'playerTurn' : 'waitingForOpponent')
           : 'gamePaused',
@@ -328,6 +385,21 @@ class MultiplayerStateSnapshot {
       turnStartedAt: game.turnStartedAt,
     );
   }
+}
+
+class AgoraVoiceCredentials {
+  final String appId;
+  final String channel;
+  final String token;
+  final int uid;
+  final DateTime expiresAt;
+  const AgoraVoiceCredentials({
+    required this.appId,
+    required this.channel,
+    required this.token,
+    required this.uid,
+    required this.expiresAt,
+  });
 }
 
 class MultiplayerException implements Exception {

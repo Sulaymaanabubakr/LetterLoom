@@ -25,6 +25,8 @@ Deno.serve(async (req) => {
     const user = await getAuthenticatedUser(req);
     const body = await req.json().catch(() => ({}));
     const displayName = String(body.display_name ?? '').trim().slice(0, 40);
+    const requestedMaxPlayers = Number(body.max_players ?? 2);
+    const maxPlayers = Number.isFinite(requestedMaxPlayers) ? Math.min(4, Math.max(2, Math.floor(requestedMaxPlayers))) : 2;
     if (displayName.length < 1) return response({ error: 'Enter a display name.' }, 400);
 
     const admin = getAdminClient();
@@ -38,9 +40,10 @@ Deno.serve(async (req) => {
           room_code: roomCode,
           created_by_user_id: user.id,
           current_turn_user_id: user.id,
+          max_players: maxPlayers,
           status: 'waiting',
         })
-        .select('id, room_code, status, current_turn_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at')
+        .select('id, room_code, status, current_turn_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at')
         .single();
 
       if (!error) {
@@ -73,7 +76,7 @@ Deno.serve(async (req) => {
     });
     if (bagInsert.error) throw bagInsert.error;
 
-    return response({ game: { ...game, is_owner: true } });
+    return response({ game: { ...game, is_owner: true, player_count: 1, players: [{ user_id: user.id, player_number: 1, display_name: displayName, connection_status: 'connected', mic_enabled: false }] } });
   } catch (error) {
     console.error('create-multiplayer-game error', error);
     return response({ error: error instanceof Error ? error.message : 'Unable to create game.' }, 400);

@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
 import { sendPushNotification } from '../_shared/push.ts';
 
-const gameFields = 'id, room_code, status, current_turn_user_id, turn_started_at, paused_at, paused_by_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at, mode';
+const gameFields = 'id, room_code, status, current_turn_user_id, turn_started_at, paused_at, paused_by_user_id, created_by_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at, mode';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -75,9 +75,9 @@ Deno.serve(async (req) => {
           moveError.message.includes('turn expired') ? 409 : 400;
         return response({ error: moveError.message }, status);
       }
-      const nextTurnUserId = (moveResponse as Record<string, unknown>)
-        .next_turn_user_id as string | null | undefined;
       const status = (moveResponse as Record<string, unknown>).status as string | undefined;
+      const { data: turnState } = await admin.from('multiplayer_games').select('current_turn_user_id').eq('id', gameId).maybeSingle();
+      const nextTurnUserId = turnState?.current_turn_user_id as string | null | undefined;
       if (status === 'active' && nextTurnUserId && nextTurnUserId !== user.id) {
         await sendPushNotification(
           [nextTurnUserId],
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
     if (bagError) throw bagError;
     const { data: roomPlayers, error: roomPlayersError } = await admin
       .from('multiplayer_players')
-      .select('user_id, player_number, display_name')
+      .select('user_id, player_number, display_name, connection_status, mic_enabled')
       .eq('game_id', gameId)
       .order('player_number');
     if (roomPlayersError) throw roomPlayersError;

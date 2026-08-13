@@ -2,7 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
 
-const gameFields = 'id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at';
+const gameFields = 'id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -55,14 +55,17 @@ Deno.serve(async (req) => {
     if (allIds.length > 0) {
       const { data, error } = await admin
         .from('multiplayer_players')
-        .select('game_id, user_id, player_number, display_name')
+      .select('game_id, user_id, player_number, display_name, connection_status, mic_enabled')
         .in('game_id', allIds);
       if (error) throw error;
       players = (data ?? []) as Record<string, unknown>[];
     }
 
     return response({
-      my_games: addPlayerCounts(myGames, players, user.id),
+      my_games: addPlayerCounts(myGames, players, user.id).map((game) => ({
+        ...game,
+        players: players.filter((player) => player.game_id === game.id),
+      })),
       available_games: [],
     });
   } catch (error) {

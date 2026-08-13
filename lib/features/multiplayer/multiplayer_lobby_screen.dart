@@ -36,6 +36,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   List<MultiplayerGame> _myGames = const [];
   bool _isRoomOwner = false;
   bool _openedInitialGame = false;
+  int _maxPlayers = 2;
 
   String _friendlyError(Object error) {
     debugPrint('[Multiplayer] $error');
@@ -62,7 +63,10 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       return;
     }
     await _runAction(() async {
-      final game = await _repository.createGame(_nameController.text);
+      final game = await _repository.createGame(
+        _nameController.text,
+        maxPlayers: _maxPlayers,
+      );
       await _loadRooms(showErrors: false);
       _showGame(game, isOwner: true);
     });
@@ -141,7 +145,14 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         _loadRooms(showErrors: false);
         return;
       }
-      setState(() => _game = updated.copyWith(isOwner: _isRoomOwner));
+      setState(
+        () => _game = updated.copyWith(
+          isOwner: _isRoomOwner,
+          players: updated.players.isEmpty
+              ? (_game?.players ?? const [])
+              : updated.players,
+        ),
+      );
     });
     setState(() {
       _isRoomOwner = isOwner ?? game.isOwner;
@@ -329,6 +340,26 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           const SizedBox(height: 22),
           _field(_nameController, 'Display name', Icons.person_outline_rounded),
           const SizedBox(height: 16),
+          if (!_showJoin) ...[
+            DropdownButtonFormField<int>(
+              initialValue: _maxPlayers,
+              dropdownColor: const Color(0xFF062017),
+              style: GoogleFonts.inter(color: AppTheme.ivoryText),
+              decoration: _inputDecoration('Players', Icons.groups_rounded),
+              items: [2, 3, 4]
+                  .map(
+                    (count) => DropdownMenuItem(
+                      value: count,
+                      child: Text('$count players'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _isBusy
+                  ? null
+                  : (value) => setState(() => _maxPlayers = value ?? 2),
+            ),
+            const SizedBox(height: 16),
+          ],
           if (_showJoin) ...[
             _field(
               _roomController,
@@ -519,6 +550,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
             ),
           ),
           const SizedBox(height: 22),
+          _buildPlayers(game),
+          const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
@@ -572,7 +605,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Waiting for your opponent…',
+                  'Waiting for ${game.maxPlayers - game.playerCount} more player${game.maxPlayers - game.playerCount == 1 ? '' : 's'}…',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: AppTheme.mutedIvory,
@@ -671,16 +704,22 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     await _runAction(() async {
       if (room.status != 'active') {
         if (mounted) {
-          ToastUtils.show(context, 'Waiting for the second player to join.');
+          ToastUtils.show(
+            context,
+            'Waiting for ${room.maxPlayers - room.playerCount} more player(s) to join.',
+          );
         }
         return;
       }
       final seed = GameNotifier();
       seed.startNewGame('easy', persist: false);
       var snapshot = await _repository.loadGameState(room.id);
-      if (snapshot.players.length < 2) {
+      if (snapshot.players.length < room.maxPlayers) {
         if (mounted) {
-          ToastUtils.show(context, 'Waiting for the second player to join.');
+          ToastUtils.show(
+            context,
+            'Waiting for ${room.maxPlayers - snapshot.players.length} more player(s) to join.',
+          );
         }
         return;
       }
@@ -753,6 +792,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
               controllerProvider: provider,
               isMultiplayer: true,
               opponentName: opponentName,
+              multiplayerGameId: room.id,
               onMultiplayerRestart: null,
               onMultiplayerEnd: room.mode == 'ranked' || !_isRoomOwner
                   ? null
@@ -765,6 +805,38 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         ),
       );
     });
+  }
+
+  Widget _buildPlayers(MultiplayerGame game) {
+    final players = game.players;
+    if (players.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: players
+          .map(
+            (player) => Chip(
+              avatar: Icon(
+                player.connected
+                    ? Icons.person_rounded
+                    : Icons.person_off_rounded,
+                size: 16,
+                color: AppTheme.shinyGold,
+              ),
+              label: Text(player.displayName, overflow: TextOverflow.ellipsis),
+              backgroundColor: AppTheme.scaffoldDark,
+              labelStyle: GoogleFonts.inter(
+                color: AppTheme.ivoryText,
+                fontSize: 12,
+              ),
+              side: BorderSide(
+                color: AppTheme.shinyGold.withValues(alpha: 0.25),
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 
   Widget _roomActionButton({
@@ -858,6 +930,25 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       ),
     );
   }
+
+  InputDecoration _inputDecoration(String label, IconData icon) =>
+      InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppTheme.shinyGold),
+        filled: true,
+        fillColor: AppTheme.scaffoldDark.withValues(alpha: 0.7),
+        labelStyle: GoogleFonts.inter(color: AppTheme.mutedIvory),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.lightGrey.withValues(alpha: 0.8),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppTheme.shinyGold, width: 1.4),
+        ),
+      );
 
   Widget _goldButton(String label, IconData icon, VoidCallback? onPressed) {
     return SizedBox(

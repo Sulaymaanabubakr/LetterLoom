@@ -1,0 +1,3 @@
+/Users/sulaymaanoabubakr/Desktop/LetterLoom/third_party/agora_rtc_engine/android/.cxx/Debug/484a525n/arm64-v8a/CMakeFiles/iris_rendering_android.dir
+/Users/sulaymaanoabubakr/Desktop/LetterLoom/third_party/agora_rtc_engine/android/.cxx/Debug/484a525n/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/sulaymaanoabubakr/Desktop/LetterLoom/third_party/agora_rtc_engine/android/.cxx/Debug/484a525n/arm64-v8a/CMakeFiles/rebuild_cache.dir

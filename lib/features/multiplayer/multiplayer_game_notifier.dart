@@ -45,7 +45,9 @@ class MultiplayerGameNotifier extends GameNotifier {
       if (snapshot.game.pausedAt != null) {
         state = hydrated.copyWith(
           currentTurn: myTurn ? 'player' : 'computer',
-          status: 'gamePaused',
+          status: snapshot.game.status == 'completed'
+              ? 'gameCompleted'
+              : 'gamePaused',
           lastMoveMessage: 'Match paused. Waiting for a player to resume.',
         );
         return;
@@ -53,7 +55,9 @@ class MultiplayerGameNotifier extends GameNotifier {
       if (snapshot.game.status != 'active') {
         state = hydrated.copyWith(
           currentTurn: 'computer',
-          status: 'gamePaused',
+          status: snapshot.game.status == 'completed'
+              ? 'gameCompleted'
+              : 'gamePaused',
           lastMoveMessage: 'This match has ended.',
         );
         await _settleIfRanked(snapshot.game);
@@ -98,12 +102,14 @@ class MultiplayerGameNotifier extends GameNotifier {
       final snapshot = await _repository.loadGameState(gameId);
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       final myTurn = snapshot.game.currentTurnUserId == currentUserId;
-      state = snapshot.hydrate(state).copyWith(
-        currentTurn: myTurn ? 'player' : 'computer',
-        status: snapshot.game.pausedAt != null
-            ? 'gamePaused'
-            : (myTurn ? 'playerTurn' : 'waitingForOpponent'),
-      );
+      state = snapshot
+          .hydrate(state)
+          .copyWith(
+            currentTurn: myTurn ? 'player' : 'computer',
+            status: snapshot.game.pausedAt != null
+                ? 'gamePaused'
+                : (myTurn ? 'playerTurn' : 'waitingForOpponent'),
+          );
       await _settleIfRanked(snapshot.game);
     } catch (_) {
       // The realtime stream will retry the authoritative refresh.
@@ -111,7 +117,10 @@ class MultiplayerGameNotifier extends GameNotifier {
   }
 
   Future<void> _settleIfRanked(MultiplayerGame game) async {
-    if (game.mode != 'ranked' || game.status == 'active' || _rankedSettlementRequested) return;
+    if (game.mode != 'ranked' ||
+        game.status == 'active' ||
+        _rankedSettlementRequested)
+      return;
     _rankedSettlementRequested = true;
     try {
       await _repository.settleRankedMatch(game.id);
@@ -133,13 +142,15 @@ class MultiplayerGameNotifier extends GameNotifier {
       final snapshot = await _repository.timeoutTurn(gameId);
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       final myTurn = snapshot.game.currentTurnUserId == currentUserId;
-      state = snapshot.hydrate(state).copyWith(
-        currentTurn: myTurn ? 'player' : 'computer',
-        status: myTurn ? 'playerTurn' : 'waitingForOpponent',
-        lastMoveMessage: myTurn
-            ? 'Your opponent ran out of time. Your turn.'
-            : 'Time expired. Opponent\'s turn.',
-      );
+      state = snapshot
+          .hydrate(state)
+          .copyWith(
+            currentTurn: myTurn ? 'player' : 'computer',
+            status: myTurn ? 'playerTurn' : 'waitingForOpponent',
+            lastMoveMessage: myTurn
+                ? 'Your opponent ran out of time. Your turn.'
+                : 'Time expired. Opponent\'s turn.',
+          );
     } catch (_) {
       // A second client may have claimed the timeout first. Realtime will
       // deliver the authoritative state shortly afterward.
@@ -266,7 +277,11 @@ class MultiplayerGameNotifier extends GameNotifier {
       lastMoveMessage: "Move submitted. Opponent's turn.",
     );
     state = nextState;
-    _submitAuthoritativeMove(nextState, moveType: 'play', placements: placements);
+    _submitAuthoritativeMove(
+      nextState,
+      moveType: 'play',
+      placements: placements,
+    );
     return null;
   }
 
@@ -275,7 +290,8 @@ class MultiplayerGameNotifier extends GameNotifier {
     required String moveType,
     List<Map<String, dynamic>> placements = const [],
   }) async {
-    final actionId = _pendingActionId ??
+    final actionId =
+        _pendingActionId ??
         'll_${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
     _pendingActionId = actionId;
     try {
@@ -288,12 +304,16 @@ class MultiplayerGameNotifier extends GameNotifier {
       _pendingActionId = null;
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       final myTurn = snapshot.game.currentTurnUserId == currentUserId;
-      state = snapshot.hydrate(nextState).copyWith(
-        currentTurn: myTurn ? 'player' : 'computer',
-        status: snapshot.game.status == 'active'
-            ? (myTurn ? 'playerTurn' : 'waitingForOpponent')
-            : 'gamePaused',
-      );
+      state = snapshot
+          .hydrate(nextState)
+          .copyWith(
+            currentTurn: myTurn ? 'player' : 'computer',
+            status: snapshot.game.status == 'active'
+                ? (myTurn ? 'playerTurn' : 'waitingForOpponent')
+                : (snapshot.game.status == 'completed'
+                      ? 'gameCompleted'
+                      : 'gamePaused'),
+          );
       await _settleIfRanked(snapshot.game);
     } catch (_) {
       state = state.copyWith(

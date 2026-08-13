@@ -1,0 +1,4 @@
+# ninja log v5
+1	544	1786608943554618258	CMakeFiles/iris_rendering_android.dir/iris_rtc_rendering_android.cc.o	dd5b253c83f2eb0b
+546	594	1786608943601733095	/Users/sulaymaanoabubakr/Desktop/LetterLoom/build/agora_rtc_engine/intermediates/cxx/Debug/484a525n/obj/arm64-v8a/libiris_rendering_android.so	ab4ef17b62b35b01
+2	261	1786609407001514269	/Users/sulaymaanoabubakr/Desktop/LetterLoom/build/agora_rtc_engine/intermediates/cxx/Debug/484a525n/obj/arm64-v8a/libiris_rendering_android.so	ab4ef17b62b35b01

@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/Users/sulaymaanoabubakr/Desktop/LetterLoom/third_party/agora_rtc_engine/android/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/sulaymaanoabubakr/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/sulaymaanoabubakr/Desktop/LetterLoom/third_party/agora_rtc_engine/android/.cxx/Debug/484a525n/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/sulaymaanoabubakr/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/sulaymaanoabubakr/Desktop/LetterLoom/third_party/agora_rtc_engine/android/.cxx/Debug/484a525n/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "iris_rendering_android::@6890427a1f51a3e7e1df": {
+      "artifactName": "iris_rendering_android",
+      "abi": "x86_64",
+      "output": "/Users/sulaymaanoabubakr/Desktop/LetterLoom/build/agora_rtc_engine/intermediates/cxx/Debug/484a525n/obj/x86_64/libiris_rendering_android.so",
+      "runtimeFiles": []
+    }
+  }
+}

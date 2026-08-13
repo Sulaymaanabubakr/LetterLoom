@@ -3,6 +3,7 @@ import 'tile.dart';
 import 'move_history.dart';
 import 'game_settings.dart';
 import 'statistics.dart';
+import 'multiplayer_game.dart';
 
 class GameState {
   static const int turnDurationSeconds = 120;
@@ -16,12 +17,15 @@ class GameState {
   final String difficulty; // 'easy', 'medium', 'hard'
   final int consecutivePasses;
   final List<MoveHistory> moveHistory;
-  final String status; // 'playerTurn', 'validatingPlayerMove', 'computerThinking', 'animatingComputerMove', 'gamePaused', 'gameCompleted'
+  final String
+  status; // 'playerTurn', 'validatingPlayerMove', 'computerThinking', 'animatingComputerMove', 'gamePaused', 'gameCompleted'
   final GameSettings settings;
   final Statistics statistics;
   final String? lastMoveMessage; // Information about the last move
   final DateTime? turnStartedAt;
   final int? turnSecondsRemaining;
+  final Map<String, int> multiplayerScores;
+  final List<MultiplayerPlayer> multiplayerPlayers;
 
   const GameState({
     required this.board,
@@ -40,6 +44,8 @@ class GameState {
     this.lastMoveMessage,
     this.turnStartedAt,
     this.turnSecondsRemaining,
+    this.multiplayerScores = const {},
+    this.multiplayerPlayers = const [],
   });
 
   GameState copyWith({
@@ -61,6 +67,8 @@ class GameState {
     DateTime? turnStartedAt,
     int? turnSecondsRemaining,
     bool clearTurnSecondsRemaining = false,
+    Map<String, int>? multiplayerScores,
+    List<MultiplayerPlayer>? multiplayerPlayers,
   }) {
     return GameState(
       board: board ?? this.board,
@@ -76,17 +84,23 @@ class GameState {
       status: status ?? this.status,
       settings: settings ?? this.settings,
       statistics: statistics ?? this.statistics,
-      lastMoveMessage: clearLastMoveMessage ? null : (lastMoveMessage ?? this.lastMoveMessage),
+      lastMoveMessage: clearLastMoveMessage
+          ? null
+          : (lastMoveMessage ?? this.lastMoveMessage),
       turnStartedAt: turnStartedAt ?? this.turnStartedAt,
       turnSecondsRemaining: clearTurnSecondsRemaining
           ? null
           : (turnSecondsRemaining ?? this.turnSecondsRemaining),
+      multiplayerScores: multiplayerScores ?? this.multiplayerScores,
+      multiplayerPlayers: multiplayerPlayers ?? this.multiplayerPlayers,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'board': board.map((row) => row.map((cell) => cell.toJson()).toList()).toList(),
+      'board': board
+          .map((row) => row.map((cell) => cell.toJson()).toList())
+          .toList(),
       'playerRack': playerRack.map((t) => t.toJson()).toList(),
       'computerRack': computerRack.map((t) => t.toJson()).toList(),
       'tileBag': tileBag.map((t) => t.toJson()).toList(),
@@ -114,16 +128,24 @@ class GameState {
     }).toList();
 
     var rawPlayerRack = json['playerRack'] as List;
-    List<Tile> parsedPlayerRack = rawPlayerRack.map((tJson) => Tile.fromJson(tJson as Map<String, dynamic>)).toList();
+    List<Tile> parsedPlayerRack = rawPlayerRack
+        .map((tJson) => Tile.fromJson(tJson as Map<String, dynamic>))
+        .toList();
 
     var rawComputerRack = json['computerRack'] as List;
-    List<Tile> parsedComputerRack = rawComputerRack.map((tJson) => Tile.fromJson(tJson as Map<String, dynamic>)).toList();
+    List<Tile> parsedComputerRack = rawComputerRack
+        .map((tJson) => Tile.fromJson(tJson as Map<String, dynamic>))
+        .toList();
 
     var rawTileBag = json['tileBag'] as List;
-    List<Tile> parsedTileBag = rawTileBag.map((tJson) => Tile.fromJson(tJson as Map<String, dynamic>)).toList();
+    List<Tile> parsedTileBag = rawTileBag
+        .map((tJson) => Tile.fromJson(tJson as Map<String, dynamic>))
+        .toList();
 
     var rawMoveHistory = json['moveHistory'] as List;
-    List<MoveHistory> parsedMoveHistory = rawMoveHistory.map((mJson) => MoveHistory.fromJson(mJson as Map<String, dynamic>)).toList();
+    List<MoveHistory> parsedMoveHistory = rawMoveHistory
+        .map((mJson) => MoveHistory.fromJson(mJson as Map<String, dynamic>))
+        .toList();
 
     return GameState(
       board: parsedBoard,
@@ -138,7 +160,9 @@ class GameState {
       moveHistory: parsedMoveHistory,
       status: json['status'] as String,
       settings: GameSettings.fromJson(json['settings'] as Map<String, dynamic>),
-      statistics: Statistics.fromJson(json['statistics'] as Map<String, dynamic>),
+      statistics: Statistics.fromJson(
+        json['statistics'] as Map<String, dynamic>,
+      ),
       lastMoveMessage: json['lastMoveMessage'] as String?,
       turnStartedAt: json['turnStartedAt'] == null
           ? null

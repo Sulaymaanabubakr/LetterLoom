@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     const admin = getAdminClient();
     const { data: game, error: gameError } = await admin
       .from('multiplayer_games')
-      .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at')
+      .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at')
       .eq('room_code', roomCode)
       .eq('status', 'waiting')
       .maybeSingle();
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     const playerInsert = await admin.from('multiplayer_players').insert({
       game_id: game.id,
       user_id: user.id,
-      player_number: 2,
+      player_number: ((await admin.from('multiplayer_players').select('player_number').eq('game_id', game.id)).data ?? []).reduce((max, row) => Math.max(max, Number(row.player_number)), 0) + 1,
       display_name: displayName,
     });
     if (playerInsert.error) {
@@ -60,26 +60,30 @@ Deno.serve(async (req) => {
     });
     if (privateInsert.error) throw privateInsert.error;
 
+    const { count: playerCount, error: countError } = await admin.from('multiplayer_players').select('user_id', { count: 'exact', head: true }).eq('game_id', game.id);
+    if (countError) throw countError;
+    const shouldStart = (playerCount ?? 0) >= Number(game.max_players ?? 2);
     const { data: activeGame, error: updateError } = await admin
       .from('multiplayer_games')
-      .update({ status: 'active' })
+      .update({ status: shouldStart ? 'active' : 'waiting' })
       .eq('id', game.id)
       .eq('status', 'waiting')
       .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, consecutive_passes, move_number, winner_id, created_at, updated_at')
       .single();
 
     if (updateError) throw updateError;
-    const { error: initializeError } = await admin.rpc('initialize_multiplayer_game', {
-      p_game_id: game.id,
-    });
-    if (initializeError) throw initializeError;
+    if (shouldStart) {
+      const { error: initializeError } = await admin.rpc('initialize_multiplayer_game', { p_game_id: game.id });
+      if (initializeError) throw initializeError;
+    }
+    const { data: roomPlayers } = await admin.from('multiplayer_players').select('user_id, player_number, display_name, connection_status, mic_enabled').eq('game_id', game.id).order('player_number');
     await sendPushNotification(
       [game.created_by_user_id as string],
       'Opponent joined',
-      'Your LetterLoom room is ready to play.',
+      shouldStart ? 'Your LetterLoom room is ready to play.' : 'A player joined your LetterLoom room.',
       { game_id: game.id as string, event: 'opponent_joined' },
     );
-    return response({ game: { ...activeGame, is_owner: false } });
+    return response({ game: { ...activeGame, is_owner: false, player_count: playerCount ?? 0, players: roomPlayers ?? [] } });
   } catch (error) {
     console.error('join-multiplayer-game error', error);
     return response({ error: error instanceof Error ? error.message : 'Unable to join game.' }, 400);
