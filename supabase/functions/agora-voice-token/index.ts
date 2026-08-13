@@ -21,8 +21,14 @@ Deno.serve(async (req) => {
       .select('id, room_code, status').eq('id', gameId).maybeSingle();
     if (gameError) throw gameError;
     if (!game || !['waiting', 'active'].includes(game.status)) return response({ error: 'This match is no longer available.' }, 409);
-    const appId = Deno.env.get('AGORA_APP_ID');
-    const certificate = Deno.env.get('AGORA_APP_CERTIFICATE');
+    const cleanSecret = (value: string | undefined) =>
+      value
+        ?.trim()
+        .replaceAll('\\', '')
+        .replace(/^['"]+|['"]+$/g, '')
+        .trim();
+    const appId = cleanSecret(Deno.env.get('AGORA_APP_ID'));
+    const certificate = cleanSecret(Deno.env.get('AGORA_APP_CERTIFICATE'));
     if (!appId || !certificate) return response({ error: 'Voice chat is not configured.' }, 503);
     const numericUid = Number.parseInt(user.id.replaceAll('-', '').slice(0, 8), 16) || 1;
     const channel = `letterloom_${game.room_code}_${game.id.replaceAll('-', '')}`;

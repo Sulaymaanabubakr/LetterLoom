@@ -758,7 +758,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: 2,
-                        childAspectRatio: 2.18,
+                        // Keep enough vertical room for the title, value, and
+                        // subtitle on iOS, whose font metrics are slightly
+                        // taller than Android's at this width.
+                        childAspectRatio: 1.65,
                         mainAxisSpacing: 8,
                         crossAxisSpacing: 10,
                         children: [

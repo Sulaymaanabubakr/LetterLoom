@@ -14,7 +14,7 @@ String multiplayerErrorMessage(Object error) {
       return details.trim();
     }
     if (error.status == 401 || error.status == 403) {
-      return 'Sign in with Google to play online.';
+      return 'Sign in with Google to use Multiplayer.';
     }
     if (error.status == 0) {
       return 'Unable to reach online play. Check your connection and try again.';

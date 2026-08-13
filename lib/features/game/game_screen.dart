@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
 import '../../models/board_cell.dart';
 import '../../models/tile.dart';
 import '../../models/game_state.dart';
+import '../../game_engine/rules_validator.dart';
 import '../../ai/ai_engine.dart';
 import 'game_notifier.dart';
 import '../../core/haptic_utils.dart';
@@ -57,9 +59,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _exchangeSheetOpen = false;
   final AgoraVoiceService _voice = AgoraVoiceService();
   StreamSubscription<Set<int>>? _speakerSubscription;
+  StreamSubscription<double>? _localVolumeSubscription;
   Set<int> _activeSpeakers = const {};
+  double _localMicLevel = 0;
   HintResult? _activeHint;
   final GlobalKey _hintButtonKey = GlobalKey();
+  final RulesValidator _rulesValidator = RulesValidator();
+  List<List<BoardCell>>? _lastValidatedBoard;
+  ValidationResult? _pendingValidation;
 
   @override
   void initState() {
@@ -69,6 +76,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (widget.isMultiplayer && widget.multiplayerGameId != null) {
       _speakerSubscription = _voice.activeSpeakers.listen((speakers) {
         if (mounted) setState(() => _activeSpeakers = speakers);
+      });
+      _localVolumeSubscription = _voice.localVolume.listen((level) {
+        if (mounted) setState(() => _localMicLevel = level);
       });
       unawaited(_connectVoice());
     }
@@ -126,6 +136,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     WidgetsBinding.instance.removeObserver(this);
     _turnCountdownTimer?.cancel();
     _speakerSubscription?.cancel();
+    _localVolumeSubscription?.cancel();
     if (widget.multiplayerGameId != null) {
       unawaited(
         MultiplayerRepository().updateVoicePresence(
@@ -135,6 +146,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
         ),
       );
     }
+    SoundManager.setVoiceChatActive(false);
+    unawaited(MusicManager.instance.setVoiceChatActive(false));
     unawaited(_voice.dispose());
     MusicManager.instance.setTrack(MusicTrack.menu);
     super.dispose();
@@ -144,6 +157,22 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final gameId = widget.multiplayerGameId;
     if (gameId == null) return;
     try {
+      // Permission is requested during startup, after notifications. The
+      // in-game control must never surprise the player with a system prompt.
+      final microphone = await Permission.microphone.status;
+      if (!microphone.isGranted) {
+        debugPrint('[Voice] Microphone permission is ${microphone.name}.');
+        if (mounted) {
+          ToastUtils.show(
+            context,
+            microphone.isPermanentlyDenied
+                ? 'Microphone access is disabled. Enable it in Settings to use voice chat.'
+                : 'Microphone access is needed for voice chat.',
+            isError: true,
+          );
+        }
+        return;
+      }
       final credentials = await MultiplayerRepository().requestVoiceToken(
         gameId,
       );
@@ -157,8 +186,25 @@ class _GameScreenState extends ConsumerState<GameScreen>
           connected: true,
           micEnabled: false,
         );
+      } else {
+        debugPrint('[Voice] Agora did not join the match voice channel.');
+        if (mounted) {
+          ToastUtils.show(
+            context,
+            'Voice chat could not start. Multiplayer is still available.',
+            isError: true,
+          );
+        }
       }
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[Voice] Could not connect to match voice: $error');
+      if (mounted) {
+        ToastUtils.show(
+          context,
+          'Voice chat could not start. Multiplayer is still available.',
+          isError: true,
+        );
+      }
       // Voice is optional; leave the board fully operational if unavailable.
     }
   }
@@ -166,16 +212,29 @@ class _GameScreenState extends ConsumerState<GameScreen>
   Future<void> _toggleVoice() async {
     if (!_voice.isJoined) {
       await _connectVoice();
-      if (mounted) setState(() {});
-      return;
+      if (!_voice.isJoined) {
+        if (mounted) setState(() {});
+        return;
+      }
     }
-    await _voice.setMuted(!_voice.isMuted);
+    final shouldMute = !_voice.isMuted;
+    if (!shouldMute) {
+      // Stop local game playback before opening the microphone so speaker
+      // output cannot become an acoustic echo source.
+      SoundManager.setVoiceChatActive(true);
+      await MusicManager.instance.setVoiceChatActive(true);
+    }
+    await _voice.setMuted(shouldMute);
+    if (shouldMute) {
+      SoundManager.setVoiceChatActive(false);
+      await MusicManager.instance.setVoiceChatActive(false);
+    }
     final gameId = widget.multiplayerGameId;
     if (gameId != null) {
       await MultiplayerRepository().updateVoicePresence(
         gameId,
         connected: true,
-        micEnabled: !_voice.isMuted,
+        micEnabled: !shouldMute,
       );
     }
     if (mounted) setState(() {});
@@ -800,6 +859,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(_provider);
+    _pendingValidationFor(state);
     final bool isCompleted = state.status == 'gameCompleted';
     final double edgeContentTightening =
         Theme.of(context).platform == TargetPlatform.android
@@ -1047,7 +1107,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   // ── Scoreboard ─────────────────────────────────────────────────────────────
   Widget _buildScoreboard(GameState state) {
-    if (widget.isMultiplayer && state.multiplayerPlayers.length > 2) {
+    if (widget.isMultiplayer) {
       return _buildMultiplayerScoreboard(state);
     }
     final isPlayerTurn =
@@ -1084,52 +1144,50 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   Widget _buildMultiplayerScoreboard(GameState state) {
     final localId = Supabase.instance.client.auth.currentUser?.id;
+    final players = state.multiplayerPlayers;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Column(
         children: [
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            alignment: WrapAlignment.center,
-            children: state.multiplayerPlayers.map((player) {
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: players.asMap().entries.map((entry) {
+              final index = entry.key;
+              final player = entry.value;
               final score = state.multiplayerScores[player.userId] ?? 0;
-              final active =
-                  player.userId ==
-                          state.multiplayerPlayers
-                              .firstWhere(
-                                (p) => p.userId == localId,
-                                orElse: () => player,
-                              )
-                              .userId &&
-                      state.currentTurn == 'player' ||
-                  player.userId != localId && state.currentTurn != 'player';
-              return SizedBox(
-                width: (MediaQuery.sizeOf(context).width - 38) / 2,
-                child: _buildScoreCard(
-                  label: player.userId == localId ? 'YOU' : player.displayName,
-                  score: score,
-                  isActive: active,
-                  iconData: player.micEnabled
-                      ? Icons.mic_rounded
-                      : Icons.mic_off_rounded,
-                  avatarColor: _activeSpeakers.isNotEmpty && player.micEnabled
-                      ? Colors.greenAccent
-                      : AppTheme.shinyGold,
+              final isSpeaking = _activeSpeakers.contains(
+                _voiceUidForUser(player.userId),
+              );
+              final active = state.multiplayerTurnUserId != null
+                  ? player.userId == state.multiplayerTurnUserId
+                  : (player.userId == localId &&
+                            state.currentTurn == 'player') ||
+                        (player.userId != localId &&
+                            state.currentTurn != 'player');
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index == players.length - 1 ? 0 : 5,
+                  ),
+                  child: _buildScoreCard(
+                    label: player.userId == localId
+                        ? 'YOU'
+                        : player.displayName,
+                    score: score,
+                    isActive: active,
+                    avatarEmoji: _avatarEmoji(player.avatarId),
+                    isSpeaking: isSpeaking,
+                    compact: true,
+                    iconData: player.micEnabled
+                        ? Icons.mic_rounded
+                        : Icons.mic_off_rounded,
+                    avatarColor: isSpeaking
+                        ? Colors.greenAccent
+                        : AppTheme.shinyGold,
+                  ),
                 ),
               );
             }).toList(),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              onPressed: _toggleVoice,
-              tooltip: _voice.isMuted ? 'Enable microphone' : 'Mute microphone',
-              icon: Icon(
-                _voice.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              ),
-              color: _voice.isJoined ? AppTheme.shinyGold : AppTheme.mutedIvory,
-            ),
           ),
         ],
       ),
@@ -1142,7 +1200,21 @@ class _GameScreenState extends ConsumerState<GameScreen>
     required bool isActive,
     required IconData iconData,
     required Color avatarColor,
+    String? avatarEmoji,
+    bool isSpeaking = false,
+    bool compact = false,
   }) {
+    if (compact) {
+      return _buildCompactMultiplayerScoreCard(
+        label: label,
+        score: score,
+        isActive: isActive,
+        iconData: iconData,
+        avatarColor: avatarColor,
+        avatarEmoji: avatarEmoji ?? '🦉',
+        isSpeaking: isSpeaking,
+      );
+    }
     return Container(
       height: 42,
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -1169,6 +1241,19 @@ class _GameScreenState extends ConsumerState<GameScreen>
               ]
             : null,
       ),
+      foregroundDecoration: isSpeaking
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.greenAccent, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.greenAccent.withValues(alpha: 0.45),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            )
+          : null,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -1187,41 +1272,176 @@ class _GameScreenState extends ConsumerState<GameScreen>
               ),
             ),
             child: Center(
-              child: Icon(
-                iconData,
-                color: isActive
-                    ? avatarColor
-                    : avatarColor.withValues(alpha: 0.6),
-                size: 13,
-              ),
+              child: avatarEmoji == null
+                  ? Icon(
+                      iconData,
+                      color: isActive
+                          ? avatarColor
+                          : avatarColor.withValues(alpha: 0.6),
+                      size: 13,
+                    )
+                  : Text(avatarEmoji, style: const TextStyle(fontSize: 15)),
             ),
           ),
           const SizedBox(width: 8),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    '$label: ',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isActive
+                          ? AppTheme.shinyGold
+                          : AppTheme.mutedIvory,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Text(
+                  score.toString(),
+                  style: GoogleFonts.lora(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.ivoryText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactMultiplayerScoreCard({
+    required String label,
+    required int score,
+    required bool isActive,
+    required IconData iconData,
+    required Color avatarColor,
+    required String avatarEmoji,
+    required bool isSpeaking,
+  }) {
+    final indicatorColor = isSpeaking
+        ? Colors.greenAccent
+        : AppTheme.mutedIvory.withValues(alpha: 0.75);
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.fromLTRB(6, 5, 6, 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: isSpeaking
+              ? Colors.greenAccent
+              : isActive
+              ? AppTheme.shinyGold
+              : AppTheme.shinyGold.withValues(alpha: 0.35),
+          width: isSpeaking || isActive ? 1.5 : 1.0,
+        ),
+        gradient: const LinearGradient(
+          colors: AppTheme.darkGreenGradient,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        boxShadow: isSpeaking
+            ? [
+                BoxShadow(
+                  color: Colors.greenAccent.withValues(alpha: 0.4),
+                  blurRadius: 9,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
+        children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                '$label: ',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isActive ? AppTheme.shinyGold : AppTheme.mutedIvory,
-                  letterSpacing: 0.5,
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF010A07),
+                  border: Border.all(color: avatarColor, width: 1.1),
+                ),
+                child: Center(
+                  child: Text(
+                    avatarEmoji,
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
               ),
+              const Spacer(),
+              Icon(
+                isSpeaking ? Icons.graphic_eq_rounded : iconData,
+                color: indicatorColor,
+                size: 13,
+              ),
+              const SizedBox(width: 2),
               Text(
                 score.toString(),
                 style: GoogleFonts.lora(
-                  fontSize: 18,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.ivoryText,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: isActive ? AppTheme.shinyGold : AppTheme.mutedIvory,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            isSpeaking ? 'SPEAKING' : ' ',
+            maxLines: 1,
+            style: GoogleFonts.inter(
+              fontSize: 7,
+              fontWeight: FontWeight.bold,
+              color: Colors.greenAccent,
+              letterSpacing: 0.3,
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  String _avatarEmoji(String avatarId) {
+    const avatars = {
+      'avatar_owl': '🦉',
+      'avatar_knight': '⚔️',
+      'avatar_crown': '👑',
+      'avatar_falcon': '🦅',
+      'avatar_dragon': '🐉',
+      'avatar_wizard': '🧙‍♂️',
+      'avatar_lion': '🦁',
+      'avatar_panther': '🐆',
+    };
+    return avatars[avatarId] ?? avatars['avatar_owl']!;
+  }
+
+  int _voiceUidForUser(String userId) {
+    final compact = userId.replaceAll('-', '');
+    if (compact.length < 8) return 1;
+    return int.tryParse(compact.substring(0, 8), radix: 16) ?? 1;
   }
 
   // ── Status Banner ──────────────────────────────────────────────────────────
@@ -1328,11 +1548,23 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 
   // ── Board ──────────────────────────────────────────────────────────────────
+  ValidationResult? _pendingValidationFor(GameState state) {
+    if (identical(_lastValidatedBoard, state.board)) {
+      return _pendingValidation;
+    }
+    _lastValidatedBoard = state.board;
+    final hasPending = state.board.any(
+      (row) => row.any((cell) => cell.isNewPlacement && cell.tile != null),
+    );
+    _pendingValidation = hasPending
+        ? _rulesValidator.validateMove(state.board)
+        : null;
+    return _pendingValidation;
+  }
+
   Widget _buildBoard(GameState state) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const double coordW = 14.0;
-        const double coordH = 12.0;
         const double gap = 1.0;
         const double paddingTotal = 6.0; // padding 3 * 2
         const double borderTotal = 3.0; // border 1.5 * 2
@@ -1344,9 +1576,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
         final double boardConstraintWidth = isAndroid
             ? constraints.maxWidth
             : (constraints.maxWidth > 390 ? 390 : constraints.maxWidth);
-        final double gridW = boardConstraintWidth - coordW - decorationTotal;
-        final double gridH =
-            constraints.maxHeight - (coordH * 2) - decorationTotal;
+        final double gridW = boardConstraintWidth - decorationTotal;
+        final double gridH = constraints.maxHeight - decorationTotal;
 
         // Pick the smaller axis so nothing overflows or crops
         final double cellW = (gridW - 14 * gap) / 15;
@@ -1358,12 +1589,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
         final double actualGridH = cellSize * 15 + gap * 14;
 
         // The Container sizes should wrap the actual content exactly!
-        final double boardWidth = actualGridW + coordW + decorationTotal;
-        final double boardHeight = actualGridH + (coordH * 2) + decorationTotal;
-
-        // Grid starts right after coordinate labels
-        const double offsetX = coordW;
-        const double offsetY = coordH;
+        final double boardWidth = actualGridW + decorationTotal;
+        final double boardHeight = actualGridH + decorationTotal;
 
         return Center(
           child: Container(
@@ -1384,85 +1611,19 @@ class _GameScreenState extends ConsumerState<GameScreen>
             padding: const EdgeInsets.all(3),
             child: Stack(
               clipBehavior: Clip.none,
-              children: [
-                // ── Top number labels ──
-                ...List.generate(15, (c) {
-                  final double x = offsetX + c * (cellSize + gap);
-                  return Positioned(
-                    left: x,
-                    top: 0,
-                    width: cellSize,
-                    height: coordH,
-                    child: Center(
-                      child: Text(
-                        '${c + 1}',
-                        style: const TextStyle(
-                          fontSize: 7,
-                          color: AppTheme.mutedIvory,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-
-                // ── Bottom number labels ──
-                ...List.generate(15, (c) {
-                  final double x = offsetX + c * (cellSize + gap);
-                  return Positioned(
-                    left: x,
-                    bottom: 0,
-                    width: cellSize,
-                    height: coordH,
-                    child: Center(
-                      child: Text(
-                        '${c + 1}',
-                        style: const TextStyle(
-                          fontSize: 7,
-                          color: AppTheme.mutedIvory,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-
-                // ── Left letter labels ──
-                ...List.generate(15, (r) {
-                  final double y = offsetY + r * (cellSize + gap);
-                  return Positioned(
-                    left: 0,
-                    top: y,
-                    width: coordW,
-                    height: cellSize,
-                    child: Center(
-                      child: Text(
-                        String.fromCharCode(65 + r),
-                        style: const TextStyle(
-                          fontSize: 7,
-                          color: AppTheme.mutedIvory,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-
-                // ── Board cells (15×15) ──
-                ...List.generate(225, (index) {
-                  final r = index ~/ 15;
-                  final c = index % 15;
-                  final double x = offsetX + c * (cellSize + gap);
-                  final double y = offsetY + r * (cellSize + gap);
-                  return Positioned(
-                    left: x,
-                    top: y,
-                    width: cellSize,
-                    height: cellSize,
-                    child: _buildBoardCell(state, r, c, cellSize),
-                  );
-                }),
-              ],
+              children: List.generate(225, (index) {
+                final r = index ~/ 15;
+                final c = index % 15;
+                final double x = c * (cellSize + gap);
+                final double y = r * (cellSize + gap);
+                return Positioned(
+                  left: x,
+                  top: y,
+                  width: cellSize,
+                  height: cellSize,
+                  child: _buildBoardCell(state, r, c, cellSize),
+                );
+              }),
             ),
           ),
         );
@@ -1477,6 +1638,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final cell = state.board[r][c];
     final tile = cell.tile;
     final isNew = cell.isNewPlacement;
+    final pendingValidation = _pendingValidation;
     final hintPlacement = state.status == 'playerTurn'
         ? _hintPlacementAt(r, c)
         : null;
@@ -1573,6 +1735,31 @@ class _GameScreenState extends ConsumerState<GameScreen>
               ),
               if (hintPlacement != null && tile == null)
                 IgnorePointer(child: _buildHintCell(hintPlacement, size)),
+              if (isNew && pendingValidation != null)
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: pendingValidation.isValid
+                            ? Colors.greenAccent
+                            : Colors.redAccent,
+                        width: 1.8,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              (pendingValidation.isValid
+                                      ? Colors.greenAccent
+                                      : Colors.redAccent)
+                                  .withValues(alpha: 0.55),
+                          blurRadius: 7,
+                          spreadRadius: 0.5,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         );
@@ -1994,7 +2181,60 @@ class _GameScreenState extends ConsumerState<GameScreen>
               ),
             ),
           ),
+          if (widget.isMultiplayer) ...[
+            const SizedBox(width: 8),
+            _buildMicButton(),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildMicButton() {
+    final color = _voice.isJoined
+        ? (_voice.isMuted ? AppTheme.mutedIvory : AppTheme.shinyGold)
+        : AppTheme.mutedIvory;
+    final level = _voice.isMuted ? 0.0 : _localMicLevel;
+    final speakingScale = 1.0 + (level * 0.2);
+    return Tooltip(
+      message: _voice.isMuted ? 'Unmute microphone' : 'Mute microphone',
+      child: InkWell(
+        onTap: _toggleVoice,
+        borderRadius: BorderRadius.circular(24),
+        child: AnimatedScale(
+          scale: speakingScale,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF010A07),
+              border: Border.all(
+                color: level > 0.08 ? Colors.greenAccent : color,
+                width: level > 0.08 ? 2.0 : 1.2,
+              ),
+              boxShadow: level > 0.08
+                  ? [
+                      BoxShadow(
+                        color: Colors.greenAccent.withValues(
+                          alpha: 0.25 + (level * 0.45),
+                        ),
+                        blurRadius: 7 + (level * 9),
+                        spreadRadius: level * 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              _voice.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+              color: level > 0.08 ? Colors.greenAccent : color,
+              size: 21,
+            ),
+          ),
+        ),
       ),
     );
   }

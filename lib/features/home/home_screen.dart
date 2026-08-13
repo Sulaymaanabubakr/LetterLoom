@@ -9,6 +9,7 @@ import '../../core/push_notification_service.dart';
 import '../../core/supabase_bootstrap.dart';
 import '../../core/toast_utils.dart';
 import '../../core/coachmark.dart';
+import '../../core/review_prompt_service.dart';
 import '../../models/player_profile.dart';
 import '../game/game_notifier.dart';
 import '../game/game_screen.dart';
@@ -42,6 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _canContinue = false;
   bool _checkingSave = true;
   late Future<DailyServerSnapshot?> _dailyChallengeFuture;
+  StreamSubscription<AuthState>? _authSubscription;
   final GlobalKey _dailyChallengeKey = GlobalKey();
   // Kept disabled while older hot-reload sessions are still attached.
   final bool _showLegacyInlineHeader = false;
@@ -53,11 +55,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _checkSavedGame();
     _dailyChallengeFuture = DailyChallengeService.syncRemote();
     if (SupabaseBootstrap.configured) {
-      Supabase.instance.client.auth.onAuthStateChange.listen((event) {
-        if (event.session?.user.isAnonymous == false) {
-          _dailyChallengeFuture = DailyChallengeService.syncRemote();
-        }
-      });
+      _authSubscription = Supabase.instance.client.auth.onAuthStateChange
+          .listen((event) {
+            unawaited(_refreshDailyChallengeAfterAuth(event));
+          });
     }
     // Ensure menu music plays whenever we return to HomeScreen
     MusicManager.instance.setTrack(MusicTrack.menu);
@@ -68,6 +69,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       );
       _openPushDestination();
       _showHomeCoachmark();
+      if (const bool.fromEnvironment(
+        'LETTERLOOM_SHOW_REVIEW_MODAL',
+        defaultValue: false,
+      )) {
+        unawaited(ReviewPromptService.showForTesting(context));
+      } else {
+        unawaited(ReviewPromptService.maybeShow(context));
+      }
     });
   }
 
@@ -86,11 +95,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _authSubscription?.cancel();
     unawaited(Coachmark.dismiss('daily_challenge'));
     PushNotificationService.pendingNavigation.removeListener(
       _openPushDestination,
     );
     super.dispose();
+  }
+
+  Future<void> _refreshDailyChallengeAfterAuth(AuthState event) async {
+    if (!mounted) return;
+    final signedIn = event.session?.user.isAnonymous == false;
+    if (!signedIn) {
+      setState(() {
+        _dailyChallengeFuture = Future.value(null);
+      });
+      return;
+    }
+
+    // The auth event is emitted after Supabase installs the new session, so
+    // this request reads the signed-in user's authoritative streak. Replacing
+    // the Future inside setState is important: FutureBuilder otherwise keeps
+    // rendering the guest-era snapshot until a manual refresh.
+    final dailyFuture = DailyChallengeService.syncRemote();
+    if (mounted) {
+      setState(() {
+        _dailyChallengeFuture = dailyFuture;
+      });
+    }
   }
 
   @override
@@ -110,7 +142,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       dailyFuture,
     ]);
     if (!mounted) return;
-    setState(() => _dailyChallengeFuture = dailyFuture);
+    setState(() {
+      _dailyChallengeFuture = dailyFuture;
+    });
     await DailyRewardsService.checkAndShowDailyReward(context, ref);
   }
 
@@ -536,7 +570,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         builder: (context, ref, child) {
           final profile = ref.watch(authProvider);
           final isGuest = _isAnonymousAccount(profile);
-          final dailyStreak = dailySnapshot.data?.state.streakDays ?? 0;
+          final dailyStreak = dailySnapshot.data?.state?.streakDays ?? 0;
           final hints = ref.watch(hintServiceProvider);
           final totalHints =
               hints.totalMoveHints() +
@@ -974,7 +1008,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     ),
                               ),
                               _buildPremiumButton(
-                                title: 'Play Online',
+                                title: 'Multiplayer',
                                 subtitle: 'Casual room with friends',
                                 iconData: Icons.groups_rounded,
                                 isPrimary: false,
@@ -1131,10 +1165,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _openDailyChallenge() async {
     final snapshot = await _dailyChallengeFuture;
     if (!mounted) return;
-    if (snapshot == null) {
+    if (snapshot == null ||
+        !snapshot.available ||
+        snapshot.data == null ||
+        snapshot.state == null) {
+      final releaseAt = snapshot?.releaseAt;
+      final localRelease = releaseAt?.toLocal();
+      final releaseLabel = localRelease == null
+          ? 'later today'
+          : '${localRelease.hour.toString().padLeft(2, '0')}:${localRelease.minute.toString().padLeft(2, '0')}';
       ToastUtils.show(
         context,
-        'Daily Challenge is unavailable. Sign in and try again.',
+        snapshot?.available == false
+            ? 'Daily Challenge unlocks at $releaseLabel.'
+            : 'Daily Challenge is unavailable. Sign in and try again.',
         isError: true,
       );
       _dailyChallengeFuture = DailyChallengeService.syncRemote();

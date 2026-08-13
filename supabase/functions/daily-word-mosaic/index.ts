@@ -106,6 +106,16 @@ Deno.serve(async (req) => {
     const action = String(body.action ?? 'get');
     const admin = getAdminClient();
     const today = new Date().toISOString().slice(0, 10);
+    const releaseAt = new Date(`${today}T08:00:00.000Z`);
+    const serverNow = new Date();
+    if (serverNow < releaseAt) {
+      return response({
+        available: false,
+        date: today,
+        release_at: releaseAt.toISOString(),
+        server_now: serverNow.toISOString(),
+      });
+    }
     const { data: current } = await admin.from('daily_word_mosaic_progress').select('*').eq('user_id', user.id).eq('puzzle_date', today).maybeSingle();
     const { data: previous } = await admin.from('daily_word_mosaic_progress').select('puzzle_date, streak_days, puzzle_id').eq('user_id', user.id).order('puzzle_date', { ascending: false }).limit(30);
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -118,7 +128,7 @@ Deno.serve(async (req) => {
       const eligible = catalog.filter((item) => item.tier <= tier && !used.has(item.id));
       const pool = eligible.length ? eligible : catalog.filter((item) => item.tier <= tier);
       template = pool[stableHash(`${today}:${user.id}`) % pool.length];
-      const { error } = await admin.from('daily_word_mosaic_progress').upsert({ user_id: user.id, puzzle_date: today, puzzle_id: template.id, difficulty_tier: tier, streak_days: streak, solved_word_indexes: [], score: 0, completed: false, remaining_seconds: 180, failed: false }, { onConflict: 'user_id,puzzle_date' });
+      const { error } = await admin.from('daily_word_mosaic_progress').upsert({ user_id: user.id, puzzle_date: today, release_at: releaseAt.toISOString(), puzzle_id: template.id, difficulty_tier: tier, streak_days: streak, solved_word_indexes: [], score: 0, completed: false, remaining_seconds: 180, failed: false }, { onConflict: 'user_id,puzzle_date' });
       if (error) throw error;
     }
     const generatedWords = puzzleFor(template, stableHash(`${today}:${user.id}:${template.id}`));
@@ -156,6 +166,9 @@ Deno.serve(async (req) => {
       // sign-in failure. Returning the normal snapshot lets the app show the
       // failed challenge instead of incorrectly calling it unavailable.
       return response({
+        available: true,
+        release_at: releaseAt.toISOString(),
+        server_now: new Date().toISOString(),
         accepted: false,
         puzzle: {
           date: today,
@@ -232,6 +245,9 @@ Deno.serve(async (req) => {
       progress.failed = true;
     }
     return response({
+      available: true,
+      release_at: releaseAt.toISOString(),
+      server_now: new Date().toISOString(),
       accepted: action === 'submit',
       puzzle: {
         date: today,

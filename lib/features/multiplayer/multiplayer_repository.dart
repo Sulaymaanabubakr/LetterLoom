@@ -16,7 +16,9 @@ class MultiplayerRepository {
     }
     final user = _client.auth.currentUser;
     if (user == null || user.isAnonymous) {
-      throw const MultiplayerException('Sign in with Google to play online.');
+      throw const MultiplayerException(
+        'Sign in with Google to use Multiplayer.',
+      );
     }
   }
 
@@ -370,6 +372,7 @@ class MultiplayerStateSnapshot {
       computerScore: opponentScore,
       multiplayerScores: game.playerScores,
       multiplayerPlayers: game.players,
+      multiplayerTurnUserId: game.currentTurnUserId,
       consecutivePasses: game.consecutivePasses,
       currentTurn: isMyTurn ? 'player' : 'computer',
       status: game.pausedAt != null

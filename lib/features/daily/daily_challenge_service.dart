@@ -238,6 +238,12 @@ class DailyChallengeService {
         body: {'action': action},
       );
       final payload = response.data;
+      if (payload is Map && payload['available'] == false) {
+        return DailyServerSnapshot.unavailable(
+          releaseAt: DateTime.tryParse(payload['release_at'] as String? ?? ''),
+          serverNow: DateTime.tryParse(payload['server_now'] as String? ?? ''),
+        );
+      }
       if (payload is! Map ||
           payload['puzzle'] is! Map ||
           payload['progress'] is! Map)
@@ -366,6 +372,9 @@ class DailyChallengeService {
             (progress['remaining_seconds'] as num?)?.toInt() ?? 180,
         failed: progress['failed'] as bool? ?? false,
       ),
+      available: true,
+      releaseAt: DateTime.tryParse(payload['release_at'] as String? ?? ''),
+      serverNow: DateTime.tryParse(payload['server_now'] as String? ?? ''),
     );
   }
 
@@ -498,9 +507,24 @@ class DailyChallengeService {
 }
 
 class DailyServerSnapshot {
-  final DailyChallengeData data;
-  final DailyChallengeState state;
-  const DailyServerSnapshot({required this.data, required this.state});
+  final DailyChallengeData? data;
+  final DailyChallengeState? state;
+  final bool available;
+  final DateTime? releaseAt;
+  final DateTime? serverNow;
+
+  const DailyServerSnapshot({
+    required this.data,
+    required this.state,
+    this.available = true,
+    this.releaseAt,
+    this.serverNow,
+  });
+
+  const DailyServerSnapshot.unavailable({this.releaseAt, this.serverNow})
+    : data = null,
+      state = null,
+      available = false;
 }
 
 class _PuzzleTemplate {

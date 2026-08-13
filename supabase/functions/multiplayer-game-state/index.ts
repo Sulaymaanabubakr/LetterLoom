@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
 import { sendPushNotification } from '../_shared/push.ts';
+import { addPlayerAvatars } from '../_shared/multiplayer_players.ts';
 
 const gameFields = 'id, room_code, status, current_turn_user_id, turn_started_at, paused_at, paused_by_user_id, created_by_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at, mode';
 
@@ -155,6 +156,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    const players = await addPlayerAvatars(admin, (roomPlayers ?? []) as Array<Record<string, unknown>>);
     return response({
       game: currentGame,
       rack: privateRack?.rack ?? [],
@@ -164,7 +166,7 @@ Deno.serve(async (req) => {
       tile_count: Array.isArray(privateGame?.tile_bag)
         ? privateGame.tile_bag.length
         : 0,
-      players: roomPlayers ?? [],
+      players,
     });
   } catch (error) {
     console.error('multiplayer-game-state error', error);

@@ -87,6 +87,84 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     });
   }
 
+  Future<void> _selectMaxPlayers() async {
+    if (_isBusy) return;
+    final selected = await showDialog<int>(
+      context: context,
+      useSafeArea: false,
+      builder: (dialogContext) => PremiumDialog(
+        title: 'Choose table size',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'How many players should this room support?',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: AppTheme.mutedIvory),
+            ),
+            const SizedBox(height: 16),
+            ...[2, 3, 4].map(
+              (count) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: InkWell(
+                  onTap: () => Navigator.of(dialogContext).pop(count),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
+                    decoration: BoxDecoration(
+                      color: count == _maxPlayers
+                          ? AppTheme.shinyGold.withValues(alpha: 0.16)
+                          : const Color(0xFF021710),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: count == _maxPlayers
+                            ? AppTheme.shinyGold
+                            : AppTheme.shinyGold.withValues(alpha: 0.3),
+                        width: count == _maxPlayers ? 1.4 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.groups_rounded,
+                          color: AppTheme.shinyGold,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '$count players',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.ivoryText,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (count == _maxPlayers)
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppTheme.shinyGold,
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _maxPlayers = selected);
+    }
+  }
+
   Future<void> _loadRooms({bool showErrors = true}) async {
     if (mounted) setState(() => _isLoadingRooms = true);
     try {
@@ -235,7 +313,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 end: Alignment.bottomCenter,
               ).createShader(bounds),
               child: Text(
-                'Play Online',
+                'Multiplayer',
                 style: GoogleFonts.lora(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -340,26 +418,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           const SizedBox(height: 22),
           _field(_nameController, 'Display name', Icons.person_outline_rounded),
           const SizedBox(height: 16),
-          if (!_showJoin) ...[
-            DropdownButtonFormField<int>(
-              initialValue: _maxPlayers,
-              dropdownColor: const Color(0xFF062017),
-              style: GoogleFonts.inter(color: AppTheme.ivoryText),
-              decoration: _inputDecoration('Players', Icons.groups_rounded),
-              items: [2, 3, 4]
-                  .map(
-                    (count) => DropdownMenuItem(
-                      value: count,
-                      child: Text('$count players'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: _isBusy
-                  ? null
-                  : (value) => setState(() => _maxPlayers = value ?? 2),
-            ),
-            const SizedBox(height: 16),
-          ],
+          if (!_showJoin) ...[_playerCountField(), const SizedBox(height: 16)],
           if (_showJoin) ...[
             _field(
               _roomController,
@@ -665,19 +724,19 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   }
 
   Future<void> _manageRoom(MultiplayerGame game, String action) async {
-    final verb = action == 'delete'
-        ? 'delete'
+    final actionLabel = action == 'delete'
+        ? 'Delete Room'
         : action == 'leave'
-        ? 'leave'
-        : 'stop';
+        ? 'Leave Room'
+        : 'Stop Room';
     final confirmed = await _showPremiumConfirmation(
-      title: '$verb room?',
+      title: '$actionLabel?',
       message: action == 'delete'
           ? 'This will permanently remove room ${game.roomCode}.'
           : action == 'leave'
           ? 'You will leave room ${game.roomCode}.'
           : 'Players will no longer be able to continue this room.',
-      confirmLabel: verb,
+      confirmLabel: actionLabel,
     );
     if (confirmed != true) return;
     await _runAction(() async {
@@ -949,6 +1008,46 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           borderSide: const BorderSide(color: AppTheme.shinyGold, width: 1.4),
         ),
       );
+
+  Widget _playerCountField() {
+    final decoration = _inputDecoration('Players', Icons.groups_rounded)
+        .copyWith(
+          floatingLabelAlignment: FloatingLabelAlignment.center,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 17,
+          ),
+        );
+    return Opacity(
+      opacity: _isBusy ? 0.45 : 1,
+      child: InkWell(
+        onTap: _selectMaxPlayers,
+        borderRadius: BorderRadius.circular(12),
+        child: InputDecorator(
+          decoration: decoration,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$_maxPlayers players',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: AppTheme.ivoryText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: AppTheme.shinyGold,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _goldButton(String label, IconData icon, VoidCallback? onPressed) {
     return SizedBox(

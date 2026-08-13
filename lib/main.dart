@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'theme/app_theme.dart';
 import 'dictionary/dictionary_service.dart';
 import 'features/home/home_screen.dart';
@@ -20,8 +21,16 @@ void main() async {
   unawaited(BillingService().initialize());
   runApp(const ProviderScope(child: LetterLoomApp()));
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(PushNotificationService.requestPermissionAndRegister());
+    unawaited(_requestStartupPermissions());
   });
+}
+
+Future<void> _requestStartupPermissions() async {
+  // Keep the permission sequence intentional: notification permission first,
+  // then microphone permission for multiplayer voice chat.
+  await PushNotificationService.initialize();
+  await PushNotificationService.requestPermissionAndRegister();
+  await Permission.microphone.request();
 }
 
 class LetterLoomApp extends StatelessWidget {

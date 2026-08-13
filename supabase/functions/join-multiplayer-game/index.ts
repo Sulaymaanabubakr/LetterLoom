@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
 import { sendPushNotification } from '../_shared/push.ts';
+import { addPlayerAvatars } from '../_shared/multiplayer_players.ts';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -83,7 +84,8 @@ Deno.serve(async (req) => {
       shouldStart ? 'Your LetterLoom room is ready to play.' : 'A player joined your LetterLoom room.',
       { game_id: game.id as string, event: 'opponent_joined' },
     );
-    return response({ game: { ...activeGame, is_owner: false, player_count: playerCount ?? 0, players: roomPlayers ?? [] } });
+    const players = await addPlayerAvatars(admin, (roomPlayers ?? []) as Array<Record<string, unknown>>);
+    return response({ game: { ...activeGame, is_owner: false, player_count: playerCount ?? 0, players } });
   } catch (error) {
     console.error('join-multiplayer-game error', error);
     return response({ error: error instanceof Error ? error.message : 'Unable to join game.' }, 400);

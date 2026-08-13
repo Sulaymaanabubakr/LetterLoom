@@ -5,6 +5,11 @@ allprojects {
     }
 }
 
+// Legacy Flutter plugins in the Agora dependency graph still default to API
+// 31. The app already compiles against API 36; expose that existing SDK to
+// those plugins so their AndroidX metadata can be checked consistently.
+extra["compileSdkVersion"] = 36
+
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")

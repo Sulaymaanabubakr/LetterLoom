@@ -10,9 +10,17 @@ class SoundManager {
     ..setReleaseMode(ReleaseMode.stop);
   static DateTime? _lastPlayback;
   static bool _configured = false;
+  static bool _voiceChatActive = false;
+
+  static void setVoiceChatActive(bool active) {
+    _voiceChatActive = active;
+    if (active) {
+      _tapPlayer.stop().catchError((_) {});
+    }
+  }
 
   static Future<void> play(SoundType type, GameSettings settings) async {
-    if (!settings.soundEnabled) return;
+    if (!settings.soundEnabled || _voiceChatActive) return;
     final now = DateTime.now();
     if (_lastPlayback != null &&
         now.difference(_lastPlayback!) < const Duration(milliseconds: 65)) {

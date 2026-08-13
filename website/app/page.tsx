@@ -214,7 +214,7 @@ export default function HomePage() {
             <FadeIn delay={0.2} direction="left" fullWidth>
               <div className="mode-card">
                 <div className="mode-icon">🌐</div>
-                <h3 className="mode-title">Play Online</h3>
+                <h3 className="mode-title">Multiplayer</h3>
                 <p className="mode-desc">
                   Create a room and share the code. Challenge friends or family anywhere in the world in real-time turn-based matches.
                 </p>

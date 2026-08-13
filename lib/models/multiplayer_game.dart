@@ -113,6 +113,7 @@ class MultiplayerGame {
 class MultiplayerPlayer {
   final String userId;
   final String displayName;
+  final String avatarId;
   final int playerNumber;
   final bool connected;
   final bool micEnabled;
@@ -120,6 +121,7 @@ class MultiplayerPlayer {
   const MultiplayerPlayer({
     required this.userId,
     required this.displayName,
+    this.avatarId = 'avatar_owl',
     required this.playerNumber,
     this.connected = true,
     this.micEnabled = false,
@@ -129,6 +131,7 @@ class MultiplayerPlayer {
       MultiplayerPlayer(
         userId: json['user_id'] as String? ?? '',
         displayName: json['display_name'] as String? ?? 'Player',
+        avatarId: json['avatar_id'] as String? ?? 'avatar_owl',
         playerNumber: (json['player_number'] as num?)?.toInt() ?? 0,
         connected:
             (json['connection_status'] as String? ?? 'connected') ==

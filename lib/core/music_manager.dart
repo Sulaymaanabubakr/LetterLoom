@@ -18,6 +18,8 @@ class MusicManager with WidgetsBindingObserver {
   bool _isAppResumed = true;
   bool _isObservingLifecycle = false;
   bool _pausedForLifecycle = false;
+  bool _voiceChatActive = false;
+  bool _pausedForVoice = false;
   MusicTrack _currentTrack = MusicTrack.menu;
 
   // Bundled local assets — instant playback, no network required
@@ -56,7 +58,7 @@ class MusicManager with WidgetsBindingObserver {
       await init(enabled);
       return;
     }
-    if (enabled && _isAppResumed) {
+    if (enabled && _isAppResumed && !_voiceChatActive) {
       _playCurrentTrack();
     } else {
       _stopMusic();
@@ -68,8 +70,32 @@ class MusicManager with WidgetsBindingObserver {
   void setTrack(MusicTrack track) {
     if (_currentTrack == track) return;
     _currentTrack = track;
-    if (_musicEnabled && _isInitialized && _isAppResumed) {
+    if (_musicEnabled && _isInitialized && _isAppResumed && !_voiceChatActive) {
       _playCurrentTrack();
+    }
+  }
+
+  /// Pause local playback while the microphone is live to avoid acoustic echo.
+  Future<void> setVoiceChatActive(bool active) async {
+    if (_voiceChatActive == active) return;
+    _voiceChatActive = active;
+    if (!_isInitialized || !_musicEnabled) return;
+
+    if (active && _isAppResumed) {
+      try {
+        await _audioPlayer.pause();
+        _pausedForVoice = true;
+      } catch (e) {
+        debugPrint('MusicManager: error pausing for voice chat: $e');
+      }
+    } else if (!active && _pausedForVoice && _isAppResumed) {
+      try {
+        await _audioPlayer.resume();
+        _pausedForVoice = false;
+      } catch (e) {
+        debugPrint('MusicManager: error resuming after voice chat: $e');
+        _playCurrentTrack();
+      }
     }
   }
 
@@ -82,7 +108,7 @@ class MusicManager with WidgetsBindingObserver {
 
     if (!_isAppResumed) {
       _pauseForLifecycle();
-    } else if (!wasResumed) {
+    } else if (!wasResumed && !_voiceChatActive) {
       _resumeAfterLifecycle();
     }
   }
@@ -91,6 +117,7 @@ class MusicManager with WidgetsBindingObserver {
 
   /// Fire-and-forget using local AssetSource — plays immediately from disk.
   void _playCurrentTrack() {
+    if (_voiceChatActive) return;
     _pausedForLifecycle = false;
     final asset = _trackAssets[_currentTrack]!;
     _audioPlayer.play(AssetSource(asset)).catchError((e) {

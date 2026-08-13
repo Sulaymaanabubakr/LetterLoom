@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { getAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts';
+import { addPlayerAvatars } from '../_shared/multiplayer_players.ts';
 
 const roomAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -76,7 +77,8 @@ Deno.serve(async (req) => {
     });
     if (bagInsert.error) throw bagInsert.error;
 
-    return response({ game: { ...game, is_owner: true, player_count: 1, players: [{ user_id: user.id, player_number: 1, display_name: displayName, connection_status: 'connected', mic_enabled: false }] } });
+    const players = await addPlayerAvatars(admin, [{ user_id: user.id, player_number: 1, display_name: displayName, connection_status: 'connected', mic_enabled: false }]);
+    return response({ game: { ...game, is_owner: true, player_count: 1, players } });
   } catch (error) {
     console.error('create-multiplayer-game error', error);
     return response({ error: error instanceof Error ? error.message : 'Unable to create game.' }, 400);

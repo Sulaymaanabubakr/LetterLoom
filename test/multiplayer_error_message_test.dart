@@ -20,7 +20,7 @@ void main() {
       multiplayerErrorMessage(
         const FunctionsHttpException(status: 401, details: {'reason': 'bad'}),
       ),
-      'Sign in with Google to play online.',
+      'Sign in with Google to use Multiplayer.',
     );
   });
 }

@@ -26,6 +26,7 @@ class GameState {
   final int? turnSecondsRemaining;
   final Map<String, int> multiplayerScores;
   final List<MultiplayerPlayer> multiplayerPlayers;
+  final String? multiplayerTurnUserId;
 
   const GameState({
     required this.board,
@@ -46,6 +47,7 @@ class GameState {
     this.turnSecondsRemaining,
     this.multiplayerScores = const {},
     this.multiplayerPlayers = const [],
+    this.multiplayerTurnUserId,
   });
 
   GameState copyWith({
@@ -69,6 +71,7 @@ class GameState {
     bool clearTurnSecondsRemaining = false,
     Map<String, int>? multiplayerScores,
     List<MultiplayerPlayer>? multiplayerPlayers,
+    String? multiplayerTurnUserId,
   }) {
     return GameState(
       board: board ?? this.board,
@@ -93,6 +96,8 @@ class GameState {
           : (turnSecondsRemaining ?? this.turnSecondsRemaining),
       multiplayerScores: multiplayerScores ?? this.multiplayerScores,
       multiplayerPlayers: multiplayerPlayers ?? this.multiplayerPlayers,
+      multiplayerTurnUserId:
+          multiplayerTurnUserId ?? this.multiplayerTurnUserId,
     );
   }
 

@@ -38,8 +38,8 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen>
   void initState() {
     super.initState();
     MusicManager.instance.setTrack(MusicTrack.game);
-    _puzzleData = widget.snapshot.data;
-    _challengeState = widget.snapshot.state;
+    _puzzleData = widget.snapshot.data!;
+    _challengeState = widget.snapshot.state!;
     _selectWord(_firstOpenWord(_challengeState.solvedWordIndexes));
     WidgetsBinding.instance.addObserver(this);
     _resumeChallengeTimer();
@@ -245,8 +245,8 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen>
           wordIndex: _selectedWordIndex,
           letters: _selectedLetters,
         );
-        _puzzleData = remote.data;
-        updated = remote.state;
+        _puzzleData = remote.data!;
+        updated = remote.state!;
       } on DailyChallengeRemoteException catch (error) {
         _isSubmitting = false;
         if (mounted) {
