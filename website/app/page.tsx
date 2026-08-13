@@ -141,7 +141,7 @@ export default function HomePage() {
               {
                 n: "1",
                 title: "Place Your First Word",
-                desc: "The opening word must cross the golden centre star cell (★). All tiles in a turn must be in a single row or column with no gaps.",
+                desc: "The opening word must cross the golden centre star cell (★). All tiles in a turn must be in a single row or column with no gaps. As you place tiles, LetterLoom validates the pending move in real time.",
               },
               {
                 n: "2",
@@ -162,6 +162,11 @@ export default function HomePage() {
                 n: "5",
                 title: "Use Blank Tiles Wisely",
                 desc: "Blank tiles can represent any letter but score 0 points. Choose wisely to unlock high-value word placements.",
+              },
+              {
+                n: "6",
+                title: "Play Together",
+                desc: "Create or join a 2–4-player room, then use the microphone beside Play Word for voice chat. The player card of whoever is speaking highlights in green, while avatars and scores stay visible throughout the match.",
               },
             ].map((s, i) => (
               <FadeIn key={s.n} delay={0.1 + i * 0.1} direction="right">
@@ -216,7 +221,7 @@ export default function HomePage() {
                 <div className="mode-icon">🌐</div>
                 <h3 className="mode-title">Multiplayer</h3>
                 <p className="mode-desc">
-                  Create a room and share the code. Challenge friends or family anywhere in the world in real-time turn-based matches.
+                  Create a 2–4-player room and share the code. Challenge friends or family anywhere in the world with real-time turns, voice chat, avatars, scores, and green speaking indicators. If the owner ends a casual room, guests are returned to Multiplayer setup automatically.
                 </p>
                 <span className="mode-tag outline">
                   Live Multiplayer

@@ -37,6 +37,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   bool _isRoomOwner = false;
   bool _openedInitialGame = false;
   int _maxPlayers = 2;
+  Future<void> Function()? _roomEndedHandler;
+  bool _roomEndHandling = false;
 
   String _friendlyError(Object error) {
     debugPrint('[Multiplayer] $error');
@@ -220,6 +222,18 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         _gameSubscription?.cancel();
         setState(() => _game = null);
         ToastUtils.show(context, 'Room deleted');
+        _loadRooms(showErrors: false);
+        return;
+      }
+      if (updated.status == 'abandoned') {
+        final handler = _roomEndedHandler;
+        if (handler != null) {
+          unawaited(handler());
+          return;
+        }
+        _gameSubscription?.cancel();
+        setState(() => _game = null);
+        ToastUtils.show(context, 'Room ended by the owner');
         _loadRooms(showErrors: false);
         return;
       }
@@ -819,10 +833,12 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       Future<void> endMatch() async {
         await _repository.manageRoom(room.id, 'stop');
         if (mounted) {
-          Navigator.of(context).pop();
-          ToastUtils.show(context, 'Match ended');
+          await _returnToMultiplayerSetup('Match ended');
         }
       }
+
+      _roomEndedHandler = () =>
+          _returnToMultiplayerSetup('The room owner ended the match');
 
       final provider =
           StateNotifierProvider<MultiplayerGameNotifier, GameState>(
@@ -863,7 +879,24 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           ),
         ),
       );
+      _roomEndedHandler = null;
+      _roomEndHandling = false;
     });
+  }
+
+  Future<void> _returnToMultiplayerSetup(String message) async {
+    if (_roomEndHandling) return;
+    _roomEndHandling = true;
+    _roomEndedHandler = null;
+    _gameSubscription?.cancel();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    setState(() {
+      _game = null;
+      _error = null;
+    });
+    await _loadRooms(showErrors: false);
+    if (mounted) ToastUtils.show(context, message);
   }
 
   Widget _buildPlayers(MultiplayerGame game) {

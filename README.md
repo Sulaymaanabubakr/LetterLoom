@@ -13,12 +13,12 @@ Solo games work without a network connection. Online multiplayer is implemented 
 - Solo games against a computer opponent, with `Easy`, `Medium`, and `Hard` difficulty levels.
 - Online two-player rooms: create or join a room with a six-character code, manage rooms, synchronize turns, enforce a 120-second turn countdown, and receive room updates.
 - A 15×15 board with centre, double-letter, triple-letter, double-word, and triple-word squares.
-- Word placement validation for first-move centre coverage, straight-line placement, gaps, connectivity, cross-words, blank tiles, and bingo bonuses.
+- Live word placement validation for first-move centre coverage, straight-line placement, gaps, connectivity, cross-words, blank tiles, and bingo bonuses, with immediate legal/invalid feedback while tiles are being placed.
 - Standard tile scores and distributions, including two blank tiles and a 50-point seven-tile bonus.
 - A bundled ENABLE1 word list for offline exact word validation and AI prefix search.
 - Background-isolate AI search so computer turns do not block the main UI.
 - Local JSON persistence for in-progress games, settings, and statistics, including continue/resume support.
-- Private multiplayer racks and tile bags separated from public room state in the Supabase schema.
+- 2–4-player multiplayer rooms with avatars, scores, Agora voice chat, active-speaker indicators, and private racks/tile bags separated from public room state in the Supabase schema.
 - Settings for music, sound effects, haptics, and animation speed, plus statistics by difficulty.
 
 ## Screenshots

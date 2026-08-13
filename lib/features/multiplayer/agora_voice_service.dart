@@ -50,7 +50,7 @@ class AgoraVoiceService {
             final local = speakers.where(
               (item) => item.uid == 0 || item.uid == _localUid,
             );
-            if (local.isNotEmpty) {
+            if (!_muted && local.isNotEmpty) {
               final volume = (local.first.volume ?? 0) / 255.0;
               _localVolume.add(volume.clamp(0.0, 1.0));
             }
@@ -58,6 +58,7 @@ class AgoraVoiceService {
                 .where(
                   (item) =>
                       item.uid != null &&
+                      !(_muted && (item.uid == 0 || item.uid == _localUid)) &&
                       ((item.vad ?? 0) == 1 || (item.volume ?? 0) >= 10),
                 )
                 .map((item) => item.uid == 0 ? _localUid : item.uid)
@@ -66,6 +67,7 @@ class AgoraVoiceService {
             _markSpeakers(active);
           },
           onActiveSpeaker: (_, uid) {
+            if (_muted && (uid == 0 || uid == _localUid)) return;
             _markSpeakers({uid == 0 ? (_localUid ?? 0) : uid});
           },
           onTokenPrivilegeWillExpire: (_, _) => unawaited(_renewToken()),
@@ -105,7 +107,13 @@ class AgoraVoiceService {
 
   Future<void> setMuted(bool muted) async {
     _muted = muted;
-    if (muted) _localVolume.add(0);
+    if (muted) {
+      _localVolume.add(0);
+      if (_localUid != null) {
+        _activeUntil.remove(_localUid);
+        _publishActiveSpeakers();
+      }
+    }
     try {
       await _engine?.muteLocalAudioStream(muted);
     } catch (_) {}

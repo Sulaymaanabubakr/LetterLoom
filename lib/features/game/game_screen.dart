@@ -1527,7 +1527,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   String _defaultStatusMsg(GameState state) {
     switch (state.status) {
       case 'playerTurn':
-        return 'Your turn — place your tiles!';
+        return 'Your turn: place your tiles!';
       case 'computerThinking':
         return widget.isMultiplayer
             ? 'Waiting for your opponent...'

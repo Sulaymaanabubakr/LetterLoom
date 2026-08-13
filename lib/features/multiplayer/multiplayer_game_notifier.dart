@@ -67,7 +67,7 @@ class MultiplayerGameNotifier extends GameNotifier {
         currentTurn: myTurn ? 'player' : 'computer',
         status: myTurn ? 'playerTurn' : 'waitingForOpponent',
         lastMoveMessage: myTurn
-            ? 'Your turn — place your tiles!'
+            ? 'Your turn: place your tiles!'
             : "Opponent's turn",
       );
     } catch (_) {
@@ -79,7 +79,15 @@ class MultiplayerGameNotifier extends GameNotifier {
   void pauseGame() {
     final wasPaused = isGamePaused;
     super.pauseGame();
-    if (!wasPaused) unawaited(_repository.pauseGame(gameId));
+    if (!wasPaused) unawaited(_pauseServerGame());
+  }
+
+  Future<void> _pauseServerGame() async {
+    try {
+      await _repository.pauseGame(gameId);
+    } catch (_) {
+      // The room may have been ended while the board was being dismissed.
+    }
   }
 
   @override

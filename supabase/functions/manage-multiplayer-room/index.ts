@@ -84,6 +84,23 @@ Deno.serve(async (req) => {
       p_game_id: gameId,
     });
     if (stopError) throw stopError;
+
+    // Stopping a room is terminal for every guest. Keep the owner’s room
+    // record so it can be deleted later, but remove guest memberships and
+    // private racks immediately so they cannot re-enter the ended match.
+    const { error: guestPrivateError } = await admin
+      .from('multiplayer_player_private')
+      .delete()
+      .eq('game_id', gameId)
+      .neq('user_id', user.id);
+    if (guestPrivateError) throw guestPrivateError;
+    const { error: guestError } = await admin
+      .from('multiplayer_players')
+      .delete()
+      .eq('game_id', gameId)
+      .neq('user_id', user.id);
+    if (guestError) throw guestError;
+
     const { data: stopped, error: stoppedReadError } = await admin
       .from('multiplayer_games')
       .select('id, room_code, status, current_turn_user_id, created_by_user_id, board, player_one_score, player_two_score, player_scores, winner_ids, max_players, consecutive_passes, move_number, winner_id, created_at, updated_at')

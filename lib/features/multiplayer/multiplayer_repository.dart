@@ -383,7 +383,7 @@ class MultiplayerStateSnapshot {
           ? (isMyTurn ? 'playerTurn' : 'waitingForOpponent')
           : 'gamePaused',
       lastMoveMessage: game.status == 'active'
-          ? (isMyTurn ? 'Your turn — place your tiles!' : "Opponent's turn")
+          ? (isMyTurn ? 'Your turn: place your tiles!' : "Opponent's turn")
           : template.lastMoveMessage,
       turnStartedAt: game.turnStartedAt,
     );

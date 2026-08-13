@@ -13,12 +13,13 @@ export const metadata: Metadata = {
     template: "%s | LetterLoom",
   },
   description:
-    "LetterLoom is a premium word game featuring solo offline play against AI and live online multiplayer. Thread letters together on a 15x15 board, craft high-scoring words, and master the Loom.",
+    "LetterLoom is a premium word game featuring solo offline play against AI and live 2–4-player multiplayer with voice chat, avatars, speaker indicators, and real-time move validation.",
   keywords: [
     "LetterLoom",
     "word game",
     "Scrabble alternative",
     "multiplayer word game",
+    "voice chat word game",
     "offline word game",
     "ENABLE1 dictionary",
     "word puzzle",
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "LetterLoom - Premium Word Game",
     description:
-      "Solo offline play against AI + live online multiplayer. Available on iOS & Android.",
+      "Solo offline play against AI plus live 2–4-player multiplayer with voice chat. Available on iOS & Android.",
     url: siteUrl,
     siteName: "LetterLoom",
     images: [
@@ -58,7 +59,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "LetterLoom - Premium Word Game",
     description:
-      "Solo offline play against AI + live online multiplayer. Crafted for word masters.",
+      "Solo offline play against AI plus live multiplayer with voice chat and real-time validation. Crafted for word masters.",
     images: ["/logo.png"],
     creator: "@letterloom",
   },

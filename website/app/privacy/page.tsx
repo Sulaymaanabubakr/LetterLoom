@@ -19,7 +19,7 @@ export default function PrivacyPage() {
             <span>✦</span> Legal &amp; Compliance <span>✦</span>
           </div>
           <h1 className="legal-title gold-text">Privacy Policy</h1>
-          <p className="legal-updated">Last Updated: August 12, 2026</p>
+          <p className="legal-updated">Last Updated: August 13, 2026</p>
         </FadeIn>
 
         <div className="legal-body">
@@ -45,6 +45,7 @@ export default function PrivacyPage() {
                   <p style={{ marginTop: 8 }}><strong>B. Game and purchase data:</strong> Offline solo-game progress and settings are stored on your device. When you use online features, we store the profile, room code, authoritative match state, scores, turn history, ranked results, Word of the Day and Daily Challenge progress, and hint or boost-purchase records necessary to operate those features, preserve progress, and prevent duplicate fulfilment.</p>
                   <p style={{ marginTop: 8 }}><strong>C. Device and notification data:</strong> If you allow notifications, we store a Firebase Cloud Messaging token, platform, and last-seen time so we can send game-related notifications. You can choose notifications for multiplayer turns, ranked-match updates, and Daily Challenge reminders in the app&apos;s Settings. Apple, Google, and Firebase may process device and delivery information under their own policies.</p>
                   <p style={{ marginTop: 8 }}><strong>D. Advertising and billing:</strong> The app includes Google Mobile Ads for optional rewarded ads and uses Apple App Store / Google Play billing for purchases. Those providers may process advertising identifiers, device information, transaction information, and fraud-prevention signals under their own privacy policies. LetterLoom does not sell personal information.</p>
+                  <p style={{ marginTop: 8 }}><strong>E. Voice chat and multiplayer presence:</strong> If you use voice chat in a multiplayer match, LetterLoom requests microphone permission and sends your live microphone audio through Agora&apos;s real-time voice service to other players in that room. LetterLoom does not record or store voice-chat audio. The app receives temporary audio-volume and active-speaker events so it can animate your microphone control and highlight the player card of whoever is speaking. Multiplayer presence such as connection and microphone enabled/muted state is shared with the room for the duration of the match.</p>
                 </>
               ),
             },
@@ -52,7 +53,7 @@ export default function PrivacyPage() {
               title: "3. Network Communications, Audio & Offline Functionality",
               content: (
                 <p>
-                  LetterLoom bundles the ENABLE1 English dictionary in the app and includes licensed ambient audio for menus and gameplay. Offline solo matches do not require a network connection; however, your device may still contact Apple, Google, Firebase, Supabase, or ad services when you enable features that use them.
+                  LetterLoom bundles the ENABLE1 English dictionary in the app and includes licensed ambient audio for menus and gameplay. Offline solo matches do not require a network connection; however, your device may still contact Apple, Google, Firebase, Supabase, Agora, or ad services when you enable features that use them. During voice chat, game music and tap effects are paused or suppressed locally to reduce microphone bleed and echo; your microphone remains available for your voice.
                 </p>
               ),
             },
@@ -76,7 +77,7 @@ export default function PrivacyPage() {
               title: "6. Your Choices, Retention & Third-Party Services",
               content: (
                 <p>
-                  You may turn off music, sound, and notifications in the app or device settings, and may turn off specific LetterLoom notification categories in the app&apos;s Settings. LetterLoom relies on Google Sign-In, Supabase (authentication and game data), Firebase Cloud Messaging, Google Mobile Ads, and Apple App Store / Google Play services where applicable. Each provider processes information under its own privacy policy. We retain online account and game records for as long as needed to provide the feature, resolve disputes, prevent fraud, or meet legal obligations. You can request access to or deletion of your LetterLoom account data by contacting us below.
+                  You may turn off music, sound, and notifications in the app or device settings, mute voice chat from the in-game microphone button, or revoke microphone permission in your device settings. LetterLoom relies on Google Sign-In, Supabase (authentication and game data), Agora (real-time voice transport), Firebase Cloud Messaging, Google Mobile Ads, and Apple App Store / Google Play services where applicable. Each provider processes information under its own privacy policy. We retain online account and game records for as long as needed to provide the feature, resolve disputes, prevent fraud, or meet legal obligations. Voice audio is not retained by LetterLoom. You can request access to or deletion of your LetterLoom account data by contacting us below.
                 </p>
               ),
             },

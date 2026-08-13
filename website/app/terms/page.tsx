@@ -19,7 +19,7 @@ export default function TermsPage() {
             <span>✦</span> Legal &amp; Compliance <span>✦</span>
           </div>
           <h1 className="legal-title gold-text">Terms of Service</h1>
-          <p className="legal-updated">Last Updated: August 12, 2026</p>
+          <p className="legal-updated">Last Updated: August 13, 2026</p>
         </FadeIn>
 
         <div className="legal-body">
@@ -67,7 +67,17 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "5. Daily Features, Ranked Play & Fair Play",
+              title: "5. Voice Chat & Multiplayer Rooms",
+              content: (
+                <>
+                  <p>Multiplayer rooms may support 2–4 players and may include optional real-time voice chat. You are responsible for granting or denying microphone permission and for muting yourself when you do not wish to transmit audio. Voice chat is transported through Agora and is not recorded or stored by LetterLoom.</p>
+                  <p style={{ marginTop: 8 }}>Volume and active-speaker indicators are gameplay signals used to highlight the player card of the person currently speaking. Do not use voice chat to harass, threaten, impersonate, or share unlawful, abusive, private, or harmful content.</p>
+                  <p style={{ marginTop: 8 }}>A room owner may end a casual match. When that happens, the room&apos;s other players are removed from the match and returned to Multiplayer setup. Room state, player membership, avatars, scores, and move validation are controlled by the authoritative online service and may update in real time.</p>
+                </>
+              ),
+            },
+            {
+              title: "6. Daily Features, Ranked Play & Fair Play",
               content: (
                 <>
                   <p>Daily Challenge and Word of the Day content changes over time. A Daily Challenge has a time limit and may be marked failed when that time expires; leaving the challenge pauses its timer until you return. Scores, ranks, rewards, match outcomes, and availability are determined by the game&apos;s authoritative online services where applicable.</p>
@@ -76,7 +86,7 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "6. Boosts, Rewarded Ads & Purchases",
+              title: "7. Boosts, Rewarded Ads & Purchases",
               content: (
                 <>
                   <p>LetterLoom may offer optional rewarded ads and optional boost purchases. A rewarded ad only grants its stated in-game reward after the advertising provider confirms completion. Purchases are processed by the Apple App Store or Google Play, not directly by LetterLoom, and are subject to the applicable store&apos;s billing terms and refund policies.</p>
@@ -85,13 +95,13 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "7. Notifications and Service Changes",
+              title: "8. Notifications and Service Changes",
               content: (
                 <p>With your permission, LetterLoom may send notifications about multiplayer turns, ranked matches, and Daily Challenges. You can manage categories in the app&apos;s Settings and can disable notifications in your device settings. Online features, content, and notifications may change, be unavailable, or be discontinued as we maintain and improve the service.</p>
               ),
             },
             {
-              title: "8. Disclaimer of Warranties",
+              title: "9. Disclaimer of Warranties",
               content: (
                 <p>
                   LetterLoom is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis without warranties of any kind, whether express or implied. We do not warrant that the application will operate uninterrupted or error-free at all times.
@@ -99,7 +109,7 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "9. Limitation of Liability",
+              title: "10. Limitation of Liability",
               content: (
                 <p>
                   To the fullest extent permitted by applicable law, LetterLoom and its creator shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or related to your use of the application.
@@ -107,7 +117,7 @@ export default function TermsPage() {
               ),
             },
             {
-              title: "10. Governing Law & Contact",
+              title: "11. Governing Law & Contact",
               content: (
                 <p>
                   These Terms shall be governed by and construed in accordance with applicable laws, without regard to its conflict of law principles. For account, data, billing, or Terms questions, contact us using the address below.

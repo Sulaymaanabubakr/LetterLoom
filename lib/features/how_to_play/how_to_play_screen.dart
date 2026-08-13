@@ -221,7 +221,7 @@ class HowToPlayScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'LetterLoom is a word game where two players compete by forming words on a 15×15 grid using letter tiles from a rack of seven. Play solo against the computer without a connection, or use Multiplayer with another person from a different location. Each word is verified against the built-in English dictionary.',
+                              'LetterLoom is a word game where 2–4 players compete by forming words on a 15×15 grid using letter tiles from a rack of seven. Play solo against the computer without a connection, or use Multiplayer with friends from different locations. Each placement is checked against the rules and built-in English dictionary.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
@@ -269,6 +269,10 @@ class HowToPlayScreen extends StatelessWidget {
                             _buildBulletItem(
                               'Connectivity: ',
                               'After the first turn, every new word must connect to at least one tile already locked on the board.',
+                            ),
+                            _buildBulletItem(
+                              'Live Validation: ',
+                              'As you place or move tiles, green borders show a legal pending move and red borders show what needs to be corrected before you play it.',
                             ),
                           ],
                         ),
@@ -423,7 +427,7 @@ class HowToPlayScreen extends StatelessWidget {
                             ),
                             _buildBulletItem(
                               'Online Rooms: ',
-                              'Sign in, create a room, then share its code with a friend. You can also join a room with a code. Both players take turns on the same authoritative board.',
+                              'Sign in, create a 2–4-player room, then share its code. Players take turns on the same authoritative board, with each player’s avatar and score shown in the compact player cards.',
                             ),
                             _buildBulletItem(
                               'Competitive Duel: ',
@@ -432,6 +436,14 @@ class HowToPlayScreen extends StatelessWidget {
                             _buildBulletItem(
                               'Turn Timer: ',
                               'Online turns have a two-minute countdown. Pause the game before leaving when you need a break. A paused match freezes the timer for both players until it is resumed.',
+                            ),
+                            _buildBulletItem(
+                              'Voice Chat: ',
+                              'Use the microphone button beside Play Word to speak with the room. The active speaker’s player card highlights in green, and your microphone button responds to your voice level. Music and tap sounds are suppressed while voice chat is active.',
+                            ),
+                            _buildBulletItem(
+                              'Room Owner: ',
+                              'When the owner ends a casual match, all other players are removed automatically and returned to the Multiplayer setup screen.',
                             ),
                           ],
                         ),
@@ -524,6 +536,10 @@ class HowToPlayScreen extends StatelessWidget {
                             _buildBulletItem(
                               'Notifications: ',
                               'Signed-in players can choose alerts for multiplayer turns, ranked updates, and the Daily Challenge from Settings.',
+                            ),
+                            _buildBulletItem(
+                              'Microphone Permission: ',
+                              'Voice chat asks for microphone access during the app’s permission setup. You can mute or unmute from the in-game microphone button at any time.',
                             ),
                             _buildBulletItem(
                               'Play Fair: ',

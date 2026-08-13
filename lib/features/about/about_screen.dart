@@ -131,7 +131,7 @@ class AboutScreen extends StatelessWidget {
                         icon: Icons.history_edu_rounded,
                         title: "The Loom's Tale",
                         content:
-                            "LetterLoom is a premium word game for thoughtful solo play and distant multiplayer matches. Play offline against a clever computer opponent, or create an online room and challenge someone wherever they are. Thread letters together, craft high-scoring words, and make every move count.",
+                            "LetterLoom is a premium word game for thoughtful solo play and live multiplayer matches. Play offline against a clever computer opponent, or create a 2–4-player online room with voice chat, visible speaker indicators, avatars, and shared turn-based play. Thread letters together, craft high-scoring words, and make every move count.",
                       ),
                       const SizedBox(height: 16),
                       // Section 2: The Lexicon
