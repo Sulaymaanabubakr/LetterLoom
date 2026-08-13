@@ -20,6 +20,9 @@
         <meta-data
             android:name="com.google.android.gms.games.APP_ID"
             android:value="@string/play_games_app_id" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/letterloom_gameplay_channel" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

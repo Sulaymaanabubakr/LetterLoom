@@ -288,20 +288,31 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen>
     final complete = updated.isCompleted;
     final score = updated.scoreAchieved;
     final stars = updated.starRating;
-    await DailyChallengeService.saveState(updated);
-    if (complete) {
-      await ref
-          .read(progressionProvider)
-          .addXP(150, reason: 'Daily Challenge Completed');
-    }
     if (!mounted) return;
     setState(() => _challengeState = updated);
     _isSubmitting = false;
+    unawaited(_persistChallengeResult(updated, complete));
     if (complete) {
       _showResultDialog(score, _puzzleData.targetScore, stars);
     } else {
       _selectWord(_firstOpenWord(updated.solvedWordIndexes));
       ToastUtils.showToast(context, 'Word found! Keep going.');
+    }
+  }
+
+  Future<void> _persistChallengeResult(
+    DailyChallengeState state,
+    bool complete,
+  ) async {
+    try {
+      await DailyChallengeService.saveState(state);
+      if (complete) {
+        await ref
+            .read(progressionProvider)
+            .addXP(150, reason: 'Daily Challenge Completed');
+      }
+    } catch (error) {
+      debugPrint('[DailyChallenge] Unable to persist result: $error');
     }
   }
 
@@ -328,7 +339,7 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'Words Found: 6 / 6',
+              'Words Found: ${_puzzleData.words.length} / ${_puzzleData.words.length}',
               style: GoogleFonts.lora(
                 fontSize: 18,
                 color: AppTheme.shinyGold,
@@ -746,27 +757,11 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen>
   }
 
   Widget _buildLetterTray(DailyWord word, {bool expandToFill = false}) {
+    if (_challengeState.isCompleted) {
+      return _buildCompletedPanel(expandToFill: expandToFill);
+    }
     if (_challengeState.failed) {
-      return Container(
-        margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppTheme.panelDark,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE0524B).withValues(alpha: 0.65),
-          ),
-        ),
-        child: Text(
-          'Time expired — answers revealed above.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFFE0524B),
-          ),
-        ),
-      );
+      return _buildFailedPanel(expandToFill: expandToFill);
     }
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
@@ -856,6 +851,173 @@ class _DailyChallengeScreenState extends ConsumerState<DailyChallengeScreen>
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedPanel({required bool expandToFill}) {
+    return _buildResultPanel(
+      expandToFill: expandToFill,
+      accent: AppTheme.shinyGold,
+      icon: Icons.auto_awesome_rounded,
+      eyebrow: 'TODAY\'S THREAD IS COMPLETE',
+      title: 'You passed beautifully',
+      message: 'Every clue is woven into the mosaic. Your streak is safe.',
+      footer: 'Come back tomorrow for a fresh challenge.',
+      stats: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _resultMetric('${_challengeState.scoreAchieved}', 'SCORE'),
+          const SizedBox(width: 28),
+          _resultMetric('${_challengeState.streakDays}', 'DAY STREAK'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFailedPanel({required bool expandToFill}) {
+    return _buildResultPanel(
+      expandToFill: expandToFill,
+      accent: const Color(0xFFE08A5B),
+      icon: Icons.hourglass_bottom_rounded,
+      eyebrow: 'THE THREAD SLIPPED AWAY',
+      title: 'Not this time',
+      message:
+          'The clock ran out, but the answers are revealed above so you can learn the pattern.',
+      footer: 'Your next Daily Challenge will be ready tomorrow.',
+      stats: Text(
+        'Keep your streak mindset — one missed day does not define your game.',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          height: 1.35,
+          color: AppTheme.mutedIvory,
+        ),
+      ),
+    );
+  }
+
+  Widget _resultMetric(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.lora(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.ivoryText,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.1,
+            color: AppTheme.mutedIvory,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResultPanel({
+    required bool expandToFill,
+    required Color accent,
+    required IconData icon,
+    required String eyebrow,
+    required String title,
+    required String message,
+    required String footer,
+    required Widget stats,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      padding: EdgeInsets.symmetric(
+        horizontal: 22,
+        vertical: expandToFill ? 28 : 22,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.22),
+            AppTheme.panelDark,
+            AppTheme.panelDark,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: accent.withValues(alpha: 0.72)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.12),
+            blurRadius: 22,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: expandToFill
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withValues(alpha: 0.18),
+              border: Border.all(color: accent.withValues(alpha: 0.7)),
+            ),
+            child: Icon(icon, color: accent, size: 30),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            eyebrow,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.bold,
+              color: accent,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.lora(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.ivoryText,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              height: 1.4,
+              color: AppTheme.mutedIvory,
+            ),
+          ),
+          const SizedBox(height: 18),
+          stats,
+          const SizedBox(height: 18),
+          Text(
+            footer,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: accent,
             ),
           ),
         ],

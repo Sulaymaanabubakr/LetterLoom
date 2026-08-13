@@ -2,6 +2,13 @@ import { getAdminClient } from './supabase.ts';
 
 type PushData = Record<string, string>;
 
+export type PushDeliveryResult = {
+  eligible: number;
+  sent: number;
+  failed: number;
+  error?: string;
+};
+
 function base64Url(value: Uint8Array | string): string {
   const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
   let binary = '';
@@ -57,10 +64,15 @@ export async function sendPushNotification(
   body: string,
   data: PushData = {},
   preference: 'multiplayer_turns' | 'ranked_matches' | 'daily_reminders' = 'multiplayer_turns',
-): Promise<void> {
+): Promise<PushDeliveryResult> {
   try {
     const rawServiceAccount = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON');
-    if (!rawServiceAccount || userIds.length === 0) return;
+    if (!rawServiceAccount) {
+      const error = 'Firebase service account is not configured.';
+      console.error(error);
+      return { eligible: 0, sent: 0, failed: userIds.length, error };
+    }
+    if (userIds.length === 0) return { eligible: 0, sent: 0, failed: 0 };
 
     const serviceAccount = JSON.parse(rawServiceAccount) as Record<string, string>;
     const admin = getAdminClient();
@@ -69,7 +81,7 @@ export async function sendPushNotification(
       .select('user_id, token')
       .in('user_id', userIds);
     if (error) throw error;
-    if (!devices || devices.length === 0) return;
+    if (!devices || devices.length === 0) return { eligible: 0, sent: 0, failed: 0 };
 
     const { data: preferences, error: preferenceError } = await admin
       .from('notification_preferences')
@@ -80,26 +92,43 @@ export async function sendPushNotification(
       (preferences ?? []).map((item) => [item.user_id as string, item[preference] !== false]),
     );
     const eligibleDevices = devices.filter((device) => enabledByUser.get(device.user_id as string) !== false);
-    if (eligibleDevices.length === 0) return;
+    if (eligibleDevices.length === 0) return { eligible: 0, sent: 0, failed: 0 };
 
     const token = await accessToken(serviceAccount);
     const endpoint = `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`;
+    let sent = 0;
+    let failed = 0;
     await Promise.all(eligibleDevices.map(async (device) => {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: {
-            token: device.token,
-            notification: { title, body },
-            data,
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-        }),
-      });
-      if (!response.ok) {
+          body: JSON.stringify({
+            message: {
+              token: device.token,
+              notification: { title, body },
+              data,
+              android: {
+                priority: 'HIGH',
+                notification: {
+                  channel_id: 'letterloom_gameplay',
+                  sound: 'default',
+                },
+              },
+              apns: {
+                payload: { aps: { sound: 'default' } },
+              },
+            },
+          }),
+        });
+        if (response.ok) {
+          sent += 1;
+          return;
+        }
+        failed += 1;
         const failure = await response.json().catch(() => ({}));
         const status = String(failure?.error?.status ?? '');
         // FCM reports these for an uninstalled app or a rotated token. Prune
@@ -109,9 +138,19 @@ export async function sendPushNotification(
           await admin.from('push_devices').delete().eq('token', device.token);
         }
         console.error('FCM delivery failed:', response.status, status);
+      } catch (error) {
+        failed += 1;
+        console.error('FCM request failed:', error);
       }
     }));
+    return { eligible: eligibleDevices.length, sent, failed };
   } catch (error) {
     console.error('Push notification failed:', error);
+    return {
+      eligible: userIds.length,
+      sent: 0,
+      failed: userIds.length,
+      error: error instanceof Error ? error.message : 'Unknown push error',
+    };
   }
 }

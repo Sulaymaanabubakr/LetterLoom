@@ -8,6 +8,7 @@ import '../../core/supabase_bootstrap.dart';
 import '../../core/toast_utils.dart';
 import '../hints/hint_service.dart';
 import '../progression/progression_service.dart';
+import '../auth/auth_service.dart';
 
 @immutable
 class DailyRewardState {
@@ -163,7 +164,14 @@ class DailyRewardsService {
         );
         final payload = response.data;
         final result = payload is Map ? payload['result'] : null;
-        return result is Map && result['claimed'] == true;
+        final claimed = result is Map && result['claimed'] == true;
+        if (claimed) {
+          // The claim is server-owned. Hydrate every visible account balance
+          // immediately so Home does not wait for a relaunch.
+          await ref.read(hintServiceProvider.notifier).refresh();
+          await ref.read(authProvider.notifier).refreshRemoteProfile();
+        }
+        return claimed;
       } catch (error) {
         debugPrint('[DailyRewards] Server claim unavailable: $error');
         return false;

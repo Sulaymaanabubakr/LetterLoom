@@ -19,6 +19,9 @@ void main() async {
   unawaited(AdService().initialize());
   unawaited(BillingService().initialize());
   runApp(const ProviderScope(child: LetterLoomApp()));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(PushNotificationService.requestPermissionAndRegister());
+  });
 }
 
 class LetterLoomApp extends StatelessWidget {

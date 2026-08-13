@@ -124,6 +124,23 @@ class AuthNotifier extends StateNotifier<PlayerProfile> {
     await _persistence.saveAuthenticatedProfile(profile);
   }
 
+  /// Revalidate the signed-in profile when the app returns to the foreground
+  /// or a server-owned action may have changed account state elsewhere.
+  Future<void> refreshRemoteProfile() async {
+    if (state.isGuest || !SupabaseBootstrap.configured) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.isAnonymous) return;
+    final remoteProfile = await _loadRemoteProfile(user.id);
+    if (remoteProfile != null) await adoptServerProfile(remoteProfile);
+  }
+
+  /// Reconcile account-scoped statistics and achievements after the app
+  /// resumes or a server-owned reward has completed.
+  Future<void> refreshRemoteAccountProgress() async {
+    if (state.isGuest) return;
+    await _hydrateAccountProgress(allowLocalMigration: false);
+  }
+
   Future<void> _hydrateAccountProgress({
     required bool allowLocalMigration,
   }) async {

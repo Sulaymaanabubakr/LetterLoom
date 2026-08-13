@@ -98,8 +98,9 @@ class PushNotificationService {
               await _removeCurrentDeviceToken();
               return;
             }
-            if (event.session?.user.isAnonymous == false)
-              await _registerCurrentToken();
+            if (event.session?.user.isAnonymous == false) {
+              await _ensurePermissionAndRegister();
+            }
           });
       _tokenSubscription = messaging.onTokenRefresh.listen((token) async {
         _token = token;
@@ -125,6 +126,7 @@ class PushNotificationService {
       FirebaseMessaging.instance.getNotificationSettings();
 
   static Future<bool> requestPermissionAndRegister() async {
+    if (!isSignedIn) return false;
     try {
       final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
@@ -140,6 +142,19 @@ class PushNotificationService {
       debugPrint('Unable to request notifications: $error');
       return false;
     }
+  }
+
+  static Future<void> _ensurePermissionAndRegister() async {
+    if (!isSignedIn) return;
+    final settings = await permissionStatus();
+    final allowed =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
+    if (allowed) {
+      await _registerCurrentToken();
+      return;
+    }
+    await requestPermissionAndRegister();
   }
 
   static Future<NotificationPreferences> loadPreferences() async {

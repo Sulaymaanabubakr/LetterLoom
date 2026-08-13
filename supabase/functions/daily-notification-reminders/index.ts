@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     const { data: devices, error } = await devicesQuery;
     if (error) throw error;
     const recipients = [...new Set((devices ?? []).map((device) => device.user_id as string))];
-    await sendPushNotification(
+    const delivery = await sendPushNotification(
       recipients,
       testUserId ? 'LetterLoom notification test' : 'Daily Challenge is ready',
       testUserId
@@ -39,7 +39,15 @@ Deno.serve(async (req) => {
       { event: testUserId ? 'notification_test' : 'daily_challenge' },
       'daily_reminders',
     );
-    return response({ delivered_to: recipients.length });
+    if (delivery.failed > 0) {
+      return response({
+        delivered_to: delivery.sent,
+        eligible: delivery.eligible,
+        failed: delivery.failed,
+        error: delivery.error ?? 'Firebase rejected one or more notifications.',
+      }, 502);
+    }
+    return response({ delivered_to: delivery.sent, eligible: delivery.eligible, failed: 0 });
   } catch (error) {
     console.error('daily-notification-reminders error', error);
     return response({ error: 'Unable to send daily reminders.' }, 500);

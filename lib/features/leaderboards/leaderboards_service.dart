@@ -29,7 +29,8 @@ class LeaderboardEntry {
 class LeaderboardsService {
   /// Fetches in-app leaderboard entries for specified category.
   static Future<List<LeaderboardEntry>> fetchLeaderboard({
-    required String category, // 'rating', 'wins', 'game_score', 'turn_score', 'daily'
+    required String
+    category, // 'rating', 'wins', 'game_score', 'turn_score', 'daily'
     required String currentUserId,
   }) async {
     final List<LeaderboardEntry> results = [];
@@ -44,24 +45,28 @@ class LeaderboardsService {
             .from('player_profiles')
             .select()
             .order(column, ascending: false)
+            .order('updated_at', ascending: false)
             .limit(50);
 
         int pos = 1;
         for (var row in response) {
           final scoreVal = (row[column] as int?) ?? 0;
           final userId = row['id'] as String? ?? '';
-          final rating = (row['ranked_rating'] as int?) ?? AppConfig.defaultRankedRating;
+          final rating =
+              (row['ranked_rating'] as int?) ?? AppConfig.defaultRankedRating;
 
-          results.add(LeaderboardEntry(
-            rank: pos++,
-            username: row['username'] as String? ?? 'Gamer',
-            displayName: row['display_name'] as String? ?? 'Gamer',
-            avatarId: row['avatar_id'] as String? ?? 'avatar_owl',
-            countryCode: row['country_code'] as String? ?? 'US',
-            score: scoreVal,
-            tier: AppConfig.getRankedTier(rating),
-            isCurrentPlayer: userId == currentUserId,
-          ));
+          results.add(
+            LeaderboardEntry(
+              rank: pos++,
+              username: row['username'] as String? ?? 'Gamer',
+              displayName: row['display_name'] as String? ?? 'Gamer',
+              avatarId: row['avatar_id'] as String? ?? 'avatar_owl',
+              countryCode: row['country_code'] as String? ?? 'US',
+              score: scoreVal,
+              tier: AppConfig.getRankedTier(rating),
+              isCurrentPlayer: userId == currentUserId,
+            ),
+          );
         }
       } catch (e) {
         debugPrint('[Leaderboards] Supabase fetch error: $e');

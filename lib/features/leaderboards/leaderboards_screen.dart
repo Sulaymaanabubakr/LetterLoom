@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/app_theme.dart';
+import '../../core/supabase_bootstrap.dart';
 import '../auth/auth_service.dart';
 import 'leaderboards_service.dart';
 
@@ -13,18 +16,43 @@ class LeaderboardsScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaderboardsScreenState extends ConsumerState<LeaderboardsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   List<LeaderboardEntry> _entries = [];
   bool _isLoading = true;
   bool _hasLoadError = false;
+  RealtimeChannel? _realtimeChannel;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
+    WidgetsBinding.instance.addObserver(this);
+    _subscribeToProfileChanges();
     _loadCategory('rating');
+  }
+
+  void _subscribeToProfileChanges() {
+    if (!SupabaseBootstrap.configured) return;
+    _realtimeChannel = Supabase.instance.client
+        .channel('leaderboards-${identityHashCode(this)}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'player_profiles',
+          callback: (_) {
+            if (mounted) _loadCategory(_categoryForIndex());
+          },
+        )
+        .subscribe();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadCategory(_categoryForIndex()));
+    }
   }
 
   void _onTabChanged() {
@@ -70,6 +98,9 @@ class _LeaderboardsScreenState extends ConsumerState<LeaderboardsScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    final channel = _realtimeChannel;
+    if (channel != null) unawaited(channel.unsubscribe());
     _tabController.dispose();
     super.dispose();
   }
@@ -102,15 +133,27 @@ class _LeaderboardsScreenState extends ConsumerState<LeaderboardsScreen>
                           color: AppTheme.shinyGold,
                         ),
                       )
-                    : _entries.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _entries.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) =>
-                            _buildLeaderboardTile(_entries[index]),
+                    : RefreshIndicator(
+                        onRefresh: () => _loadCategory(_categoryForIndex()),
+                        child: _entries.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  SizedBox(
+                                    height: 420,
+                                    child: _buildEmptyState(),
+                                  ),
+                                ],
+                              )
+                            : ListView.separated(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _entries.length,
+                                separatorBuilder: (context, index) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (context, index) =>
+                                    _buildLeaderboardTile(_entries[index]),
+                              ),
                       ),
               ),
             ],
